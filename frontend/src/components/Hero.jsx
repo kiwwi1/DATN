@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import {assets} from '../assets/assets'
+import { assets } from '../assets/assets'
 
 const Hero = () => {
-  // Assuming you have multiple hero images in your assets
   const heroImages = [
     assets.hero_img,
     assets.hero_img,
@@ -11,21 +10,21 @@ const Hero = () => {
   ];
   
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [slideDirection, setSlideDirection] = useState('right'); // 'right' or 'left'
+  const [slideDirection, setSlideDirection] = useState('right');
+  const [isVisible, setIsVisible] = useState(false);
   
-  // Optional: Auto-rotate slides
   useEffect(() => {
+    setIsVisible(true);
     const interval = setInterval(() => {
       setSlideDirection('right');
       setCurrentIndex(prevIndex => 
         prevIndex === heroImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 5000); // Change slide every 5 seconds
+    }, 5000);
     
     return () => clearInterval(interval);
   }, [heroImages.length]);
   
-  // Navigation functions
   const nextSlide = () => {
     setSlideDirection('right');
     setCurrentIndex(prevIndex => 
@@ -41,55 +40,75 @@ const Hero = () => {
   };
   
   return (
-    <div className='flex flex-col sm:flex-row border border-gray-400'>
-        <div className='w-full sm:w-1/2 flex items-center justify-center py-10 sm:py-0'>
-            <div className='text-[#414141]'>
-                <div className='flex items-center gap-2'>
-                    <p className='w-8 md:w-11 h-[2px] bg-[#414141]'></p>
-                    <p className='font-medium text-sm md:text-base'>OUR BESTSELLER</p>
-                </div>
-                <h1 className='prata-regular text-3xl sm:py-3 lg:text-5xl leading-relaxed'>Latest Arrival</h1>
-                <div className='flex items-center gap-2'>
-                    <p className='font-semibold text-sm md:text-base'>SHOP NOW</p>
-                    <p className='w-8 md:w-11 h-[1px] bg-[#414141]'></p>
-                </div>
+    <div className='relative min-h-[80vh] bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden'>
+      {/* Animated background pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent animate-pulse"></div>
+      </div>
+
+      <div className='flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20'>
+        <div className={`w-full sm:w-1/2 text-white transform transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
+          <div className='space-y-6'>
+            <div className='flex items-center gap-3'>
+              <div className='w-12 h-[2px] bg-gradient-to-r from-white to-transparent'></div>
+              <p className='font-medium tracking-wider text-sm md:text-base text-gray-300'>OUR BESTSELLER</p>
             </div>
+            <h1 className='text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight'>
+              <span className='block'>Latest</span>
+              <span className='block text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400'>Arrival</span>
+            </h1>
+            <p className='text-gray-300 text-sm md:text-base max-w-md'>
+              Discover our newest collection of premium fashion items, crafted with the finest materials and attention to detail.
+            </p>
+            <div className='flex items-center gap-4'>
+              <button className='px-8 py-4 bg-white text-gray-900 rounded-full font-medium hover:bg-gray-100 transition-all duration-300 transform hover:scale-105'>
+                SHOP NOW
+              </button>
+              <button className='px-8 py-4 border border-white text-white rounded-full font-medium hover:bg-white/10 transition-all duration-300'>
+                LEARN MORE
+              </button>
+            </div>
+          </div>
         </div>
         
-        {/* Image Slider with improved transitions */}
-        <div className='w-full sm:w-1/2 relative overflow-hidden'>
+        <div className='w-full sm:w-1/2 relative mt-12 sm:mt-0'>
+          <div className={`relative overflow-hidden rounded-2xl shadow-2xl transform transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
             <div 
               className={`
-                transition-transform duration-500 ease-in-out 
+                transition-transform duration-700 ease-in-out 
                 ${slideDirection === 'right' ? 'slide-right' : 'slide-left'}
               `} 
               style={{ width: '100%', height: '100%' }}
             >
               <img 
-                className='w-full h-full object-cover' 
+                className='w-full h-[500px] object-cover rounded-2xl' 
                 src={heroImages[currentIndex]} 
                 alt="Hero image"
               />
             </div>
             
-            {/* Navigation Arrows */}
+            {/* Navigation Arrows with glass effect */}
             <div className='absolute inset-0 flex items-center justify-between px-4'>
               <button 
                 onClick={prevSlide}
-                className='bg-white/30 hover:bg-white/50 rounded-full p-2 text-gray-800 z-10 transition-colors'
+                className='backdrop-blur-md bg-white/10 hover:bg-white/20 rounded-full p-4 text-white z-10 transition-all duration-300 transform hover:scale-110'
               >
-                &#10094;
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
               <button 
                 onClick={nextSlide}
-                className='bg-white/30 hover:bg-white/50 rounded-full p-2 text-gray-800 z-10 transition-colors'
+                className='backdrop-blur-md bg-white/10 hover:bg-white/20 rounded-full p-4 text-white z-10 transition-all duration-300 transform hover:scale-110'
               >
-                &#10095;
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
             
-            {/* Slide Indicators */}
-            <div className='absolute bottom-4 left-0 right-0 flex justify-center gap-2'>
+            {/* Slide Indicators with glass effect */}
+            <div className='absolute bottom-6 left-0 right-0 flex justify-center gap-3'>
               {heroImages.map((_, index) => (
                 <button 
                   key={index}
@@ -97,13 +116,19 @@ const Hero = () => {
                     setSlideDirection(index > currentIndex ? 'right' : 'left');
                     setCurrentIndex(index);
                   }}
-                  className={`h-2 w-2 rounded-full transition-all duration-300 ${
-                    index === currentIndex ? 'bg-white scale-125' : 'bg-white/50'
-                  }`}
+                  className={`
+                    h-2.5 w-2.5 rounded-full transition-all duration-300 backdrop-blur-md
+                    ${index === currentIndex 
+                      ? 'bg-white scale-125' 
+                      : 'bg-white/50 hover:bg-white/75'
+                    }
+                  `}
                 />
               ))}
             </div>
+          </div>
         </div>
+      </div>
     </div>
   )
 }

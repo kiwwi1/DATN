@@ -5,6 +5,8 @@ import connectDB from './config/mongodb.js';
 import connectCloudinary from './config/cloudinary.js';
 import userRouter from './routes/userRoute.js';
 import productRouter from './routes/productRoute.js';
+import orderRouter from './routes/orderRoute.js';
+import cartRouter from './routes/cartRoute.js';
 
 
 // App config
@@ -15,13 +17,18 @@ connectDB();
 connectCloudinary();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true
+}));
 app.use(express.json());
 
 //api endpoints
 
 app.use('/api/user', userRouter);
 app.use('/api/product', productRouter);
+app.use('/api/order', orderRouter);
+app.use('/api/cart', cartRouter);
 
 
 app.listen(port, () => {

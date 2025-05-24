@@ -1,4 +1,3 @@
-
 import { v2 as cloudinary } from "cloudinary"
 import connectCloudinary from "../config/cloudinary.js";
 import productModel from "../models/productModel.js";
@@ -9,11 +8,28 @@ connectCloudinary()
 const addProduct = async (req,res) => {
     try {
         const {name, description, price, category, subCategory, sizes, bestseller} = req.body;
-        const image1 = req.files.image1 && req.files.image1[0] 
-        const image2 = req.files.image2 && req.files.image2[0] 
-        const image3 = req.files.image3 && req.files.image3[0] 
-        const image4 = req.files.image4 && req.files.image4[0] 
+        
+        // Validate required fields
+        if (!name || !description || !price || !category || !subCategory || !sizes) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        const image1 = req.files?.image1 && req.files.image1[0] 
+        const image2 = req.files?.image2 && req.files.image2[0] 
+        const image3 = req.files?.image3 && req.files.image3[0] 
+        const image4 = req.files?.image4 && req.files.image4[0] 
         const images = [image1,image2,image3,image4].filter((item)=> item !== undefined)
+
+        // Validate at least one image
+        if (images.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'At least one image is required'
+            });
+        }
 
         const imagesUrl = await Promise.all(
             images.map(async (item)=>{
@@ -21,6 +37,7 @@ const addProduct = async (req,res) => {
                 return result.secure_url
             })
         )
+
         const productData = {
             name,
             description,
@@ -32,16 +49,23 @@ const addProduct = async (req,res) => {
             image: imagesUrl,
             date: Date.now()
         }
-        console.log(productData);
+
         const product = new productModel(productData)
         await product.save()
-        res.json({success: true, message: 'Product added successfully'})
         
-    } catch (e) {
-        res.json({success: false, message: e.message})
-        console.log(e.message)     
+        return res.status(201).json({
+            success: true, 
+            message: 'Product added successfully',
+            product: product
+        });
+        
+    } catch (error) {
+        console.error('Error adding product:', error);
+        return res.status(500).json({
+            success: false, 
+            message: error.message || 'Internal server error'
+        });
     }
-
 }
 
 // function for list
@@ -64,8 +88,7 @@ const removeProduct = async (req,res) => {
 
     } catch (error) {
         res.json({success: false, message: error.message})
-        console.log(error.message)  
-        
+        console.log(error.message)   
     }
 
 }

@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useContext } from 'react';
 import { ShopContext } from '../context/ShopContext';
 import { assets } from '../assets/assets';
@@ -63,12 +63,9 @@ const Collection = () => {
     }
   }
   
-
-  
-  
   useEffect(() => {
     applyFilter();
-  },[category,subCategory,search,showSearch])
+  },[category,subCategory,search,showSearch,products])
 
   useEffect(() => {
     sortProducts();
@@ -84,7 +81,7 @@ const Collection = () => {
         {/* category filter */}
         <div className={`border border-gray-300 pl-5 py-3 mt-6 ${showFilter ? '' : 'hidden'} sm:block`}>
             <p className='mb-3 text-sm font-medium'>CATEGORIES</p>
-            <div className='flex flex-col gap-2 text-sm font-light text-gray-600'>
+            <div className='flex flex-col gap-2 text-sm font-light text-gray-600'> 
               <p className='flex gap-2'>
                 <input className='w-3' type="checkbox" value={'Men'} onChange={toggleCategory} />Men
               </p>

@@ -21,7 +21,7 @@ const Sidebar = () => {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 shadow-inner">
             <img className='w-5 h-5 filter drop-shadow transform hover:rotate-12 transition-transform' src={assets.add_icon} alt="add" />
           </div>
-          <p className='hidden md:block font-medium text-gray-700'>Add</p>
+          <p className='hidden md:block font-medium text-gray-700'>Add Product</p>
         </NavLink>
 
         <NavLink 
@@ -39,7 +39,7 @@ const Sidebar = () => {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 shadow-inner">
             <img className='w-5 h-5 filter drop-shadow transform hover:rotate-12 transition-transform' src={assets.order_icon} alt="list" />
           </div>
-          <p className='hidden md:block font-medium text-gray-700'>List Items</p>
+          <p className='hidden md:block font-medium text-gray-700'>My Products</p>
         </NavLink>
 
         <NavLink 
@@ -57,7 +57,7 @@ const Sidebar = () => {
           <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-green-400 to-green-600 shadow-inner">
             <img className='w-5 h-5 filter drop-shadow transform hover:rotate-12 transition-transform' src={assets.order_icon} alt="orders" />
           </div>
-          <p className='hidden md:block font-medium text-gray-700'>Orders</p>
+          <p className='hidden md:block font-medium text-gray-700'>My Orders</p>
         </NavLink>
       </div>
     </div>

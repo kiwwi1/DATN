@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {assets} from '../assets/assets.js'
 import { backendUrl } from '../App.jsx'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { getDefaultAttributesForCategory } from '../utils/categoryHelper.js'
+import AttributesManager from '../components/AttributesManager.jsx'
 
 const Add = ({token}) => {
   const [image1,setImage1]=useState(false)
@@ -11,18 +13,99 @@ const Add = ({token}) => {
   const [image4,setImage4]=useState(false)
   const [name,setName]=useState('')
   const [description,setDescription]=useState('')
-  const [category,setCategory]=useState('Men')
-  const [subCategory,setSubCategory]=useState('Topwear')
+  const [category,setCategory]=useState('')
+  const [subCategory,setSubCategory]=useState('')
   const [price,setPrice]=useState('')
-  const [sizes,setSizes]=useState([])
   const [bestseller,setBestseller]=useState(false)
+  
+  // New: Flexible attributes system
+  const [attributes, setAttributes] = useState([])
+  
+  // States for categories
+  const [mainCategories, setMainCategories] = useState([])
+  const [subCategories, setSubCategories] = useState([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+
+  // Fetch main categories on component mount
+  useEffect(() => {
+    const fetchMainCategories = async () => {
+      try {
+        const response = await axios.get(backendUrl + '/api/category/list')
+        if (response.data.success) {
+          // Filter only level 1 (main) categories
+          const mainCats = response.data.categories.filter(cat => cat.level === 1)
+          setMainCategories(mainCats)
+          
+          // Set first category as default if available
+          if (mainCats.length > 0) {
+            setCategory(mainCats[0]._id)
+            setSelectedCategory(mainCats[0])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        toast.error('Failed to load categories')
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+
+    fetchMainCategories()
+  }, [])
+
+  // Update attributes when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const defaultAttrs = getDefaultAttributesForCategory(selectedCategory)
+      setAttributes(defaultAttrs)
+    }
+  }, [selectedCategory])
+
+  // Fetch subcategories when main category changes
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      if (!category) {
+        setSubCategories([])
+        setSubCategory('')
+        return
+      }
+
+      try {
+        const response = await axios.get(backendUrl + `/api/category/${category}/subcategories`)
+        if (response.data.success) {
+          setSubCategories(response.data.subcategories)
+          
+          // Set first subcategory as default if available
+          if (response.data.subcategories.length > 0) {
+            setSubCategory(response.data.subcategories[0]._id)
+          } else {
+            setSubCategory('')
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subcategories:', error)
+        setSubCategories([])
+        setSubCategory('')
+      }
+    }
+
+    fetchSubCategories()
+  }, [category])
 
   const onSubmitHandler = async (e) => {
     e.preventDefault()
     try {
       // Validate required fields
-      if (!name || !description || !price || sizes.length === 0) {
+      if (!name || !description || !price) {
         toast.error('Please fill all required fields')
+        return
+      }
+
+      // Validate attributes have at least one value
+      const hasValidAttributes = attributes.every(attr => attr.values && attr.values.length > 0)
+      if (!hasValidAttributes) {
+        toast.error('Please add at least one value for each attribute')
         return
       }
 
@@ -39,7 +122,7 @@ const Add = ({token}) => {
       formData.append('price',price)
       formData.append('category',category)
       formData.append('subCategory',subCategory)
-      formData.append('sizes',JSON.stringify(sizes))
+      formData.append('attributes',JSON.stringify(attributes))
       formData.append('bestseller',bestseller)
 
       if (image1) formData.append('image1',image1)
@@ -66,10 +149,13 @@ const Add = ({token}) => {
         // Reset form
         setName('')
         setDescription('')
-        setCategory('Men')
-        setSubCategory('Topwear')
+        if (mainCategories.length > 0) {
+          setCategory(mainCategories[0]._id)
+          setSelectedCategory(mainCategories[0])
+        }
+        setSubCategory('')
         setPrice('')
-        setSizes([])
+        setAttributes([])
         setBestseller(false)
         setImage1(false)
         setImage2(false)
@@ -193,22 +279,56 @@ const Add = ({token}) => {
 
         <div className='w-full'>
           <div>
-            <p className='text-sm font-medium text-gray-700 mb-2'>Product Category</p>
-            <select onChange={(e)=>setCategory(e.target.value)} className='w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200'>
-              <option value='Men'>Men</option>
-              <option value='Women'>Women</option>
-              <option value='Kids'>Kids</option>
-            </select>
+            <p className='text-sm font-medium text-gray-700 mb-2'>
+              Product Category <span className="text-red-500">*</span>
+            </p>
+            {loadingCategories ? (
+              <div className='w-full border-2 border-gray-300 rounded-lg p-2.5 text-gray-500'>
+                Loading categories...
+              </div>
+            ) : (
+              <select 
+                value={category}
+                onChange={(e) => {
+                  const selectedId = e.target.value
+                  setCategory(selectedId)
+                  const selected = mainCategories.find(c => c._id === selectedId)
+                  setSelectedCategory(selected || null)
+                }} 
+                className='w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200'
+                required
+              >
+                <option value="">-- Select Category --</option>
+                {mainCategories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>
+                    {cat.icon && `${cat.icon} `}{cat.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
         <div className='w-full'>
           <div>
-            <p className='text-sm font-medium text-gray-700 mb-2'>Product SubCategory</p>
-            <select onChange={(e)=>setSubCategory(e.target.value)}  className='w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200'>
-              <option value='Topwear'>Topwear</option>
-              <option value='Bottomwear'>Bottomwear</option>
-              <option value='Winterwear'>Winterwear</option>
+            <p className='text-sm font-medium text-gray-700 mb-2'>
+              Product SubCategory
+              {subCategories.length === 0 && category && (
+                <span className="text-xs text-gray-500 ml-2">(No subcategories available)</span>
+              )}
+            </p>
+            <select 
+              value={subCategory}
+              onChange={(e) => setSubCategory(e.target.value)}  
+              className='w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200'
+              disabled={!category || subCategories.length === 0}
+            >
+              <option value="">-- Select SubCategory (Optional) --</option>
+              {subCategories.map((subCat) => (
+                <option key={subCat._id} value={subCat._id}>
+                  {subCat.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -230,26 +350,8 @@ const Add = ({token}) => {
           </div>
         </div>
 
-        <div>
-          <p className='text-sm font-medium text-gray-700 mb-3'>Product Sizes</p>
-          <div className='flex gap-3 flex-wrap'>
-            <div onClick={()=>setSizes(prev => prev.includes('S') ? prev.filter( item => item !== 'S') :[...prev,'S'])} className={`px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-500 cursor-pointer transition-all duration-200 ${sizes.includes('S') ? 'bg-blue-500 text-white' : ''}`}>
-              <p>S</p>
-            </div>
-            <div onClick={()=>setSizes(prev => prev.includes('M') ? prev.filter( item => item !== 'M') :[...prev,'M'])} className={`px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-500 cursor-pointer transition-all duration-200 ${sizes.includes('M') ? 'bg-blue-500 text-white' : ''}`}>
-              <p>M</p>
-            </div>
-            <div onClick={()=>setSizes(prev => prev.includes('L') ? prev.filter( item => item !== 'L') :[...prev,'L'])} className={`px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-500 cursor-pointer transition-all duration-200 ${sizes.includes('L') ? 'bg-blue-500 text-white' : ''}`}>
-              <p>L</p>
-            </div>
-            <div onClick={()=>setSizes(prev => prev.includes('XL') ? prev.filter( item => item !== 'XL') :[...prev,'XL'])} className={`px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-500 cursor-pointer transition-all duration-200 ${sizes.includes('XL') ? 'bg-blue-500 text-white' : ''}`}>
-              <p>XL</p>
-            </div>
-            <div onClick={()=>setSizes(prev => prev.includes('XXL') ? prev.filter( item => item !== 'XXL') :[...prev,'XXL'])} className={`px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-500 cursor-pointer transition-all duration-200 ${sizes.includes('XXL') ? 'bg-blue-500 text-white' : ''}`}>
-              <p>XXL</p>
-            </div>
-          </div>
-        </div>
+        {/* Flexible Attributes System - replaces hardcoded sizes */}
+        <AttributesManager attributes={attributes} setAttributes={setAttributes} />
 
         <div className='flex items-center gap-2'>
           <input 

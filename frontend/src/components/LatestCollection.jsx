@@ -5,7 +5,7 @@ import Title from './Title';
 import ProductItem from './ProductItem';
 
 const LatestCollection = () => {
-    const { products } = useContext(ShopContext);
+    const { products,navigate } = useContext(ShopContext);
     const [latestProducts, setLatestProducts] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     
@@ -46,6 +46,10 @@ const LatestCollection = () => {
                                 image={item.image} 
                                 name={item.name} 
                                 price={item.price}
+                                originalPrice={item.originalPrice}
+                                discount={item.discount}
+                                rating={item.rating}
+                                sold={item.sold}
                             />
                         </div>
                     ))}
@@ -55,7 +59,7 @@ const LatestCollection = () => {
                 <div className={`text-center mt-12 transform transition-all duration-1000 delay-700 ${
                     isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
                 }`}>
-                    <button className='px-8 py-4 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg'>
+                    <button onClick={() => navigate('/collection')} className='px-8 py-4 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg'>
                         View All Collections
                     </button>
                 </div>

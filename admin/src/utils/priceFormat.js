@@ -42,3 +42,19 @@ export const formatPriceWithDiscount = (price, originalPrice, discount) => {
     };
 };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

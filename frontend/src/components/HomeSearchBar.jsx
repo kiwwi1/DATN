@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react'
 import { ShopContext } from '../context/ShopContext'
 import { useNavigate } from 'react-router-dom'
 import { formatPrice } from '../utils/priceFormat'
+import { formatImageUrl } from '../utils/imageUtils'
 
 const HomeSearchBar = () => {
     const { products } = useContext(ShopContext)
@@ -124,7 +125,7 @@ const HomeSearchBar = () => {
                                     {/* Product Image */}
                                     <div className='w-12 h-12 flex-shrink-0 bg-gray-100 rounded overflow-hidden'>
                                         <img
-                                            src={product.image[0]}
+                                            src={formatImageUrl(product.image?.[0])}
                                             alt={product.name}
                                             className='w-full h-full object-cover'
                                         />

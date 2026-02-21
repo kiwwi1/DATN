@@ -5,6 +5,7 @@ import Title from '../components/Title';
 import { assets } from '../assets/assets';
 import CartTotal from '../components/CartTotal';
 import { formatPrice } from '../utils/priceFormat';
+import { formatImageUrl } from '../utils/imageUtils';
 
 const Cart = () => {
   const { cartItems, products, updateQuantity, navigate, token } = useContext(ShopContext);
@@ -164,7 +165,7 @@ const Cart = () => {
                   <div className='flex-shrink-0'>
                     <img
                       className='w-full sm:w-24 h-24 object-cover rounded-lg'
-                      src={productData.image && productData.image.length > 0 ? productData.image[0] : assets.placeholder_image}
+                      src={productData.image && productData.image.length > 0 ? formatImageUrl(productData.image[0]) : assets.placeholder_image}
                       alt={productData.name}
                     />
                   </div>

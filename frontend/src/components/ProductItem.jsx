@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { formatPrice } from '../utils/priceFormat'
+import { formatImageUrl } from '../utils/imageUtils'
 
 const ProductItem = ({ id, image, name, price, originalPrice, discount, rating, sold }) => {
   const hasDiscount = discount > 0 && originalPrice && originalPrice > price
@@ -11,7 +12,7 @@ const ProductItem = ({ id, image, name, price, originalPrice, discount, rating, 
       <div className='relative overflow-hidden aspect-square'>
         <img 
           className='w-full h-full object-cover hover:scale-110 transition-transform duration-300' 
-          src={image[0]} 
+          src={formatImageUrl(image?.[0])} 
           alt={name} 
         />
         

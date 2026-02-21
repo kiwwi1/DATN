@@ -4,6 +4,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import AttributesManager from '../components/AttributesManager'
 import { formatPrice } from '../utils/priceFormat'
+import { formatImageUrl } from '../utils/imageUtils'
 
 const List = ({token}) => {
 
@@ -325,7 +326,7 @@ const List = ({token}) => {
         {
           list.map((item,index)=>(
             <div key={index} className='grid grid-cols-[1fr_3fr_1fr_1fr_1fr] md:grid-cols-[1fr_3fr_1fr_1fr_1fr] gap-2 items-center text-sm px-2 py-1 border'>
-            <img className='w-12' src={item.image[0]} alt={item.name}></img>
+            <img className='w-12' src={formatImageUrl(item.image?.[0])} alt={item.name}></img>
             <p>{item.name}</p>
             <p>
               {categoryMap[item.category]?.name || item.category}

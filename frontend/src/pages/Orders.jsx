@@ -5,6 +5,7 @@ import Title from '../components/Title';
 import { toast } from 'react-toastify';
 import ProfileSidebar from '../components/ProfileSidebar';
 import { formatPrice } from '../utils/priceFormat';
+import { formatImageUrl } from '../utils/imageUtils';
 const Orders = () => {
   const { backendUrl, token } = useContext(ShopContext);
   const [orderData, setOrderData] = useState([])
@@ -70,7 +71,7 @@ const Orders = () => {
                   >
                     <div className='flex items-start gap-6 text-sm'>
                       <div className="relative">
-                        <img className='w-16 sm:w-20 rounded-md' src={item.image?.[0]} alt={item.name} />
+                        <img className='w-16 sm:w-20 rounded-md' src={formatImageUrl(item.image?.[0])} alt={item.name} />
                         {item.discount > 0 && (
                           <span className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-bl-md font-semibold">
                             -{item.discount}%

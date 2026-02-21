@@ -6,6 +6,7 @@ import { useState } from "react";
 import RelatedProducts from "../components/RelatedProducts";
 import { formatPrice } from "../utils/priceFormat";
 import { toast } from "react-toastify";
+import { formatImageUrl } from "../utils/imageUtils";
 
 const Product = () => {
   const { productId } = useParams();
@@ -21,7 +22,7 @@ const Product = () => {
     products.map((item) => {
       if (item._id == productId) {
         setProductData(item);
-        setImage(item.image[0]);
+        setImage(formatImageUrl(item.image[0]));
         // Reset selections when product changes
         setSize("");
         setSelectedAttributes({});
@@ -45,9 +46,9 @@ const Product = () => {
             {productData.image.map((item, index) => (
               <img
                 key={index}
-                onClick={() => setImage(item)}
+                onClick={() => setImage(formatImageUrl(item))}
                 className={`w-[24%] sm:w-full cursor-pointer sm:mb-3 flex-shrink-0 `}
-                src={item}
+                src={formatImageUrl(item)}
                 alt={productData.name}
               />
             ))}

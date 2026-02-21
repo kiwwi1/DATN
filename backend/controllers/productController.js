@@ -1,8 +1,5 @@
-import { v2 as cloudinary } from "cloudinary"
-import connectCloudinary from "../config/cloudinary.js";
 import productModel from "../models/productModel.js";
-
-connectCloudinary()
+import { uploadToR2 } from "../utils/r2Upload.js";
 
 // function for add product
 const addProduct = async (req,res) => {
@@ -43,11 +40,11 @@ const addProduct = async (req,res) => {
         }
 
         const imagesUrl = await Promise.all(
-            images.map(async (item)=>{
-                let result = await cloudinary.uploader.upload(item.path,{resource_type:'image'})
-                return result.secure_url
+            images.map(async (item) => {
+                const url = await uploadToR2(item, "products");
+                return url;
             })
-        )
+        );
 
         const productData = {
             name,

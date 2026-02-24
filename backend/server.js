@@ -7,6 +7,7 @@ import productRouter from './routes/productRoute.js';
 import orderRouter from './routes/orderRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import categoryRouter from './routes/categoryRoute.js';
+import reviewRouter from './routes/reviewRoute.js';
 
 
 // App config
@@ -31,6 +32,7 @@ app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/order', orderRouter);
 app.use('/api/category', categoryRouter);
+app.use('/api/review', reviewRouter);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

@@ -60,8 +60,7 @@ const categorySchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for better query performance
-categorySchema.index({ slug: 1 });
+// Index for better query performance (slug already has unique index via unique: true)
 categorySchema.index({ parentCategory: 1 });
 categorySchema.index({ level: 1 });
 

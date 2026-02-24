@@ -14,16 +14,27 @@ const Login = ({setToken}) => {
   const handleSubmit = async(e) => {
     try {
         e.preventDefault()
-        const response = await axios.post(backendUrl+'/api/user/admin',{email,password})
+        // First try to login as vendor
+        const response = await axios.post(backendUrl+'/api/user/login',{email,password})
         if(response.data.success){
-            setToken(response.data.token)
+            // Check if user is vendor by getting profile
+            const profileResponse = await axios.post(backendUrl+'/api/user/profile', {}, {
+                headers: { token: response.data.token }
+            });
+            
+            if(profileResponse.data.success && profileResponse.data.user.role === 'vendor'){
+                setToken(response.data.token)
+                toast.success('Welcome to Vendor Dashboard!')
+            } else {
+                toast.error('Access denied - Vendor account required')
+            }
         }
         else{
             toast.error(response.data.message)
         }
     } catch (error) {
         console.log(error)
-        toast.error(error.response.data.message)
+        toast.error(error.response?.data?.message || 'Login failed')
     }
   }
 

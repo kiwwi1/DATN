@@ -1,14 +1,17 @@
 import express from 'express';
-import {addProduct, listProduct, removeProduct, singleProduct} from '../controllers/productController.js';
+import {addProduct, listProduct, removeProduct, singleProduct, updateProduct, listVendorProducts, listProductsByCategory} from '../controllers/productController.js';
 import upload from '../middleware/multer.js';
-import adminAuth from '../middleware/adminAuth.js';
+import vendorAuth from '../middleware/vendorAuth.js';
+
 
 
 const productRouter = express.Router();
 
-productRouter.post('/add',adminAuth,upload.fields([{name:'image1',maxCount:1},{name:'image2',maxCount:1},{name:'image3',maxCount:1},{name:'image4',maxCount:1}]),addProduct);
-productRouter.get('/list', listProduct);
-productRouter.post('/remove', removeProduct);
+productRouter.post('/add',vendorAuth,upload.fields([{name:'image1',maxCount:1},{name:'image2',maxCount:1},{name:'image3',maxCount:1},{name:'image4',maxCount:1}]),addProduct);
+productRouter.get('/list', listProduct); // Public route for all products
+productRouter.get('/vendor-list', vendorAuth, listVendorProducts); // Vendor-specific products
+productRouter.post('/remove', vendorAuth, removeProduct);
 productRouter.get('/single', singleProduct); // single product details
-
+productRouter.post('/update', vendorAuth, updateProduct);
+productRouter.get('/list-by-category', listProductsByCategory);
 export default productRouter;

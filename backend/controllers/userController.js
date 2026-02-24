@@ -77,6 +77,78 @@ const registerUser = async (req,res) =>{
     }
 }
 
+const registerVendor = async (req,res) =>{
+    try {
+        const {shopName,shopAddress,phone,userId} = req.body;
+        
+        // Kiểm tra user có tồn tại không
+        const user = await userModel.findById(userId);
+        if(!user){
+            return res.json({success:false, message: 'User not found'})
+        }
+        
+        // Kiểm tra shopName đã tồn tại chưa (loại trừ user hiện tại)
+        const existingShop = await userModel.findOne({
+            shopName: shopName,
+            _id: { $ne: userId } // Loại trừ user hiện tại
+        });
+        
+        if(existingShop){
+            return res.json({success:false, message: 'Tên cửa hàng đã tồn tại, vui lòng chọn tên khác'})
+        }
+        
+        user.shopName = shopName;
+        user.shopAddress = shopAddress;
+        user.phone = phone;
+        user.role = 'vendor'; // Cập nhật role thành vendor
+        await user.save();  
+        res.json({success:true, message: 'Vendor registered successfully'})
+    } catch (error) {
+        console.log(error)
+        res.json({success:false, message:error.message})
+    }    
+}
+
+// Route to get user profile
+const getUserProfile = async (req, res) => {
+    try {
+        const user = await userModel.findById(req.body.userId).select('-password');
+        if (!user) {
+            return res.json({success: false, message: 'User not found'});
+        }
+        res.json({success: true, user});
+    } catch (error) {
+        console.log(error);
+        res.json({success: false, message: error.message});
+    }
+}
+
+
+const updateUserProfile = async (req,res) =>{
+    try {
+        const {name,email,phone} = req.body;
+        const user = await userModel.findById(req.body.userId);
+        if(name){
+            user.name = name;
+        }
+        if(email){
+            user.email = email;
+        }
+        if(phone){
+            user.phone = phone;
+        }
+        await user.save();
+        
+        if(!user){
+            return res.json({success: false, message: 'User not found'});
+        }
+    }
+    catch (error) {
+        console.log(error);
+        res.json({success: false, message: error.message});
+    }
+}
+
 // Route for admin login
 const loginAdmin = async (req,res) =>{
     try {
@@ -95,4 +167,4 @@ const loginAdmin = async (req,res) =>{
 }
 
 
-export {loginUser, registerUser ,loginAdmin}
+export {loginUser, registerUser ,loginAdmin, registerVendor, getUserProfile, updateUserProfile}

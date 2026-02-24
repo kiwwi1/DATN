@@ -1,21 +1,46 @@
-import { createContext, useEffect } from 'react';
+import { createContext, useEffect, useCallback } from 'react';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 export const ShopContext = createContext();
 
 const ShopContextProvider = (props) => {
     const currency = '.000 VND';
-    const delivery_fee = 30;
+    const delivery_fee = 30000;
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const [search, setSearch] = useState('');
     const [showSearch, setShowSearch] = useState(true);
     const [cartItems, setCartItems] = useState({});
     const [products, setProducts] = useState([]);
     const [token, setToken] = useState('');
+    const [userId, setUserId] = useState('');
+    const [userRole, setUserRole] = useState('user');
+    const [userProfile, setUserProfile] = useState(null);
+    const [homepageCategories, setHomepageCategories] = useState([]);
     const navigate = useNavigate();
+
+    // Function to get userId from token
+    const getUserIdFromToken = (token) => {
+        try {
+            if (!token) return null;
+            const decoded = jwtDecode(token);
+            return decoded.id || decoded.userId || decoded._id || null;
+        } catch (error) {
+            console.log("Error decoding token:", error);
+            return null;
+        }
+    };
+    
+    // Update userId when token changes
+    useEffect(() => {
+        if (token) {
+            const id = getUserIdFromToken(token);
+            if (id) setUserId(id);
+        }
+    }, [token]);
 
     // Hàm thêm sản phẩm vào giỏ hàng
     const addToCart = async (itemId, size) => {
@@ -99,7 +124,7 @@ const ShopContextProvider = (props) => {
         }
     };
 
-    const getProductsData = async () => {
+    const getProductsData = useCallback(async () => {
         try {
             const response = await axios.get(backendUrl+'/api/product/list')
             if(response.data.success){
@@ -112,9 +137,9 @@ const ShopContextProvider = (props) => {
             console.log(error)
             toast.error(error.message)
         }
-    }
+    }, [backendUrl])
 
-    const getUserCart = async ( token ) => {
+    const getUserCart = useCallback(async ( token ) => {
         try {
             const response = await axios.post(backendUrl+"/api/cart/get", {},{headers:{token}})
             if(response.data.success){
@@ -127,22 +152,73 @@ const ShopContextProvider = (props) => {
             console.log(error)
             toast.error(error.message)
         }
-    }
+    }, [backendUrl])
+
+    const getUserProfile = useCallback(async (token) => {
+        try {
+            const response = await axios.post(backendUrl+"/api/user/profile", {},{headers:{token}})
+            if(response.data.success){
+                setUserRole(response.data.user.role || 'user')
+                setUserProfile(response.data.user)
+            }
+        } catch (error) {
+            console.log(error)
+        }
+    }, [backendUrl])
+
+    const getAllCategories = useCallback(async () => {
+        try {
+            const response = await axios.get(backendUrl+'/api/category/list')
+            if(response.data.success){
+                setHomepageCategories(response.data)
+            }
+            else{
+                toast.error(response.data.message)
+            }
+        } catch (error) {
+            console.log(error)
+            toast.error(error.message)
+        }
+    }, [backendUrl])
 
     useEffect(()=>{
         getProductsData()
-    },[])
+    },[getProductsData])
 
     useEffect(()=>{
-        
-        if(!token  && localStorage.getItem('token')){
-            setToken(localStorage.getItem('token'))
-            getUserCart(localStorage.getItem('token'))
+        getAllCategories()
+    },[getAllCategories])
+
+    useEffect(()=>{
+        const savedToken = localStorage.getItem('token');
+        if(!token && savedToken){
+            setToken(savedToken)
         }
-    },[])
+    },[token])
+
+    // Load cart và user profile sau khi có token và products đã load xong
+    useEffect(()=>{
+        if(token && products.length > 0){
+            getUserCart(token)
+            getUserProfile(token)
+        } else if (!token) {
+            // Reset user role when logged out
+            setUserRole('user')
+            setUserProfile(null)
+        }
+    },[token, products, getUserCart, getUserProfile])
+
+    // Load user profile ngay khi có token (không cần chờ products)
+    useEffect(()=>{
+        if(token){
+            getUserProfile(token)
+        }
+    },[token, getUserProfile])
 
     // Giá trị được cung cấp cho các component con
     const value = {
+        homepageCategories,
+        getAllCategories,
         products,
         currency,
         delivery_fee,
@@ -160,7 +236,12 @@ const ShopContextProvider = (props) => {
         getProductsData,
         token,
         setToken,
-        getUserCart
+        getUserCart,
+        setCartItems,
+        userId,
+        userRole,
+        getUserProfile,
+        userProfile
     };
 
     return (

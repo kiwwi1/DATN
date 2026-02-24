@@ -1,16 +1,41 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {assets} from '../assets/assets'
 import { Link, NavLink } from 'react-router-dom'
 import { useContext } from 'react'
 import { ShopContext } from '../context/ShopContext'
-import axios from 'axios'
+
 
 
 const Navbar = () => {
     const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
-    const {token, setToken, navigate, setCartItems} = useContext(ShopContext);
+    const {token, setToken, navigate, setCartItems, userRole} = useContext(ShopContext);
 
     const {setShowSearch, getCartCount} = useContext(ShopContext);
+    
+    // Thêm useEffect để tự động cập nhật giỏ hàng khi token thay đổi
+    useEffect(() => {
+        const fetchCartData = async () => {
+            if (token) {
+                try {
+                    const response = await fetch('http://localhost:4000/api/cart/get', {
+                        headers: {
+                            token: token
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        setCartItems(data.cartData || {});
+                    }
+                } catch (error) {
+                    console.error("Lỗi khi tải giỏ hàng:", error);
+                }
+            }
+        };
+        
+        fetchCartData();
+    }, [token, setCartItems]);
+    
     const LogoutHandler = () => {
         navigate('/login')
         localStorage.removeItem('token')
@@ -40,6 +65,23 @@ const Navbar = () => {
                 <p>CONTACT</p>
                 <hr className='w-2/4 border-2 border-none h-[1.5px] bg-gray-700 hidden' />
             </NavLink>
+            {userRole === 'vendor' ? (
+                <button 
+                    onClick={() => {
+                        // Pass token via URL parameter
+                        window.open(`http://localhost:5174/add?vendorToken=${token}`, '_blank');
+                    }}
+                    className='flex flex-col items-center gap-1 cursor-pointer'
+                >
+                    <p>VENDOR'S PAGE</p>
+                    <hr className='w-2/4 border-2 border-none h-[1.5px] bg-gray-700 hidden' />
+                </button>
+            ) : (
+                <NavLink to='/vendor-register' className='flex flex-col items-center gap-1'>
+                    <p>BECOME A VENDOR</p>
+                    <hr className='w-2/4 border-2 border-none h-[1.5px] bg-gray-700 hidden' />
+                </NavLink>
+            )}
             
         </ul>
         <div className='flex gap-5 items-center'>
@@ -51,8 +93,8 @@ const Navbar = () => {
                 {token &&
                  <div className='group-hover:block hidden absolute dropdown-menu right-0 pt-2 z-50'>
                     <div className='flex flex-col gap-2 w-36 py-3 px-5 bg-slate-100 text-gray-500 rounded shadow-md'>
-                        <p className='cursor-pointer hover:text-black'>My Profile</p>
-                        <p className='cursor-pointer hover:text-black'>Orders</p>
+                        <p onClick={()=>navigate('/my-profile')} className='cursor-pointer hover:text-black'>My Profile</p>
+                        <p onClick={()=>navigate('/orders')} className='cursor-pointer hover:text-black'>Orders</p>
                         <p onClick={LogoutHandler} className='cursor-pointer hover:text-black'>Logout</p>
                     </div>
                 </div>}
@@ -84,6 +126,22 @@ const Navbar = () => {
               <NavLink to='/contact' onClick={()=>setMobileMenuVisible(false)} className='flex flex-col items-center gap-1'>
                 <p>CONTACT</p>
               </NavLink>
+              {userRole === 'vendor' ? (
+                <button 
+                    onClick={() => {
+                        setMobileMenuVisible(false);
+                        // Pass token via URL parameter
+                        window.open(`http://localhost:5174/add?vendorToken=${token}`, '_blank');
+                    }}
+                    className='flex flex-col items-center gap-1 cursor-pointer'
+                >
+                    <p>VENDOR'S PAGE</p>
+                </button>
+              ) : (
+                <NavLink to='/vendor-register' onClick={()=>setMobileMenuVisible(false)} className='flex flex-col items-center gap-1'>
+                    <p>BECOME A VENDOR</p>
+                </NavLink>
+              )}
             </ul>
           </div>
         )}

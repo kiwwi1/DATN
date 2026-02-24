@@ -95,6 +95,7 @@ export const assets = {
     stripe_logo,
     cross_icon,
     zalopay_logo,
+    placeholder_image: p_img1,
 }
 
 export const products = [

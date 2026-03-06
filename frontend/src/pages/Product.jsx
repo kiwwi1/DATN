@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { ShopContext } from "../context/ShopContext";
 import { useState } from "react";
@@ -11,20 +11,34 @@ import { formatImageUrl } from "../utils/imageUtils";
 
 const Product = () => {
   const { productId } = useParams();
+  const location = useLocation();
   const { products, addToCart, backendUrl, token, userId } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState(""); // Deprecated: for backward compatibility with old products
   const [selectedAttributes, setSelectedAttributes] = useState({}); // New: {Size: "M", Color: "Red"}
 
-  // Review state
+  // orderId từ URL (khi điều hướng từ trang đơn hàng)
+  const urlParams = new URLSearchParams(location.search);
+  const orderIdFromUrl = urlParams.get("orderId") || null;
+
+  // Review state — mở tab reviews nếu URL có ?tab=reviews
   const [reviews, setReviews] = useState([]);
-  const [activeTab, setActiveTab] = useState("description");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("tab") === "reviews" ? "reviews" : "description";
+  });
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [formRating, setFormRating] = useState(5);
   const [formComment, setFormComment] = useState("");
   const [editingReviewId, setEditingReviewId] = useState(null);
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [filterStar, setFilterStar] = useState(0); // 0 = tất cả
+  // Ảnh đính kèm
+  const [newImages, setNewImages] = useState([]);       // File[] chờ upload
+  const [previewUrls, setPreviewUrls] = useState([]);   // blob URL để preview
+  const [keepImages, setKeepImages] = useState([]);     // URL ảnh cũ giữ lại khi edit
 
   const fetchProductData = useCallback(() => {
     products.map((item) => {
@@ -43,7 +57,10 @@ const Product = () => {
     setLoadingReviews(true);
     try {
       const res = await axios.get(`${backendUrl}/api/review/product/${productId}`);
-      if (res.data.success) setReviews(res.data.reviews || []);
+      if (res.data.success) {
+        setReviews(res.data.reviews || []);
+        setFilterStar(0);
+      }
     } catch (err) {
       console.error("fetchReviews:", err);
       setReviews([]);
@@ -70,7 +87,27 @@ const Product = () => {
     if (productId) fetchReviews();
   }, [productId, fetchReviews]);
 
-  const myReview = reviews.find((r) => r.user && (r.user._id === userId || r.user === userId));
+  useEffect(() => {
+    const checkPurchase = async () => {
+      if (!token || !productId || !orderIdFromUrl) { setHasPurchased(false); return; }
+      try {
+        const res = await axios.post(
+          `${backendUrl}/api/review/can-review/${productId}`,
+          { orderId: orderIdFromUrl },
+          { headers: { token } }
+        );
+        setHasPurchased(res.data.canReview === true);
+      } catch {
+        setHasPurchased(false);
+      }
+    };
+    checkPurchase();
+  }, [token, productId, orderIdFromUrl, backendUrl]);
+
+  // Review của user cho đơn hàng hiện tại (nếu có orderId trên URL)
+  const myReview = orderIdFromUrl
+    ? reviews.find((r) => r.user && (r.user._id === userId || r.user === userId) && r.orderId === orderIdFromUrl)
+    : null;
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -81,29 +118,39 @@ const Product = () => {
     setSubmittingReview(true);
     try {
       if (editingReviewId) {
+        const fd = new FormData();
+        fd.append("rating", formRating);
+        fd.append("comment", formComment);
+        keepImages.forEach((url) => fd.append("keepImages", url));
+        newImages.forEach((file) => fd.append("images", file));
+
         const res = await axios.put(
           `${backendUrl}/api/review/${editingReviewId}`,
-          { rating: formRating, comment: formComment },
+          fd,
           { headers: { token } }
         );
         if (res.data.success) {
           toast.success("Đã cập nhật đánh giá.");
-          setEditingReviewId(null);
-          setFormRating(5);
-          setFormComment("");
+          handleCancelEdit();
           await fetchReviews();
           await refetchProduct();
         } else toast.error(res.data.message || "Có lỗi.");
       } else {
+        const fd = new FormData();
+        fd.append("productId", productId);
+        fd.append("orderId", orderIdFromUrl || "");
+        fd.append("rating", formRating);
+        fd.append("comment", formComment);
+        newImages.forEach((file) => fd.append("images", file));
+
         const res = await axios.post(
           `${backendUrl}/api/review`,
-          { productId, rating: formRating, comment: formComment },
+          fd,
           { headers: { token } }
         );
         if (res.data.success) {
           toast.success("Đã gửi đánh giá.");
-          setFormRating(5);
-          setFormComment("");
+          handleCancelEdit();
           await fetchReviews();
           await refetchProduct();
         } else toast.error(res.data.message || "Có lỗi.");
@@ -115,16 +162,44 @@ const Product = () => {
     }
   };
 
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    const totalAfter = keepImages.length + newImages.length + files.length;
+    if (totalAfter > 5) {
+      toast.error("Tối đa 5 ảnh mỗi đánh giá");
+      return;
+    }
+    setNewImages((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    e.target.value = "";
+  };
+
+  const removeNewImage = (index) => {
+    URL.revokeObjectURL(previewUrls[index]);
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeKeepImage = (url) => {
+    setKeepImages((prev) => prev.filter((u) => u !== url));
+  };
+
   const handleEditReview = (review) => {
     setEditingReviewId(review._id);
     setFormRating(review.rating);
     setFormComment(review.comment || "");
+    setKeepImages(review.images || []);
+    setNewImages([]);
+    setPreviewUrls([]);
   };
 
   const handleCancelEdit = () => {
     setEditingReviewId(null);
     setFormRating(5);
     setFormComment("");
+    setKeepImages([]);
+    setNewImages([]);
+    setPreviewUrls([]);
   };
 
   const handleDeleteReview = async (reviewId) => {
@@ -446,33 +521,113 @@ const Product = () => {
 
           {activeTab === "reviews" && (
             <div className="space-y-6">
-              {/* Tóm tắt đánh giá */}
-              <div className="flex items-center gap-6 pb-4 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold text-orange-600">
-                    {productData.rating?.toFixed(1) || "0"}
-                  </span>
-                  <div className="flex text-xl">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        className={star <= (productData.rating || 0) ? "text-yellow-400" : "text-gray-300"}
-                      >
-                        ★
-                      </span>
-                    ))}
+              {/* Tóm tắt đánh giá + bộ lọc sao */}
+              <div className="pb-4 border-b">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="text-center">
+                    <span className="text-4xl font-bold text-orange-600">
+                      {productData.rating?.toFixed(1) || "0"}
+                    </span>
+                    <div className="flex justify-center text-xl mt-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span key={star} className={star <= Math.round(productData.rating || 0) ? "text-yellow-400" : "text-gray-300"}>★</span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{productData.reviewCount ?? 0} đánh giá</p>
+                  </div>
+                  {/* Thanh phân bố sao */}
+                  <div className="flex-1 space-y-1">
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count = reviews.filter((r) => r.rating === star).length;
+                      const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                      return (
+                        <div key={star} className="flex items-center gap-2 text-xs">
+                          <span className="w-4 text-right text-gray-600">{star}</span>
+                          <span className="text-yellow-400">★</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-yellow-400 h-2 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="w-6 text-gray-500">{count}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <span className="text-gray-600">{productData.reviewCount ?? 0} đánh giá</span>
+                {/* Nút lọc theo sao */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFilterStar(0)}
+                    className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                      filterStar === 0
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
+                    }`}
+                  >
+                    Tất cả ({reviews.length})
+                  </button>
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = reviews.filter((r) => r.rating === star).length;
+                    if (count === 0) return null;
+                    return (
+                      <button
+                        key={star}
+                        onClick={() => setFilterStar(star)}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          filterStar === star
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
+                        }`}
+                      >
+                        {star} ★ ({count})
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Form gửi / sửa đánh giá */}
-              {token && (
+              {!token && (
+                <p className="text-gray-500 text-sm">Đăng nhập để viết đánh giá.</p>
+              )}
+              {token && !hasPurchased && !myReview && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                  <span className="text-yellow-500 text-lg">🛍️</span>
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Chỉ có thể đánh giá sau khi nhận hàng</p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      {orderIdFromUrl
+                        ? "Đơn hàng này chưa được giao hoặc bạn đã đánh giá sản phẩm này cho đơn hàng đó rồi."
+                        : "Vào trang Đơn mua và bấm \"Đánh Giá\" sau khi đơn hàng được giao thành công."}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* Đã có review nhưng không đang chỉnh sửa → hiện thông báo */}
+              {token && myReview && !editingReviewId && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 text-lg">✓</span>
+                    <p className="text-sm font-medium text-green-800">Bạn đã đánh giá sản phẩm này</p>
+                  </div>
+                  <button
+                    onClick={() => handleEditReview(myReview)}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Chỉnh sửa
+                  </button>
+                </div>
+              )}
+              {/* Form viết mới hoặc chỉnh sửa */}
+              {token && (hasPurchased || myReview) && (!myReview || editingReviewId) && (
                 <div className="bg-white p-4 rounded-lg border">
                   <p className="font-medium text-gray-800 mb-3">
                     {editingReviewId ? "Chỉnh sửa đánh giá" : "Viết đánh giá"}
                   </p>
                   <form onSubmit={handleSubmitReview} className="space-y-3">
+                    {/* Sao */}
                     <div>
                       <span className="text-sm text-gray-600 mr-2">Điểm:</span>
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -480,13 +635,14 @@ const Product = () => {
                           key={star}
                           type="button"
                           onClick={() => setFormRating(star)}
-                          className="text-2xl text-gray-300 hover:text-yellow-400 focus:outline-none"
+                          className="text-2xl focus:outline-none"
                         >
-                          <span className={formRating >= star ? "text-yellow-400" : ""}>★</span>
+                          <span className={formRating >= star ? "text-yellow-400" : "text-gray-300"}>★</span>
                         </button>
                       ))}
                       <span className="ml-2 text-sm font-medium">{formRating}/5</span>
                     </div>
+                    {/* Nội dung */}
                     <div>
                       <textarea
                         value={formComment}
@@ -496,6 +652,50 @@ const Product = () => {
                         maxLength={500}
                       />
                     </div>
+                    {/* Upload ảnh */}
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Ảnh đánh giá (tối đa 5):</p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {/* Ảnh cũ giữ lại (khi edit) */}
+                        {keepImages.map((url) => (
+                          <div key={url} className="relative w-20 h-20">
+                            <img src={url} className="w-full h-full object-cover rounded-lg border" alt="review" />
+                            <button
+                              type="button"
+                              onClick={() => removeKeepImage(url)}
+                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
+                            >×</button>
+                          </div>
+                        ))}
+                        {/* Ảnh mới preview */}
+                        {previewUrls.map((url, i) => (
+                          <div key={url} className="relative w-20 h-20">
+                            <img src={url} className="w-full h-full object-cover rounded-lg border" alt="preview" />
+                            <button
+                              type="button"
+                              onClick={() => removeNewImage(i)}
+                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
+                            >×</button>
+                          </div>
+                        ))}
+                        {/* Nút thêm ảnh */}
+                        {keepImages.length + newImages.length < 5 && (
+                          <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 transition-colors">
+                            <span className="text-2xl text-gray-400">+</span>
+                            <span className="text-xs text-gray-400">Thêm ảnh</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={handleImageChange}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">Đã chọn: {keepImages.length + newImages.length}/5 ảnh</p>
+                    </div>
+                    {/* Nút gửi */}
                     <div className="flex gap-2">
                       <button
                         type="submit"
@@ -517,20 +717,23 @@ const Product = () => {
                   </form>
                 </div>
               )}
-              {!token && (
-                <p className="text-gray-500 text-sm">Đăng nhập để viết đánh giá.</p>
-              )}
 
               {/* Danh sách đánh giá */}
               <div>
-                <p className="font-medium text-gray-800 mb-3">Tất cả đánh giá</p>
+                <p className="font-medium text-gray-800 mb-3">
+                  {filterStar === 0 ? "Tất cả đánh giá" : `Đánh giá ${filterStar} sao`}
+                </p>
                 {loadingReviews ? (
                   <p className="text-gray-500">Đang tải...</p>
                 ) : reviews.length === 0 ? (
                   <p className="text-gray-500">Chưa có đánh giá nào.</p>
                 ) : (
+                  <>
+                  {reviews.filter((r) => filterStar === 0 || r.rating === filterStar).length === 0 ? (
+                    <p className="text-gray-500 text-sm">Không có đánh giá {filterStar} sao nào.</p>
+                  ) : null}
                   <ul className="space-y-4">
-                    {reviews.map((review) => (
+                    {reviews.filter((r) => filterStar === 0 || r.rating === filterStar).map((review) => (
                       <li key={review._id} className="border-b pb-4 last:border-0">
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-2 mb-1">
@@ -568,9 +771,23 @@ const Product = () => {
                         {review.comment && (
                           <p className="text-gray-700 text-sm mt-1">{review.comment}</p>
                         )}
+                        {review.images && review.images.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {review.images.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={url}
+                                  alt={`review-img-${i}`}
+                                  className="w-16 h-16 object-cover rounded-lg border hover:opacity-90 transition-opacity"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
+                  </>
                 )}
               </div>
             </div>

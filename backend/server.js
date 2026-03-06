@@ -8,13 +8,22 @@ import orderRouter from './routes/orderRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import categoryRouter from './routes/categoryRoute.js';
 import reviewRouter from './routes/reviewRoute.js';
+import reviewModel from './models/reviewModel.js';
 
 
 // App config
 const app = express();
 const port = process.env.PORT || 4000;
 
-connectDB();
+// Kết nối DB rồi đồng bộ index (xóa index cũ, tạo index mới)
+connectDB().then(async () => {
+    try {
+        await reviewModel.syncIndexes();
+        console.log('✅ Review indexes synced');
+    } catch (e) {
+        console.warn('⚠️ syncIndexes warning:', e.message);
+    }
+});
 
 // Middlewares
 app.use(cors({

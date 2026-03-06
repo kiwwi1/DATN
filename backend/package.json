@@ -4,8 +4,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon server.js",
+    "start": "node --dns-result-order=ipv4first server.js",
+    "server": "nodemon --exec \"node --dns-result-order=ipv4first\" server.js",
     "seed-categories": "node seedCategories.js"
   },
   "author": "",

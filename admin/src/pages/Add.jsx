@@ -5,6 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { getDefaultAttributesForCategory } from "../utils/categoryHelper.js";
 import AttributesManager from "../components/AttributesManager.jsx";
+import VariantsManager from "../components/VariantsManager.jsx";
 
 const Add = ({ token }) => {
   const [image1, setImage1] = useState(false);
@@ -18,8 +19,9 @@ const Add = ({ token }) => {
   const [price, setPrice] = useState("");
   const [bestseller, setBestseller] = useState(false);
 
-  // New: Flexible attributes system
+  // Flexible attributes system
   const [attributes, setAttributes] = useState([]);
+  const [variants, setVariants] = useState([]);
 
   // States for categories
   const [mainCategories, setMainCategories] = useState([]);
@@ -115,6 +117,15 @@ const Add = ({ token }) => {
         return;
       }
 
+      // Validate all variant prices are set
+      if (variants.length > 0) {
+        const missingPrice = variants.some(v => !v.price || v.price <= 0);
+        if (missingPrice) {
+          toast.error("Vui lòng nhập giá cho tất cả biến thể");
+          return;
+        }
+      }
+
       // Validate at least one image
       if (!image1 && !image2 && !image3 && !image4) {
         toast.error("Please upload at least one image");
@@ -129,6 +140,7 @@ const Add = ({ token }) => {
       formData.append("category", category);
       formData.append("subCategory", subCategory);
       formData.append("attributes", JSON.stringify(attributes));
+      formData.append("variants", JSON.stringify(variants));
       formData.append("bestseller", bestseller);
 
       if (image1) formData.append("image1", image1);
@@ -166,6 +178,7 @@ const Add = ({ token }) => {
         setSubCategory("");
         setPrice("");
         setAttributes([]);
+        setVariants([]);
         setBestseller(false);
         setImage1(false);
         setImage2(false);
@@ -382,6 +395,9 @@ const Add = ({ token }) => {
         <div className="w-full">
           <p className="text-sm font-medium text-gray-700 mb-2">
             Product Price
+            {variants.length > 0 && (
+              <span className="ml-2 text-xs font-normal text-blue-600">(tự động tính từ biến thể)</span>
+            )}
           </p>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -405,6 +421,15 @@ const Add = ({ token }) => {
           <AttributesManager
             attributes={attributes}
             setAttributes={setAttributes}
+          />
+        </div>
+
+        {/* SKU Variants Table — auto-generated from attributes */}
+        <div className="lg:col-span-2">
+          <VariantsManager
+            attributes={attributes}
+            variants={variants}
+            onChange={setVariants}
           />
         </div>
 

@@ -9,6 +9,19 @@ const deliveryFee = 30000;
 //gateway initialize
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Parse "Size: M, Màu sắc: Đỏ" → { "Size": "M", "Màu sắc": "Đỏ" }
+function parseAttributeString(attrStr) {
+    if (!attrStr) return {};
+    const result = {};
+    attrStr.split(', ').forEach(part => {
+        const colonIdx = part.indexOf(': ');
+        if (colonIdx !== -1) {
+            result[part.substring(0, colonIdx).trim()] = part.substring(colonIdx + 2).trim();
+        }
+    });
+    return result;
+}
+
 // Helper function để cập nhật số lượng đã bán
 const updateProductSold = async (items) => {
     try {
@@ -22,6 +35,45 @@ const updateProductSold = async (items) => {
     } catch (error) {
         console.error('❌ Error updating product sold counts:', error);
         throw error;
+    }
+};
+
+// Trừ stock của variant tương ứng khi đặt hàng
+const deductVariantStock = async (items) => {
+    try {
+        for (const item of items) {
+            const product = await productModel.findById(item._id);
+            if (!product || !product.variants || product.variants.length === 0) continue;
+
+            // Ưu tiên dùng selectedAttributes (structured), fallback sang parse size string
+            let combination = {};
+            if (item.selectedAttributes && item.selectedAttributes.length > 0) {
+                item.selectedAttributes.forEach(attr => { combination[attr.name] = attr.value; });
+            } else if (item.size) {
+                combination = parseAttributeString(item.size);
+            }
+
+            if (Object.keys(combination).length === 0) continue;
+
+            const variantIdx = product.variants.findIndex(v => {
+                const combo = v.combination || {};
+                return Object.entries(combination).every(([k, val]) => combo[k] === val);
+            });
+
+            if (variantIdx === -1) continue;
+
+            product.variants[variantIdx].stock = Math.max(
+                0,
+                (product.variants[variantIdx].stock || 0) - item.quantity
+            );
+            // Sync product-level stock
+            product.stock = product.variants.reduce((s, v) => s + (v.stock || 0), 0);
+            product.markModified('variants');
+            await product.save();
+        }
+        console.log('✅ Variant stocks deducted successfully');
+    } catch (error) {
+        console.error('❌ Error deducting variant stocks:', error);
     }
 };
 
@@ -145,6 +197,8 @@ const placeOrder = async (req,res) =>{
 
         // Cập nhật số lượng đã bán cho các sản phẩm
         await updateProductSold(items);
+        // Trừ stock variant tương ứng
+        await deductVariantStock(items);
 
         // Remove ordered items from user's cart
         const user = await userModel.findById(userId);
@@ -374,6 +428,8 @@ const verifyStripePayment = async (req, res) => {
             
             // Cập nhật số lượng đã bán cho các sản phẩm
             await updateProductSold(order.items);
+            // Trừ stock variant tương ứng
+            await deductVariantStock(order.items);
             
             // Remove ordered items from user's cart
             console.log(`Removing ordered items from cart for user: ${userId}`);

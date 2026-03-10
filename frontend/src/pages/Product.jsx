@@ -298,35 +298,69 @@ const Product = () => {
           </div>
 
           {/* Price Section */}
-          <div className="mt-5 bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-bold text-orange-600">
-                {formatPrice(productData.price)}
-              </p>
-              {productData.discount > 0 && productData.originalPrice && (
-                <>
-                  <p className="text-xl text-gray-400 line-through">
-                    {formatPrice(productData.originalPrice)}
-                  </p>
-                  <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded">
-                    -{productData.discount}%
-                  </span>
-                </>
-              )}
-            </div>
-            {productData.discount > 0 && (
-              <p className="text-sm text-green-600 mt-2">
-                🎉 Tiết kiệm {formatPrice(productData.originalPrice - productData.price)}
-              </p>
-            )}
-          </div>
-          {/* Stock Info */}
-          {productData.stock > 0 && (
-            <div className="mt-4 flex items-center gap-2 text-sm">
-              <span className="text-green-600 font-medium">✓ Còn hàng</span>
-              <span className="text-gray-500">({productData.stock} sản phẩm)</span>
-            </div>
-          )}
+          {(() => {
+            // Find the matching SKU variant based on current selection
+            const hasVariants = productData.variants && productData.variants.length > 0;
+            const allAttrsSelected = productData.attributes && productData.attributes.length > 0
+              && productData.attributes.every(a => selectedAttributes[a.name]);
+            const selectedVariant = hasVariants && allAttrsSelected
+              ? productData.variants.find(v => {
+                  const combo = v.combination || {};
+                  return productData.attributes.every(a => combo[a.name] === selectedAttributes[a.name]);
+                })
+              : null;
+
+            const displayPrice = selectedVariant ? selectedVariant.price : productData.price;
+            const displayStock = selectedVariant ? selectedVariant.stock : productData.stock;
+
+            return (
+              <>
+                <div className="mt-5 bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-baseline gap-3">
+                    <p className="text-3xl font-bold text-orange-600">
+                      {formatPrice(displayPrice)}
+                    </p>
+                    {!selectedVariant && hasVariants && (
+                      <span className="text-sm text-gray-400">Từ</span>
+                    )}
+                    {productData.discount > 0 && productData.originalPrice && !selectedVariant && (
+                      <>
+                        <p className="text-xl text-gray-400 line-through">
+                          {formatPrice(productData.originalPrice)}
+                        </p>
+                        <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded">
+                          -{productData.discount}%
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {productData.discount > 0 && !selectedVariant && (
+                    <p className="text-sm text-green-600 mt-2">
+                      Tiết kiệm {formatPrice(productData.originalPrice - productData.price)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Stock Info */}
+                <div className="mt-4 flex items-center gap-2 text-sm">
+                  {displayStock > 0 ? (
+                    <>
+                      <span className="text-green-600 font-medium">✓ Còn hàng</span>
+                      <span className="text-gray-500">({displayStock} sản phẩm)</span>
+                    </>
+                  ) : (
+                    selectedVariant
+                      ? <span className="text-red-500 font-medium">Hết hàng cho biến thể này</span>
+                      : hasVariants && allAttrsSelected
+                        ? <span className="text-red-500 font-medium">Hết hàng</span>
+                        : displayStock === 0 && !hasVariants
+                          ? <span className="text-red-500 font-medium">Hết hàng</span>
+                          : null
+                  )}
+                </div>
+              </>
+            );
+          })()}
 
           <p className="mt-5 text-gray-700 md:w-4/5 leading-relaxed">
             {productData.description}
@@ -404,31 +438,55 @@ const Product = () => {
             </div>
           )}
 
-          <button
-            onClick={() => {
-              // Handle new attributes system
-              if (productData.attributes && productData.attributes.length > 0) {
-                // Check if all attributes are selected
-                const allSelected = productData.attributes.every(attr => selectedAttributes[attr.name]);
-                if (!allSelected) {
-                  toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
-                  return;
-                }
-                // Convert selectedAttributes to string format: "Size: M, Color: Red"
-                const attributeString = Object.entries(selectedAttributes)
-                  .map(([key, value]) => `${key}: ${value}`)
-                  .join(', ');
-                addToCart(productData._id, attributeString);
-              } 
-              // Fallback to old sizes system
-              else {
-                addToCart(productData._id, size);
-              }
-            }}
-            className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all shadow-lg"
-          >
-            🛒 THÊM VÀO GIỎ HÀNG
-          </button>
+          {(() => {
+            const hasVariants = productData.variants && productData.variants.length > 0;
+            const allAttrsSelected = productData.attributes && productData.attributes.length > 0
+              && productData.attributes.every(a => selectedAttributes[a.name]);
+            const selectedVariant = hasVariants && allAttrsSelected
+              ? productData.variants.find(v => {
+                  const combo = v.combination || {};
+                  return productData.attributes.every(a => combo[a.name] === selectedAttributes[a.name]);
+                })
+              : null;
+            const isOutOfStock = selectedVariant
+              ? selectedVariant.stock === 0
+              : !hasVariants && productData.stock === 0;
+
+            return (
+              <button
+                onClick={() => {
+                  if (productData.attributes && productData.attributes.length > 0) {
+                    if (!allAttrsSelected) {
+                      toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
+                      return;
+                    }
+                    if (isOutOfStock) {
+                      toast.error("Biến thể này đã hết hàng");
+                      return;
+                    }
+                    const attributeString = Object.entries(selectedAttributes)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(', ');
+                    addToCart(productData._id, attributeString);
+                  } else {
+                    if (isOutOfStock) {
+                      toast.error("Sản phẩm đã hết hàng");
+                      return;
+                    }
+                    addToCart(productData._id, size);
+                  }
+                }}
+                disabled={isOutOfStock}
+                className={`w-full sm:w-auto px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all shadow-lg ${
+                  isOutOfStock
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                }`}
+              >
+                {isOutOfStock ? 'HẾT HÀNG' : 'THÊM VÀO GIỎ HÀNG'}
+              </button>
+            );
+          })()}
           
           <hr className="mt-8 sm:w-4/5"></hr>
           

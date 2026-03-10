@@ -3,6 +3,7 @@ import { backendUrl } from '../App'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import AttributesManager from '../components/AttributesManager'
+import VariantsManager from '../components/VariantsManager'
 import { formatPrice } from '../utils/priceFormat'
 import { formatImageUrl } from '../utils/imageUtils'
 
@@ -18,6 +19,7 @@ const List = ({token}) => {
     category: '',
     subCategory: '',
     attributes: [],
+    variants: [],
     bestseller: false
   })
   
@@ -120,6 +122,7 @@ const List = ({token}) => {
       category: product.category,
       subCategory: product.subCategory || '',
       attributes: product.attributes || [],
+      variants: product.variants || [],
       bestseller: product.bestseller
     })
     setShowModal(true)
@@ -154,6 +157,15 @@ const List = ({token}) => {
         return
       }
 
+      // Validate all variant prices
+      if (formData.variants.length > 0) {
+        const missingPrice = formData.variants.some(v => !v.price || v.price <= 0)
+        if (missingPrice) {
+          toast.error('Vui lòng nhập giá cho tất cả biến thể')
+          return
+        }
+      }
+
       const response = await axios.post(backendUrl+'/api/product/update', 
         {
           productId: currentProduct._id, 
@@ -162,7 +174,8 @@ const List = ({token}) => {
           price: formData.price, 
           category: formData.category, 
           subCategory: formData.subCategory, 
-          attributes: formData.attributes, 
+          attributes: formData.attributes,
+          variants: formData.variants,
           bestseller: formData.bestseller
         }, 
         {headers:{token}}
@@ -278,6 +291,15 @@ const List = ({token}) => {
                 <AttributesManager 
                   attributes={formData.attributes} 
                   setAttributes={(attrs) => setFormData({...formData, attributes: attrs})} 
+                />
+              </div>
+
+              {/* SKU Variants Manager */}
+              <div className="mb-3">
+                <VariantsManager
+                  attributes={formData.attributes}
+                  variants={formData.variants}
+                  onChange={(newVariants) => setFormData({...formData, variants: newVariants})}
                 />
               </div>
               

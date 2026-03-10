@@ -1,29 +1,31 @@
 import productModel from "../models/productModel.js";
 import { uploadToR2 } from "../utils/r2Upload.js";
 
+// Compute product-level price (min) and stock (sum) from variants array
+function syncFromVariants(variants) {
+    const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p) && p >= 0);
+    const price = prices.length > 0 ? Math.min(...prices) : 0;
+    const stock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+    return { price, stock };
+}
+
 // function for add product
 const addProduct = async (req,res) => {
     try {
-        const {name, description, price, category, subCategory, attributes, sizes, bestseller} = req.body;
+        const {name, description, price, category, subCategory, attributes, sizes, variants, bestseller} = req.body;
         
         // Validate required fields
-        if (!name || !description || !price || !category) {
+        if (!name || !description || !category) {
             return res.status(400).json({
                 success: false,
-                message: 'Missing required fields: name, description, price, category'
+                message: 'Missing required fields: name, description, category'
             });
         }
 
-        // Validate attributes or sizes
+        // Parse flexible data
         const parsedAttributes = attributes ? JSON.parse(attributes) : [];
         const parsedSizes = sizes ? JSON.parse(sizes) : [];
-        
-        if (parsedAttributes.length === 0 && parsedSizes.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide at least one product attribute or size'
-            });
-        }
+        const parsedVariants = variants ? JSON.parse(variants) : [];
 
         const image1 = req.files?.image1 && req.files.image1[0] 
         const image2 = req.files?.image2 && req.files.image2[0] 
@@ -46,14 +48,19 @@ const addProduct = async (req,res) => {
             })
         );
 
+        // Derive price and stock from variants if provided, otherwise use form values
+        const variantSync = parsedVariants.length > 0 ? syncFromVariants(parsedVariants) : null;
+
         const productData = {
             name,
             description,
-            price: Number(price),
+            price: variantSync ? variantSync.price : Number(price),
+            stock: variantSync ? variantSync.stock : 0,
             category,
-            subCategory: subCategory || null, // Optional
-            attributes: parsedAttributes, // New flexible system
-            sizes: parsedSizes, // Keep for backward compatibility
+            subCategory: subCategory || null,
+            attributes: parsedAttributes,
+            variants: parsedVariants,
+            sizes: parsedSizes,
             bestseller: bestseller === 'true' ? true : false,
             image: imagesUrl,
             date: Date.now(),
@@ -142,8 +149,7 @@ const singleProduct = async (req,res) => {
 }
 const updateProduct = async (req,res) => {
     try {
-        const {name, description, price, category, subCategory, sizes, bestseller} = req.body
-        const {productId} = req.body
+        const {productId, name, description, price, category, subCategory, bestseller, attributes, variants} = req.body
         const product = await productModel.findById(productId)
         
         if(!product){
@@ -155,13 +161,27 @@ const updateProduct = async (req,res) => {
             return res.json({success: false, message: 'Unauthorized - You can only update your own products'});
         }
 
+        const parsedAttributes = attributes
+            ? (typeof attributes === 'string' ? JSON.parse(attributes) : attributes)
+            : product.attributes;
+        const parsedVariants = variants
+            ? (typeof variants === 'string' ? JSON.parse(variants) : variants)
+            : product.variants;
+
+        const variantSync = parsedVariants && parsedVariants.length > 0
+            ? syncFromVariants(parsedVariants)
+            : null;
+
         product.name = name
         product.description = description
-        product.price = price
+        product.price = variantSync ? variantSync.price : Number(price)
+        product.stock = variantSync ? variantSync.stock : product.stock
         product.category = category
-        product.subCategory = subCategory
-        product.sizes = sizes
+        product.subCategory = subCategory || null
+        product.attributes = parsedAttributes
+        product.variants = parsedVariants
         product.bestseller = bestseller
+        product.markModified('variants')
         await product.save()
         res.json({success: true, message: 'Product updated successfully', product})
         

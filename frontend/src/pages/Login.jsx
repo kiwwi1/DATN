@@ -4,6 +4,7 @@ import { ShopContext } from "../context/ShopContext";
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useEffect } from 'react'
+import { GoogleLogin } from '@react-oauth/google'
 
 const Login = () => {
   const [currentState, setCurrentState] = useState("Login");
@@ -41,6 +42,22 @@ const Login = () => {
     }
   };
 
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      const res = await axios.post(`${backendUrl}/api/user/google`, {
+        credential: credentialResponse.credential
+      });
+      if (res.data.success) {
+        setToken(res.data.token);
+        localStorage.setItem('token', res.data.token);
+        navigate('/');
+      } else {
+        toast.error(res.data.message || 'Đăng nhập Google thất bại');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
   useEffect(()=>{
     if(token){
       navigate('/')
@@ -105,6 +122,21 @@ const Login = () => {
       <button type="submit" className="bg-black text-white font-light px-8 py-2 mt-5">
         {currentState === "Login" ? "Login" : "Sign Up"}
       </button>
+
+      <div className="w-full flex items-center gap-3 my-1">
+        <hr className="flex-1 border-gray-300" />
+        <span className="text-xs text-gray-400">hoặc</span>
+        <hr className="flex-1 border-gray-300" />
+      </div>
+
+      <GoogleLogin
+        onSuccess={handleGoogleLogin}
+        onError={() => toast.error('Đăng nhập Google thất bại')}
+        width="384"
+        text={currentState === "Login" ? "signin_with" : "signup_with"}
+        shape="rectangular"
+        logo_alignment="left"
+      />
     </form>
   );
 };

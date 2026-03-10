@@ -3,6 +3,7 @@ import validator from "validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { OAuth2Client } from "google-auth-library";
 
 const createToken = (id) => {
     return jwt.sign(
@@ -35,6 +36,36 @@ const loginUser = async (req,res) =>{
 
 
 }
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const loginWithGoogle = async (req, res) => {
+    try {
+        const { credential } = req.body; // Google ID token từ frontend
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const { sub: googleId, email, name, picture } = ticket.getPayload();
+        // Tìm hoặc tạo user
+        let user = await userModel.findOne({ $or: [{ googleId }, { email }] });
+        if (!user) {
+            user = await userModel.create({
+                name,
+                email,
+                googleId,
+                password: await bcrypt.hash(googleId + Date.now(), 10), // dummy password
+            });
+        } else if (!user.googleId) {
+            // User đã đăng ký bằng email → liên kết Google
+            user.googleId = googleId;
+            await user.save();
+        }
+        const token = createToken(user._id);
+        res.json({ success: true, token });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
 
 // Route for user registration
 const registerUser = async (req,res) =>{
@@ -167,4 +198,4 @@ const loginAdmin = async (req,res) =>{
 }
 
 
-export {loginUser, registerUser ,loginAdmin, registerVendor, getUserProfile, updateUserProfile}
+export {loginUser, registerUser ,loginAdmin, registerVendor, getUserProfile, updateUserProfile, loginWithGoogle}

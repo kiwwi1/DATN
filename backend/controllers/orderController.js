@@ -6,8 +6,12 @@ import Stripe from 'stripe';
 //placing orders using cod method
 const currency = 'vnd';
 const deliveryFee = 30000;
-//gateway initialize
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+//gateway initialize — lazy so the key is read after dotenv loads
+let _stripe;
+const getStripe = () => {
+    if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    return _stripe;
+};
 
 // Parse "Size: M, Màu sắc: Đỏ" → { "Size": "M", "Màu sắc": "Đỏ" }
 function parseAttributeString(attrStr) {
@@ -362,7 +366,7 @@ const placeOrderStripe = async (req,res) =>{
             quantity: 1,
         });
 
-        const session = await stripe.checkout.sessions.create({
+        const session = await getStripe().checkout.sessions.create({
             line_items,
             mode: 'payment',
             success_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,

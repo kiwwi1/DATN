@@ -40,38 +40,38 @@ const Hero = () => {
   };
   
   return (
-    <div className='relative min-h-[80vh] bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden'>
+    <div className='relative bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden'>
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent animate-pulse"></div>
       </div>
 
-      <div className='flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20'>
+      <div className='flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12'>
         <div className={`w-full sm:w-1/2 text-white transform transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
-          <div className='space-y-6'>
+          <div className='space-y-4'>
             <div className='flex items-center gap-3'>
-              <div className='w-12 h-[2px] bg-gradient-to-r from-white to-transparent'></div>
-              <p className='font-medium tracking-wider text-sm md:text-base text-gray-300'>OUR BESTSELLER</p>
+              <div className='w-10 h-[2px] bg-gradient-to-r from-white to-transparent'></div>
+              <p className='font-medium tracking-wider text-xs md:text-sm text-gray-300'>OUR BESTSELLER</p>
             </div>
-            <h1 className='text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight'>
+            <h1 className='text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight'>
               <span className='block'>Latest</span>
               <span className='block text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400'>Arrival</span>
             </h1>
-            <p className='text-gray-300 text-sm md:text-base max-w-md'>
+            <p className='text-gray-300 text-xs md:text-sm max-w-md'>
               Discover our newest collection of premium fashion items, crafted with the finest materials and attention to detail.
             </p>
-            <div className='flex items-center gap-4'>
-              <button className='px-8 py-4 bg-white text-gray-900 rounded-full font-medium hover:bg-gray-100 transition-all duration-300 transform hover:scale-105'>
+            <div className='flex items-center gap-3'>
+              <button className='px-6 py-2.5 bg-white text-gray-900 rounded-full text-sm font-medium hover:bg-gray-100 transition-all duration-300 transform hover:scale-105'>
                 SHOP NOW
               </button>
-              <button className='px-8 py-4 border border-white text-white rounded-full font-medium hover:bg-white/10 transition-all duration-300'>
+              <button className='px-6 py-2.5 border border-white text-white rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300'>
                 LEARN MORE
               </button>
             </div>
           </div>
         </div>
         
-        <div className='w-full sm:w-1/2 relative mt-12 sm:mt-0'>
+        <div className='w-full sm:w-1/2 relative mt-8 sm:mt-0'>
           <div className={`relative overflow-hidden rounded-2xl shadow-2xl transform transition-all duration-1000 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
             <div 
               className={`
@@ -81,7 +81,7 @@ const Hero = () => {
               style={{ width: '100%', height: '100%' }}
             >
               <img 
-                className='w-full h-[500px] object-cover rounded-2xl' 
+                className='w-full h-[320px] sm:h-[360px] object-cover rounded-2xl' 
                 src={heroImages[currentIndex]} 
                 alt="Hero image"
               />

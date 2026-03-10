@@ -350,7 +350,7 @@ const Product = () => {
                     </>
                   ) : (
                     selectedVariant
-                      ? <span className="text-red-500 font-medium">Hết hàng cho biến thể này</span>
+                      ? <span className="text-red-500 font-medium">Hết hàng</span>
                       : hasVariants && allAttrsSelected
                         ? <span className="text-red-500 font-medium">Hết hàng</span>
                         : displayStock === 0 && !hasVariants

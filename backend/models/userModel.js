@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     name: {type: String, required: true},
     email: {type: String, required: true, unique: true},
-    password: {type: String, required: true},
+    googleId: {type: String, required: false},
+    password: {type: String, required: false},
     cartData: {type: Object, default: {}},
     role: {type: String, enum: ['user', 'vendor', 'admin'], default: 'user'},
     // Vendor-specific fields (only used when role is 'vendor')

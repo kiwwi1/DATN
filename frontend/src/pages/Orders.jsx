@@ -35,11 +35,26 @@ const matchTab = (order, tab) => {
   return true;
 };
 
+const CANCEL_REASONS = [
+  'Tôi muốn thay đổi địa chỉ giao hàng',
+  'Tôi muốn thay đổi sản phẩm trong đơn hàng',
+  'Tôi tìm được giá rẻ hơn ở chỗ khác',
+  'Tôi không còn nhu cầu mua nữa',
+  'Đặt hàng nhầm / trùng đơn',
+  'Lý do khác',
+];
+
+const CANCELLABLE_STATUSES = ['Order Placed', 'Packing'];
+
 const Orders = () => {
   const { backendUrl, token, navigate } = useContext(ShopContext);
   const [orders, setOrders] = useState([]);
   const [reviewedIds, setReviewedIds] = useState(new Set());
   const [activeTab, setActiveTab] = useState('all');
+  const [cancelModal, setCancelModal] = useState(null); // { orderId }
+  const [cancelReason, setCancelReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const loadOrders = useCallback(async () => {
     if (!token) return;
@@ -75,6 +90,43 @@ const Orders = () => {
 
   const handleReview = (productId, orderId) => {
     navigate(`/product/${productId}?tab=reviews&orderId=${orderId}`);
+  };
+
+  const openCancelModal = (orderId) => {
+    setCancelModal({ orderId });
+    setCancelReason(CANCEL_REASONS[0]);
+    setCustomReason('');
+  };
+
+  const closeCancelModal = () => {
+    setCancelModal(null);
+    setCancelReason('');
+    setCustomReason('');
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelModal) return;
+    const finalReason = cancelReason === 'Lý do khác' ? customReason.trim() : cancelReason;
+    if (!finalReason) { toast.error('Vui lòng nhập lý do hủy đơn'); return; }
+    setCancelling(true);
+    try {
+      const res = await axios.post(
+        backendUrl + '/api/order/cancel',
+        { orderId: cancelModal.orderId, cancelReason: finalReason },
+        { headers: { token } }
+      );
+      if (res.data.success) {
+        toast.success('Đơn hàng đã được hủy thành công');
+        closeCancelModal();
+        loadOrders();
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -197,12 +249,22 @@ const Orders = () => {
                           {formatPrice(order.amount)}
                         </span>
                       </p>
-                      <button
-                        onClick={loadOrders}
-                        className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        Cập nhật trạng thái
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {CANCELLABLE_STATUSES.includes(order.status) && (
+                          <button
+                            onClick={() => openCancelModal(order._id)}
+                            className="border border-red-400 text-red-500 text-sm px-4 py-2 rounded hover:bg-red-50 transition-colors"
+                          >
+                            Hủy đơn
+                          </button>
+                        )}
+                        <button
+                          onClick={loadOrders}
+                          className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          Cập nhật trạng thái
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -211,6 +273,58 @@ const Orders = () => {
           )}
         </div>
       </div>
+      {/* Cancel Modal */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-base font-semibold text-gray-800 mb-1">Hủy đơn hàng</h3>
+            <p className="text-sm text-gray-500 mb-4">Vui lòng chọn lý do hủy đơn</p>
+
+            <div className="space-y-2 mb-4">
+              {CANCEL_REASONS.map((reason) => (
+                <label key={reason} className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="cancelReason"
+                    value={reason}
+                    checked={cancelReason === reason}
+                    onChange={() => setCancelReason(reason)}
+                    className="accent-orange-500"
+                  />
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{reason}</span>
+                </label>
+              ))}
+            </div>
+
+            {cancelReason === 'Lý do khác' && (
+              <textarea
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Nhập lý do của bạn..."
+                rows={3}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-4 focus:outline-none focus:border-orange-400 resize-none"
+              />
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeCancelModal}
+                disabled={cancelling}
+                className="px-5 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-600 transition-colors"
+              >
+                Trở lại
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="px-5 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-60"
+              >
+                {cancelling ? 'Đang xử lý...' : 'Xác nhận hủy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus } from '../controllers/orderController.js';
+import { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus, cancelOrder, cancelOrderAdmin } from '../controllers/orderController.js';
 import adminAuth from '../middleware/adminAuth.js';
 import authUser from '../middleware/auth.js';
 import vendorAuth from '../middleware/vendorAuth.js';
@@ -20,8 +20,12 @@ orderRouter.post('/place-order-stripe',authUser, placeOrderStripe);
 
 // User Features
 orderRouter.post('/user-orders',authUser, userOrders);
+orderRouter.post('/cancel',authUser, cancelOrder);
 //Verify Payment
 orderRouter.post('/verify-stripe',authUser, verifyStripePayment);
+
+//Admin Features - Cancel
+orderRouter.post('/cancel-admin',adminAuth, cancelOrderAdmin);
 
 
 

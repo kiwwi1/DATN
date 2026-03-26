@@ -8,6 +8,8 @@ import orderRouter from './routes/orderRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import categoryRouter from './routes/categoryRoute.js';
 import reviewRouter from './routes/reviewRoute.js';
+import notificationRouter from './routes/notificationRoute.js';
+import interactionRouter from './routes/interactionRoute.js';
 import reviewModel from './models/reviewModel.js';
 
 
@@ -42,6 +44,8 @@ app.use('/api/cart', cartRouter);
 app.use('/api/order', orderRouter);
 app.use('/api/category', categoryRouter);
 app.use('/api/review', reviewRouter);
+app.use('/api/notification', notificationRouter);
+app.use('/api/interaction', interactionRouter);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

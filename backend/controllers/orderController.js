@@ -8,6 +8,7 @@ import {
     vendorOrdersService,
     updateVendorOrderStatusService,
     cancelOrderService,
+    vendorStatsService,
 } from "../services/orderService.js";
 
 const placeOrder = async (req, res) => {
@@ -117,4 +118,13 @@ const cancelOrderAdmin = async (req, res) => {
     }
 };
 
-export { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus, cancelOrder, cancelOrderAdmin };
+const vendorStats = async (req, res) => {
+    try {
+        const stats = await vendorStatsService(req.vendorId);
+        res.json({ success: true, stats });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+export { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus, cancelOrder, cancelOrderAdmin, vendorStats };

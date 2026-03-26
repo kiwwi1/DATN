@@ -60,7 +60,7 @@ const singleProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
     try {
-        const product = await updateProductService(req.body.productId, req.vendorId, req.body);
+        const product = await updateProductService(req.body.productId, req.vendorId, req.body, req.files);
         res.json({ success: true, message: "Product updated successfully", product });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });

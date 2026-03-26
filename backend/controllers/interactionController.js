@@ -1,0 +1,34 @@
+import { trackInteractionService, getRecommendationsService } from "../services/interactionService.js";
+
+const VALID_INTERACTIONS = ["viewed", "clicked", "searched", "timeSpent"];
+
+const trackInteraction = async (req, res) => {
+    try {
+        const { userId, productId, interactionType, value } = req.body;
+        if (!productId || !interactionType) {
+            return res.json({ success: false, message: "productId and interactionType are required" });
+        }
+        if (!VALID_INTERACTIONS.includes(interactionType)) {
+            return res.json({ success: false, message: "Invalid interaction type" });
+        }
+        await trackInteractionService(userId, productId, interactionType, value);
+        res.json({ success: true });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const getRecommendations = async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const limit = parseInt(req.query.limit) || 10;
+        const products = await getRecommendationsService(userId, limit);
+        res.json({ success: true, products });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { trackInteraction, getRecommendations };

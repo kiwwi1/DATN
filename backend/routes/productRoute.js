@@ -12,6 +12,6 @@ productRouter.get('/list', listProduct); // Public route for all products
 productRouter.get('/vendor-list', vendorAuth, listVendorProducts); // Vendor-specific products
 productRouter.post('/remove', vendorAuth, removeProduct);
 productRouter.get('/single', singleProduct); // single product details
-productRouter.post('/update', vendorAuth, updateProduct);
+productRouter.post('/update', vendorAuth, upload.fields([{name:'image0',maxCount:1},{name:'image1',maxCount:1},{name:'image2',maxCount:1},{name:'image3',maxCount:1}]), updateProduct);
 productRouter.get('/list-by-category', listProductsByCategory);
 export default productRouter;

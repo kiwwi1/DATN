@@ -2,6 +2,8 @@ import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import Stripe from "stripe";
+import { createNotification } from "./notificationService.js";
+import { trackInteractionService } from "./interactionService.js";
 
 const currency = "vnd";
 export const deliveryFee = 30000;
@@ -127,6 +129,23 @@ export const placeOrderService = async ({ userId, items, amount, address }) => {
     await deductVariantStock(items);
     await clearOrderedItemsFromCart(userId, items);
 
+    // Track purchased interaction (fire-and-forget)
+    for (const item of items) {
+        trackInteractionService(userId, item._id, 'purchased', item.quantity).catch(() => {});
+    }
+
+    // Thông báo tới từng vendor có sản phẩm trong đơn
+    for (const vendor of vendors) {
+        const itemNames = vendor.items.map((i) => i.name).join(", ");
+        await createNotification(
+            vendor.vendorId,
+            "order_placed",
+            "Đơn hàng mới",
+            `Bạn có đơn hàng mới: ${itemNames}`,
+            newOrder._id.toString()
+        );
+    }
+
     return newOrder;
 };
 
@@ -200,6 +219,24 @@ export const verifyStripePaymentService = async (orderId, success) => {
         await updateProductSold(order.items);
         await deductVariantStock(order.items);
         await clearOrderedItemsFromCart(order.userId, order.items);
+
+        // Track purchased interaction (fire-and-forget)
+        for (const item of order.items) {
+            trackInteractionService(order.userId, item._id, 'purchased', item.quantity).catch(() => {});
+        }
+
+        // Thông báo tới từng vendor
+        const vendorsMap = buildVendorsMap(order.items);
+        for (const vendor of vendorsMap) {
+            const itemNames = vendor.items.map((i) => i.name).join(", ");
+            await createNotification(
+                vendor.vendorId,
+                "order_placed",
+                "Đơn hàng mới",
+                `Bạn có đơn hàng mới (đã thanh toán): ${itemNames}`,
+                order._id.toString()
+            );
+        }
         return true;
     }
     return false;
@@ -276,6 +313,30 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
         await restoreStockAndSold(order.items);
     }
 
+    // Thông báo
+    if (cancelledBy === "user") {
+        // User hủy → thông báo vendor(s)
+        const vendorMap = buildVendorsMap(order.items);
+        for (const vendor of vendorMap) {
+            await createNotification(
+                vendor.vendorId,
+                "order_cancelled",
+                "Đơn hàng bị hủy",
+                `Khách hàng đã hủy đơn hàng. Lý do: ${cancelReason || "Không có lý do"}`,
+                orderId
+            );
+        }
+    } else {
+        // Admin/vendor hủy → thông báo user
+        await createNotification(
+            order.userId,
+            "order_cancelled",
+            "Đơn hàng đã bị hủy",
+            `Đơn hàng của bạn đã bị hủy. Lý do: ${cancelReason || "Không có lý do"}`,
+            orderId
+        );
+    }
+
     // Stripe refund nếu đã thanh toán
     if (order.paymentMethod === "Stripe" && order.payment === true) {
         try {
@@ -300,11 +361,29 @@ export const allOrdersService = async () => orderModel.find({}).sort({ date: -1 
 
 export const userOrdersService = async (userId) => orderModel.find({ userId }).sort({ date: -1 });
 
+const STATUS_LABEL = {
+    "Packing": "Đang đóng gói",
+    "Shipped": "Đang vận chuyển",
+    "Out for delivery": "Đang giao hàng",
+    "Delivered": "Đã giao thành công",
+    "Cancelled": "Đã hủy",
+};
+
 export const updateOrderStatusService = async (orderId, status) => {
     const order = await orderModel.findById(orderId);
     if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
     order.status = status;
     await order.save();
+
+    const label = STATUS_LABEL[status] || status;
+    await createNotification(
+        order.userId,
+        "order_status",
+        "Cập nhật đơn hàng",
+        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
+        orderId
+    );
+
     return order;
 };
 
@@ -328,5 +407,134 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId) 
     }
     order.status = status;
     await order.save();
+
+    const label = STATUS_LABEL[status] || status;
+    await createNotification(
+        order.userId,
+        "order_status",
+        "Cập nhật đơn hàng",
+        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
+        orderId
+    );
+
     return order;
+};
+
+export const vendorStatsService = async (vendorId) => {
+    const MONTH_NAMES = ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"];
+
+    // --- Time boundaries ---
+    const now = new Date();
+    const startOfToday   = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek    = new Date(now); startOfWeek.setDate(now.getDate() - 6);   startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth   = new Date(now); startOfMonth.setDate(1);                  startOfMonth.setHours(0, 0, 0, 0);
+    const thirtyDaysAgo  = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 29); thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const twelveMonthsAgo = new Date(now); twelveMonthsAgo.setMonth(now.getMonth() - 11); twelveMonthsAgo.setDate(1); twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+    // --- Fetch all orders & vendor products in parallel ---
+    const [allOrders, products] = await Promise.all([
+        orderModel.find({ "items.vendorId": vendorId }).sort({ date: -1 }).lean(),
+        productModel.find({ vendorId }).select("stock name category").populate("category", "name").lean(),
+    ]);
+
+    let totalRevenue = 0, todayRevenue = 0, weekRevenue = 0, monthRevenue = 0;
+    const ordersByStatus   = {};
+    const revenueByDay     = {};   // last 30 days
+    const ordersByMonth    = {};   // last 12 months  { "2025-01": { orders, revenue } }
+    const productSalesMap  = {};
+
+    for (const order of allOrders) {
+        const isCancelled = order.status === "Cancelled";
+        const vendorItems = order.items.filter(
+            (item) => item.vendorId?.toString() === vendorId.toString()
+        );
+        const vendorRevenue = vendorItems.reduce((s, i) => s + i.price * i.quantity, 0);
+        const orderDate = new Date(order.date);
+
+        // Status counts (all orders)
+        ordersByStatus[order.status] = (ordersByStatus[order.status] || 0) + 1;
+
+        // Monthly bar chart (last 12 months, all non-cancelled)
+        if (!isCancelled && orderDate >= twelveMonthsAgo) {
+            const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, "0")}`;
+            if (!ordersByMonth[monthKey]) ordersByMonth[monthKey] = { orders: 0, revenue: 0 };
+            ordersByMonth[monthKey].orders  += 1;
+            ordersByMonth[monthKey].revenue += vendorRevenue;
+        }
+
+        if (!isCancelled) {
+            totalRevenue += vendorRevenue;
+            if (orderDate >= startOfToday) todayRevenue += vendorRevenue;
+            if (orderDate >= startOfWeek)  weekRevenue  += vendorRevenue;
+            if (orderDate >= startOfMonth) monthRevenue += vendorRevenue;
+
+            // Daily revenue (last 30 days)
+            if (orderDate >= thirtyDaysAgo) {
+                const key = orderDate.toISOString().split("T")[0];
+                revenueByDay[key] = (revenueByDay[key] || 0) + vendorRevenue;
+            }
+
+            // Product sales
+            for (const item of vendorItems) {
+                const pid = item._id?.toString();
+                if (!productSalesMap[pid]) {
+                    productSalesMap[pid] = { name: item.name, image: item.image?.[0] || null, sold: 0, revenue: 0 };
+                }
+                productSalesMap[pid].sold    += item.quantity;
+                productSalesMap[pid].revenue += item.price * item.quantity;
+            }
+        }
+    }
+
+    // Build 30-day line chart
+    const revenueChart = [];
+    for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const key = d.toISOString().split("T")[0];
+        revenueChart.push({ date: key, revenue: revenueByDay[key] || 0 });
+    }
+
+    // Build 12-month bar chart
+    const ordersChart = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now);
+        d.setMonth(now.getMonth() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        ordersChart.push({
+            month:   MONTH_NAMES[d.getMonth()],
+            orders:  ordersByMonth[key]?.orders  || 0,
+            revenue: ordersByMonth[key]?.revenue || 0,
+        });
+    }
+
+    // Build category pie chart data from vendor's product list
+    const categoryCount = {};
+    for (const p of products) {
+        const catName = p.category?.name || "Khác";
+        categoryCount[catName] = (categoryCount[catName] || 0) + 1;
+    }
+    const categoryChart = Object.entries(categoryCount)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    const topSelling = Object.values(productSalesMap).sort((a, b) => b.sold - a.sold).slice(0, 5);
+
+    const totalProducts = products.length;
+    const totalStock    = products.reduce((s, p) => s + (p.stock || 0), 0);
+    const lowStock      = products.filter((p) => p.stock <= 5).length;
+
+    const recentOrders = allOrders.slice(0, 10).map((o) => ({
+        _id:      o._id,
+        date:     o.date,
+        status:   o.status,
+        amount:   o.items.filter((i) => i.vendorId?.toString() === vendorId.toString()).reduce((s, i) => s + i.price * i.quantity, 0),
+        itemCount: o.items.filter((i) => i.vendorId?.toString() === vendorId.toString()).length,
+    }));
+
+    return {
+        revenue:  { total: totalRevenue, today: todayRevenue, week: weekRevenue, month: monthRevenue, chart: revenueChart },
+        orders:   { total: allOrders.length, byStatus: ordersByStatus, monthlyChart: ordersChart, recent: recentOrders },
+        products: { total: totalProducts, totalStock, lowStock, topSelling, categoryChart },
+    };
 };

@@ -71,8 +71,22 @@ export const getMyReviewedProductsService = async (userId) => {
     return reviews.map((r) => `${r.product}_${r.orderId}`);
 };
 
-export const getReviewsByProductService = async (productId) =>
-    reviewModel.find({ product: productId }).populate("user", "name").sort({ createdAt: -1 });
+export const getReviewsByProductService = async (productId, page = 1, limit = 5, star = 0) => {
+    const skip = (page - 1) * limit;
+    const query = { product: new mongoose.Types.ObjectId(productId) };
+    if (star >= 1 && star <= 5) query.rating = star;
+
+    const [reviews, total] = await Promise.all([
+        reviewModel
+            .find(query)
+            .populate("user", "name")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit),
+        reviewModel.countDocuments(query),
+    ]);
+    return { reviews, total, page, totalPages: Math.ceil(total / limit) };
+};
 
 export const updateReviewService = async (reviewId, userId, { rating, comment, keepImages }, imageFiles = []) => {
     const review = await reviewModel.findById(reviewId);

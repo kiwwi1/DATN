@@ -65,8 +65,8 @@ export const removeProductService = async (productId, vendorId) => {
 
 export const singleProductService = async (productId) => productModel.findById(productId);
 
-export const updateProductService = async (productId, vendorId, body) => {
-    const { name, description, price, category, subCategory, bestseller, attributes, variants } = body;
+export const updateProductService = async (productId, vendorId, body, files) => {
+    const { name, description, price, category, subCategory, bestseller, attributes, variants, imageSlots } = body;
 
     const product = await productModel.findById(productId);
     if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
@@ -83,6 +83,20 @@ export const updateProductService = async (productId, vendorId, body) => {
 
     const variantSync = parsedVariants?.length > 0 ? syncFromVariants(parsedVariants) : null;
 
+    // Handle image updates: imageSlots is a JSON array of 4 items (existing URL | null)
+    // New file uploads are passed as image0..image3 in files
+    if (imageSlots !== undefined) {
+        const slots = typeof imageSlots === "string" ? JSON.parse(imageSlots) : imageSlots;
+        const newImages = await Promise.all(
+            slots.map(async (slotUrl, idx) => {
+                const file = files?.[`image${idx}`]?.[0];
+                if (file) return uploadToR2(file, "products");
+                return slotUrl || null;
+            })
+        );
+        product.image = newImages.filter(Boolean);
+    }
+
     product.name = name;
     product.description = description;
     product.price = variantSync ? variantSync.price : Number(price);
@@ -91,7 +105,7 @@ export const updateProductService = async (productId, vendorId, body) => {
     product.subCategory = subCategory || null;
     product.attributes = parsedAttributes;
     product.variants = parsedVariants;
-    product.bestseller = bestseller;
+    product.bestseller = bestseller === true || bestseller === "true";
     product.markModified("variants");
     await product.save();
 

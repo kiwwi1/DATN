@@ -23,6 +23,14 @@ const Add = ({ token }) => {
   const [attributes, setAttributes] = useState([]);
   const [variants, setVariants] = useState([]);
 
+  // Auto-fill price from min variant price
+  useEffect(() => {
+    if (variants.length > 0) {
+      const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p) && p > 0);
+      if (prices.length > 0) setPrice(String(Math.min(...prices)));
+    }
+  }, [variants]);
+
   // States for categories
   const [mainCategories, setMainCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -394,26 +402,40 @@ const Add = ({ token }) => {
 
         <div className="w-full">
           <p className="text-sm font-medium text-gray-700 mb-2">
-            Product Price
+            Giá sản phẩm (₫)
             {variants.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-blue-600">(tự động tính từ biến thể)</span>
+              <span className="ml-2 text-xs font-normal text-blue-600">(tự động lấy từ giá thấp nhất của biến thể)</span>
             )}
           </p>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-              $
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+              ₫
             </span>
             <input
               onChange={(e) => setPrice(e.target.value)}
               value={price}
               type="number"
               className="w-full border-2 border-gray-300 rounded-lg p-2.5 pl-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-              placeholder="0.00"
+              placeholder="0"
               min="0"
-              step="0.01"
+              step="1"
               required
             />
           </div>
+        </div>
+
+        <div className="w-full flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="bestseller"
+            checked={bestseller}
+            onChange={(e) => setBestseller(e.target.checked)}
+            className="w-4 h-4 accent-blue-600 cursor-pointer"
+          />
+          <label htmlFor="bestseller" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+            Đánh dấu là Bestseller
+            <span className="ml-1 text-xs text-gray-400">(hiển thị nổi bật trên trang chủ)</span>
+          </label>
         </div>
 
         {/* Flexible Attributes System - replaces hardcoded sizes */}
@@ -433,21 +455,7 @@ const Add = ({ token }) => {
           />
         </div>
 
-        <div className="flex items-center gap-2 lg:col-span-2">
-          <input
-            onChange={() => setBestseller((prev) => !prev)}
-            checked={bestseller}
-            type="checkbox"
-            id="bestseller"
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <label
-            htmlFor="bestseller"
-            className="text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900"
-          >
-            Add to BestSeller
-          </label>
-        </div>
+    
 
         <div className="lg:col-span-2">
           <button

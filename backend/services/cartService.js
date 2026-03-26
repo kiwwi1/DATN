@@ -1,5 +1,6 @@
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
+import { trackInteractionService } from "./interactionService.js";
 
 /** Chỉ giữ lại các productId còn tồn tại trong DB (sản phẩm đã xóa sẽ bị bỏ khỏi cart). */
 export const sanitizeCartData = async (cartData) => {
@@ -26,6 +27,7 @@ export const addToCartService = async (userId, itemId, size) => {
     }
 
     await userModel.findByIdAndUpdate(userId, { cartData });
+    trackInteractionService(userId, itemId, 'addedToCart').catch(() => {});
 };
 
 export const updateCartService = async (userId, itemId, size, quantity) => {

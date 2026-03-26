@@ -43,8 +43,11 @@ const getMyReviewedProducts = async (req, res) => {
 
 const getReviewsByProduct = async (req, res) => {
     try {
-        const reviews = await getReviewsByProductService(req.params.productId);
-        res.json({ success: true, reviews });
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 5));
+        const star = parseInt(req.query.star) || 0;
+        const result = await getReviewsByProductService(req.params.productId, page, limit, star);
+        res.json({ success: true, ...result });
     } catch (error) {
         console.error("getReviewsByProduct:", error);
         res.status(500).json({ success: false, message: error.message });

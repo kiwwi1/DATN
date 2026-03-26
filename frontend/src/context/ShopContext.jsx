@@ -1,4 +1,4 @@
-import { createContext, useEffect, useCallback } from 'react';
+import { createContext, useEffect, useCallback, useRef } from 'react';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,8 @@ const ShopContextProvider = (props) => {
     const [userRole, setUserRole] = useState('user');
     const [userProfile, setUserProfile] = useState(null);
     const [homepageCategories, setHomepageCategories] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const sseRef = useRef(null);
     const navigate = useNavigate();
 
     // Function to get userId from token
@@ -166,6 +168,73 @@ const ShopContextProvider = (props) => {
         }
     }, [backendUrl])
 
+    const unreadCount = notifications.filter((n) => !n.read).length;
+
+    const loadNotifications = useCallback(async (tok) => {
+        try {
+            const res = await axios.get(backendUrl + '/api/notification/list', { headers: { token: tok } });
+            if (res.data.success) setNotifications(res.data.notifications);
+        } catch { /* non-critical */ }
+    }, [backendUrl]);
+
+    const markAllNotificationsRead = useCallback(async (tok) => {
+        try {
+            await axios.post(backendUrl + '/api/notification/read-all', {}, { headers: { token: tok } });
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        } catch { /* non-critical */ }
+    }, [backendUrl]);
+
+    // Kết nối SSE khi có token, ngắt khi logout
+    useEffect(() => {
+        if (!token) {
+            if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
+            setNotifications([]);
+            return;
+        }
+        loadNotifications(token);
+        const es = new EventSource(`${backendUrl}/api/notification/stream?token=${token}`);
+        sseRef.current = es;
+        es.onmessage = (e) => {
+            try {
+                const notification = JSON.parse(e.data);
+                setNotifications((prev) => [notification, ...prev]);
+                toast.info(notification.title, { autoClose: 4000 });
+            } catch { /* ignore parse errors */ }
+        };
+        es.onerror = () => { es.close(); sseRef.current = null; };
+        return () => { es.close(); sseRef.current = null; };
+    }, [token, backendUrl, loadNotifications]);
+
+    const [recommendations, setRecommendations] = useState([]);
+
+    const getRecommendations = useCallback(async () => {
+        if (!token) return;
+        try {
+            const res = await axios.post(backendUrl + '/api/interaction/recommendations', {}, { headers: { token } });
+            if (res.data.success) setRecommendations(res.data.products);
+        } catch { /* non-critical */ }
+    }, [token, backendUrl]);
+
+    useEffect(() => {
+        if (token) getRecommendations();
+        else setRecommendations([]);
+    }, [token, getRecommendations]);
+
+    const REFRESH_INTERACTIONS = new Set(['viewed', 'purchased', 'addedToCart']);
+
+    const trackInteraction = useCallback(async (productId, interactionType, value = 1) => {
+        if (!token || !productId) return;
+        try {
+            await axios.post(backendUrl + '/api/interaction/track',
+                { productId, interactionType, value },
+                { headers: { token } }
+            );
+            if (REFRESH_INTERACTIONS.has(interactionType)) {
+                getRecommendations();
+            }
+        } catch { /* non-critical, don't interrupt UX */ }
+    }, [token, backendUrl, getRecommendations]);
+
     const getAllCategories = useCallback(async () => {
         try {
             const response = await axios.get(backendUrl+'/api/category/list')
@@ -241,7 +310,14 @@ const ShopContextProvider = (props) => {
         userId,
         userRole,
         getUserProfile,
-        userProfile
+        userProfile,
+        notifications,
+        unreadCount,
+        markAllNotificationsRead,
+        loadNotifications,
+        trackInteraction,
+        recommendations,
+        getRecommendations,
     };
 
     return (

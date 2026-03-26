@@ -4,9 +4,15 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon server.js",
-    "seed-categories": "node seedCategories.js"
+    "start": "node --dns-result-order=ipv4first server.js",
+    "server": "nodemon --exec \"node --dns-result-order=ipv4first\" server.js",
+    "seed-categories": "node seedCategories.js",
+    "seed-products": "node seedProducts.js",
+    "seed-reviews": "node seedReviews.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "jest": {
+    "transform": {}
   },
   "author": "",
   "license": "ISC",
@@ -19,12 +25,18 @@
     "dayjs": "^1.11.13",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "google-auth-library": "^10.6.1",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.1.0",
     "mongoose": "^8.14.1",
-    "multer": "^1.4.5-lts.2",
+    "multer": "^2.1.1",
     "nodemon": "^3.1.10",
     "stripe": "^18.1.0",
     "validator": "^13.15.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.3.0",
+    "jest": "^30.3.0",
+    "mongodb-memory-server": "^11.0.1"
   }
 }

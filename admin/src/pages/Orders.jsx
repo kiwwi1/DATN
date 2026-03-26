@@ -7,122 +7,152 @@ import { assets } from '../assets/assets.js'
 import { formatPrice } from '../utils/priceFormat'
 
 const Orders = ({token}) => {
-  const [orders,setOrders]=useState([])
-  
-  const fetchAllOrders = async()=>{
-    if(!token) return ;
+  const [orders, setOrders] = useState([])
+
+  const fetchAllOrders = async () => {
+    if (!token) return
     try {
-      // Use vendor-specific endpoint to only show orders containing vendor's products
-      const response = await axios.post(backendUrl + '/api/order/vendor-list',{},{
-        headers:{
-          token:token
-        }
+      const response = await axios.post(backendUrl + '/api/order/vendor-list', {}, {
+        headers: { token }
       })
-      console.log(response.data)
-      
-      if(response.data.success){
+      if (response.data.success) {
         setOrders(response.data.orders)
-      }
-      else{
+      } else {
         toast.error(response.data.message)
       }
     } catch (error) {
-      toast.error(error.response.data.message)
+      toast.error(error.response?.data?.message || error.message || 'Không thể tải đơn hàng')
     }
   }
 
-  const updateOrderStatus = async (event,orderId) => {
+  const updateOrderStatus = async (event, orderId) => {
     event.preventDefault()
     try {
-      // Use vendor-specific endpoint for updating order status
-      const response = await axios.post(backendUrl+'/api/order/vendor-status', 
-        {
-          orderId,
-          status:event.target.value
-        }, 
-        {headers:{token}}
+      const response = await axios.post(backendUrl + '/api/order/vendor-status',
+        { orderId, status: event.target.value },
+        { headers: { token } }
       )
-      if(response.data.success){
-        toast.success("Order status updated successfully")
+      if (response.data.success) {
+        toast.success('Cập nhật trạng thái thành công')
         await fetchAllOrders()
-      }
-      else{
+      } else {
         toast.error(response.data.message)
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     fetchAllOrders()
-  },[token])
+  }, [token])
+
+  // Format selected attributes (new system) with fallback to legacy size field
+  const renderItemVariant = (item) => {
+    if (item.selectedAttributes && item.selectedAttributes.length > 0) {
+      return item.selectedAttributes.map(a => `${a.name}: ${a.value}`).join(', ')
+    }
+    if (item.size) return item.size
+    return null
+  }
+
+  // Calculate vendor's actual amount from items if vendorAmount is not provided
+  const getDisplayAmount = (order) => {
+    if (order.vendorAmount != null) return order.vendorAmount
+    return order.items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
+  }
 
   return (
     <div className="p-6">
-      <h3 className='text-2xl font-bold mb-6 text-gray-800'>My Orders</h3>
-      <div className="space-y-6">
-        {orders.map((order,index)=>(
-          <div key={index} className="bg-white rounded-lg shadow-md p-4 flex flex-col md:flex-row justify-between gap-4 border-l-4 border-blue-500">
-            <div className="flex items-start gap-4">
-              <img src={assets.parcel_icon} alt="parcel" className="w-10 h-10 mt-1" />
-              <div className="flex-1">
-                <div className="mb-2">
-                  {
-                    order.items.map((item,index)=>{
-                      if(index === order.items.length - 1){
-                        return(
-                          <p key={index} className="text-gray-700">
-                            <span className="font-medium">{item.name}</span> x {item.quantity} 
-                            <span className="text-xs ml-1 bg-gray-100 px-2 py-0.5 rounded">{item.size}</span>
-                          </p>
-                        )
-                      }
-                      else{
-                        return(
-                          <p key={index} className="text-gray-700">
-                            <span className="font-medium">{item.name}</span> x {item.quantity} 
-                            <span className="text-xs ml-1 bg-gray-100 px-2 py-0.5 rounded">{item.size}</span>,
-                          </p>
-                        )
-                      }
-                  })
-                  }
+      <h3 className='text-2xl font-bold mb-6 text-gray-800'>Đơn hàng của tôi</h3>
+
+      {orders.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+          <img src={assets.parcel_icon} alt="no orders" className="w-16 h-16 mb-4 opacity-30" />
+          <p className="text-base font-medium">Chưa có đơn hàng nào</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order, index) => (
+            <div key={order._id || index} className="bg-white rounded-lg shadow-sm p-4 flex flex-col md:flex-row justify-between gap-4 border-l-4 border-blue-500">
+              <div className="flex items-start gap-4">
+                <img src={assets.parcel_icon} alt="parcel" className="w-10 h-10 mt-1 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="mb-2 space-y-1">
+                    {order.items.map((item, i) => {
+                      const variant = renderItemVariant(item)
+                      return (
+                        <p key={i} className="text-gray-700 text-sm">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-gray-500"> × {item.quantity}</span>
+                          {variant && (
+                            <span className="text-xs ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{variant}</span>
+                          )}
+                          {i < order.items.length - 1 && ','}
+                        </p>
+                      )
+                    })}
+                  </div>
+                  <p className="font-medium text-gray-800 text-sm">{order.address.firstName} {order.address.lastName}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{order.address.street}, {order.address.city}</p>
+                  <p className="text-gray-500 text-xs">{order.address.phone}</p>
                 </div>
-                <p className="font-medium text-gray-800">{order.address.firstName} {order.address.lastName}</p>
-                <div className="text-gray-600 text-sm">
-                  <p>{order.address.street + ", " + order.address.city}</p>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div className="bg-gray-50 p-3 rounded text-xs space-y-1 min-w-[160px]">
+                  <p className="flex justify-between gap-4">
+                    <span className="text-gray-500">Sản phẩm:</span>
+                    <span className="font-medium">{order.items.length}</span>
+                  </p>
+                  <p className="flex justify-between gap-4">
+                    <span className="text-gray-500">Thanh toán:</span>
+                    <span className="font-medium">{order.paymentMethod}</span>
+                  </p>
+                  <p className="flex justify-between gap-4">
+                    <span className="text-gray-500">Trạng thái TT:</span>
+                    <span className={`font-medium ${order.payment ? 'text-green-600' : 'text-orange-500'}`}>
+                      {order.payment ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                    </span>
+                  </p>
+                  <p className="flex justify-between gap-4">
+                    <span className="text-gray-500">Ngày:</span>
+                    <span className="font-medium">{new Date(order.date).toLocaleDateString('vi-VN')}</span>
+                  </p>
                 </div>
-                <p className="text-gray-600 text-sm mt-1">{order.address.phone}</p>
+
+                <div className="flex flex-col items-end gap-2 min-w-[140px]">
+                  <p className="text-lg font-bold text-blue-600">{formatPrice(getDisplayAmount(order))}</p>
+                  {order.status === 'Delivered' || order.status === 'Cancelled' ? (
+                    <span className={`px-3 py-1.5 rounded text-xs font-medium ${
+                      order.status === 'Delivered'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-50 text-red-500'
+                    }`}>
+                      {order.status === 'Delivered' ? '✓ Đã giao' : '✕ Đã huỷ'}
+                    </span>
+                  ) : (
+                    <select
+                      onChange={(e) => updateOrderStatus(e, order._id)}
+                      value={order.status}
+                      className="p-2 border rounded bg-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Order Placed">Đã đặt hàng</option>
+                      <option value="Packing">Đang đóng gói</option>
+                      <option value="Shipped">Đã giao vận chuyển</option>
+                      <option value="Out for delivery">Đang giao</option>
+                      <option value="Delivered">Đã giao</option>
+                    </select>
+                  )}
+                  {order.cancelReason && (
+                    <p className="text-xs text-gray-400 max-w-[140px] text-right">Lý do: {order.cancelReason}</p>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="flex flex-col md:flex-row gap-4 items-start">
-              <div className="bg-gray-50 p-3 rounded text-sm">
-                <p className="flex justify-between gap-2"><span className="text-gray-500">Items:</span> <span className="font-medium">{order.items.length}</span></p>
-                <p className="flex justify-between gap-2"><span className="text-gray-500">Method:</span> <span className="font-medium">{order.paymentMethod}</span></p>
-                <p className="flex justify-between gap-2">
-                  <span className="text-gray-500">Payment:</span> 
-                  <span className={`font-medium ${order.payment ? 'text-green-600' : 'text-orange-500'}`}>
-                    {order.payment ? 'Done' : 'Pending'}
-                  </span>
-                </p>
-                <p className="flex justify-between gap-2"><span className="text-gray-500">Date:</span> <span className="font-medium">{new Date(order.date).toLocaleDateString()}</span></p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <p className="text-xl font-bold text-blue-600">{formatPrice(order.vendorAmount || order.amount)}</p>
-                <select onChange={(event)=>{updateOrderStatus(event,order._id)}} value={order.status} className="p-2 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="Order Placed">Order Placed</option>
-                  <option value="Packing">Packing</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="Out for delivery">Out for delivery</option>
-                  <option value="Delivered">Delivered</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

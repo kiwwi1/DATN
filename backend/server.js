@@ -8,13 +8,24 @@ import orderRouter from './routes/orderRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import categoryRouter from './routes/categoryRoute.js';
 import reviewRouter from './routes/reviewRoute.js';
+import notificationRouter from './routes/notificationRoute.js';
+import interactionRouter from './routes/interactionRoute.js';
+import reviewModel from './models/reviewModel.js';
 
 
 // App config
 const app = express();
 const port = process.env.PORT || 4000;
 
-connectDB();
+// Kết nối DB rồi đồng bộ index (xóa index cũ, tạo index mới)
+connectDB().then(async () => {
+    try {
+        await reviewModel.syncIndexes();
+        console.log('✅ Review indexes synced');
+    } catch (e) {
+        console.warn('⚠️ syncIndexes warning:', e.message);
+    }
+});
 
 // Middlewares
 app.use(cors({
@@ -33,6 +44,8 @@ app.use('/api/cart', cartRouter);
 app.use('/api/order', orderRouter);
 app.use('/api/category', categoryRouter);
 app.use('/api/review', reviewRouter);
+app.use('/api/notification', notificationRouter);
+app.use('/api/interaction', interactionRouter);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

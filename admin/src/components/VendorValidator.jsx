@@ -3,7 +3,7 @@ import axios from 'axios';
 import { backendUrl } from '../App';
 import { toast } from 'react-toastify';
 
-const VendorValidator = ({ token, setToken, children }) => {
+const VendorValidator = ({ token, onLogout, children }) => {
   const [isValidating, setIsValidating] = useState(true);
   const [isValidVendor, setIsValidVendor] = useState(false);
 
@@ -22,38 +22,34 @@ const VendorValidator = ({ token, setToken, children }) => {
         if (response.data.success && response.data.user.role === 'vendor') {
           setIsValidVendor(true);
         } else {
-          toast.error('Access denied - Vendor account required');
-          setToken("");
-          localStorage.removeItem("token");
-          sessionStorage.removeItem("vendorToken");
+          toast.error('Truy cập bị từ chối - Yêu cầu tài khoản vendor');
+          onLogout?.();
         }
       } catch (error) {
         console.error('Error validating vendor:', error);
-        toast.error('Error validating vendor status');
-        setToken("");
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("vendorToken");
+        toast.error('Lỗi xác thực tài khoản vendor');
+        onLogout?.();
       }
 
       setIsValidating(false);
     };
 
     validateVendor();
-  }, [token, setToken]);
+  }, [token]);
 
   if (isValidating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Validating vendor access...</p>
+          <p className="mt-4 text-gray-600">Đang xác thực tài khoản...</p>
         </div>
       </div>
     );
   }
 
   if (!token || !isValidVendor) {
-    return null; // Will show login component
+    return null;
   }
 
   return children;

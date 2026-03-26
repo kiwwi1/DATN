@@ -1,170 +1,80 @@
-import userModel from "../models/userModel.js";
-import validator from "validator";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+import {
+    loginUserService,
+    loginWithGoogleService,
+    registerUserService,
+    registerVendorService,
+    getUserProfileService,
+    updateUserProfileService,
+    loginAdminService,
+} from "../services/userService.js";
 
-const createToken = (id) => {
-    return jwt.sign(
-        {id},process.env.JWT_SECRET
-    )
-}
-// Route for user login
-const loginUser = async (req,res) =>{
+const loginUser = async (req, res) => {
     try {
-        const {email,password} = req.body;
-    const user = await userModel.findOne({email})
-    if(!user){
-        return res.json({success:false, message: 'User does not exist'})
-    }
-    const isMatch = await bcrypt.compare(password,user.password)
-    if(isMatch){
-        const token = createToken(user._id)
-        return res.json({success:true, token})
-    }
-    else{
-        res.json({success:false, message: 'Invalid credentials'})
-    }
-        
+        const { email, password } = req.body;
+        const token = await loginUserService(email, password);
+        res.json({ success: true, token });
     } catch (error) {
-        console.log(error)
-        res.json({success:false, message:error.message}) 
+        res.json({ success: false, message: error.message });
     }
-    
-    
+};
 
-
-}
-
-// Route for user registration
-const registerUser = async (req,res) =>{
+const loginWithGoogle = async (req, res) => {
     try {
-        const{name,email,password} = req.body;
-        // checking user already exists
-        const exists = await userModel.findOne({email})
-        if(exists){
-            return res.json({success:false, message: 'User already exists'})
-        }
-        // validating email format and strong password
-        if(!validator.isEmail(email)){
-            return res.json({success:false, message: 'Please enter a valid email'})
-        }
-        if(password.length < 8){
-            return res.json({success:false, message: 'Please enter a strong password'})
-        }
-
-        // hashing user password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        // creating user
-        const newUser = new userModel({
-            name,
-            email,
-            password: hashedPassword
-        })
-
-        const user = await newUser.save();
-        //gen bang id cua user
-        const token = createToken(user._id)
-
-        res.json({success:true,token})
-
-
-
+        const { credential } = req.body;
+        const token = await loginWithGoogleService(credential);
+        res.json({ success: true, token });
     } catch (error) {
-        console.log(error)
-        res.json({success:false, message:error.message})
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
-const registerVendor = async (req,res) =>{
+const registerUser = async (req, res) => {
     try {
-        const {shopName,shopAddress,phone,userId} = req.body;
-        
-        // Kiểm tra user có tồn tại không
-        const user = await userModel.findById(userId);
-        if(!user){
-            return res.json({success:false, message: 'User not found'})
-        }
-        
-        // Kiểm tra shopName đã tồn tại chưa (loại trừ user hiện tại)
-        const existingShop = await userModel.findOne({
-            shopName: shopName,
-            _id: { $ne: userId } // Loại trừ user hiện tại
-        });
-        
-        if(existingShop){
-            return res.json({success:false, message: 'Tên cửa hàng đã tồn tại, vui lòng chọn tên khác'})
-        }
-        
-        user.shopName = shopName;
-        user.shopAddress = shopAddress;
-        user.phone = phone;
-        user.role = 'vendor'; // Cập nhật role thành vendor
-        await user.save();  
-        res.json({success:true, message: 'Vendor registered successfully'})
+        const { name, email, password } = req.body;
+        const token = await registerUserService(name, email, password);
+        res.json({ success: true, token });
     } catch (error) {
-        console.log(error)
-        res.json({success:false, message:error.message})
-    }    
-}
+        res.json({ success: false, message: error.message });
+    }
+};
 
-// Route to get user profile
+const registerVendor = async (req, res) => {
+    try {
+        const { shopName, shopAddress, phone, userId } = req.body;
+        await registerVendorService(userId, shopName, shopAddress, phone);
+        res.json({ success: true, message: "Vendor registered successfully" });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 const getUserProfile = async (req, res) => {
     try {
-        const user = await userModel.findById(req.body.userId).select('-password');
-        if (!user) {
-            return res.json({success: false, message: 'User not found'});
-        }
-        res.json({success: true, user});
+        const user = await getUserProfileService(req.body.userId);
+        res.json({ success: true, user });
     } catch (error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
-
-const updateUserProfile = async (req,res) =>{
+const updateUserProfile = async (req, res) => {
     try {
-        const {name,email,phone} = req.body;
-        const user = await userModel.findById(req.body.userId);
-        if(name){
-            user.name = name;
-        }
-        if(email){
-            user.email = email;
-        }
-        if(phone){
-            user.phone = phone;
-        }
-        await user.save();
-        
-        if(!user){
-            return res.json({success: false, message: 'User not found'});
-        }
-    }
-    catch (error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
-    }
-}
-
-// Route for admin login
-const loginAdmin = async (req,res) =>{
-    try {
-       const {email,password} = req.body;
-       if(email == process.env.ADMIN_EMAIL && password == process.env.ADMIN_PASSWORD){
-        const token = jwt.sign(email+password,process.env.JWT_SECRET)
-        res.json({success:true, token})
-    }
-    else{
-        res.json({success:false, message: 'Invalid credentials'})
-    }
+        const { name, email, phone } = req.body;
+        await updateUserProfileService(req.body.userId, { name, email, phone });
+        res.json({ success: true, message: "Profile updated successfully" });
     } catch (error) {
-        console.log(error)
-        res.json({success:false, message:error.message})
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
+const loginAdmin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const token = loginAdminService(email, password);
+        res.json({ success: true, token });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
 
-export {loginUser, registerUser ,loginAdmin, registerVendor, getUserProfile, updateUserProfile}
+export { loginUser, registerUser, loginAdmin, registerVendor, getUserProfile, updateUserProfile, loginWithGoogle };

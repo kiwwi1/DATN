@@ -32,6 +32,11 @@ const orderSchema = new mongoose.Schema({
   payment: { type: Boolean, default: false, required: true },
   date: { type: Number, required: true },
   
+  // Cancellation info
+  cancelReason: { type: String },
+  cancelledBy: { type: String, enum: ['user', 'vendor', 'admin'] },
+  cancelledAt: { type: Number },
+
   // Vendor tracking for multi-vendor orders
   vendors: [{
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },

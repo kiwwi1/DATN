@@ -44,6 +44,13 @@ const productSchema = new mongoose.Schema({
         name: {type: String, required: true}, // e.g., "Size", "Color", "Material"
         values: [{type: String}] // e.g., ["S", "M", "L"] or ["Red", "Blue"]
     }],
+
+    // SKU-based variants: each combination of attribute values has its own price & stock
+    variants: [{
+        combination: { type: mongoose.Schema.Types.Mixed, required: true }, // e.g. { "Size": "S", "Màu sắc": "Đỏ" }
+        price:       { type: Number, required: true, min: 0 },
+        stock:       { type: Number, default: 0, min: 0 }
+    }],
     
     // Deprecated: Keep for backward compatibility, but use attributes instead
     sizes: {type: Array, default: []},

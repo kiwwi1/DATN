@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      // Cho phép Cloudflare quick tunnel (*.trycloudflare.com)
+      allowedHosts: ['.trycloudflare.com'],
     }
   }
 })

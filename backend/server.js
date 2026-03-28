@@ -29,8 +29,13 @@ connectDB().then(async () => {
 
 // Middlewares
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
-    credentials: true
+    origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (origin.startsWith('http://localhost:')) return cb(null, true);
+        if (origin.endsWith('.trycloudflare.com')) return cb(null, true);
+        return cb(null, false);
+    },
+    credentials: true,
 }));
 app.use(express.json());
 

@@ -4,6 +4,7 @@ import productModel from "../models/productModel.js";
 import Stripe from "stripe";
 import { createNotification } from "./notificationService.js";
 import { trackInteractionService } from "./interactionService.js";
+import { buildVNPayUrl, verifyVNPaySignature } from "../utils/vnpay.js";
 
 const currency = "vnd";
 export const deliveryFee = 30000;
@@ -418,6 +419,92 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId) 
     );
 
     return order;
+};
+
+// ─── Place Order (VNPay) ─────────────────────────────────────────────────────
+
+export const placeOrderVNPayService = async ({ userId, items, amount, address, ipAddr }) => {
+    if (!userId || !items?.length) throw new Error("Invalid order data: Missing required fields");
+    for (const item of items) {
+        if (!item._id || !item.name || !item.price || !item.quantity) {
+            throw new Error("Invalid item data: Missing required fields");
+        }
+    }
+
+    const vendors = buildVendorsMap(items);
+    const newOrder = await orderModel.create({
+        userId,
+        items,
+        amount,
+        address,
+        paymentMethod: "VNPay",
+        payment: false,
+        date: Date.now(),
+        vendors: vendors.length > 0 ? vendors : undefined,
+    });
+
+    const { paymentUrl, txnRef } = buildVNPayUrl({
+        amount,
+        orderId: newOrder._id.toString(),
+        ipAddr,
+        orderInfo: `Thanh toan don hang ${newOrder._id}`,
+    });
+
+    // Lưu txnRef để tra cứu khi VNPay callback
+    await orderModel.updateOne({ _id: newOrder._id }, { vnpTxnRef: txnRef });
+
+    return { orderId: newOrder._id, paymentUrl };
+};
+
+// ─── Verify VNPay Return ─────────────────────────────────────────────────────
+
+export const verifyVNPayReturnService = async (query) => {
+    const isValid = verifyVNPaySignature(query);
+    if (!isValid) throw new Error("Chữ ký không hợp lệ");
+
+    const txnRef = query.vnp_TxnRef;
+    const responseCode = query.vnp_ResponseCode;
+    const transactionNo = query.vnp_TransactionNo;
+
+    // txnRef = "{orderId}_{timestamp}"
+    const orderId = txnRef?.split("_")[0];
+    if (!orderId) throw new Error("Không tìm thấy mã đơn hàng trong TxnRef");
+
+    const order = await orderModel.findById(orderId);
+    if (!order) throw new Error("Đơn hàng không tồn tại");
+
+    if (responseCode === "00") {
+        // Thành công
+        if (!order.payment) {
+            order.payment = true;
+            order.vnp_TransactionNo = transactionNo;
+            await order.save();
+
+            await updateProductSold(order.items);
+            await deductVariantStock(order.items);
+            await clearOrderedItemsFromCart(order.userId, order.items);
+
+            for (const item of order.items) {
+                trackInteractionService(order.userId, item._id, "purchased", item.quantity).catch(() => {});
+            }
+
+            const vendorsMap = buildVendorsMap(order.items);
+            for (const vendor of vendorsMap) {
+                const itemNames = vendor.items.map((i) => i.name).join(", ");
+                await createNotification(
+                    vendor.vendorId,
+                    "order_placed",
+                    "Đơn hàng mới",
+                    `Bạn có đơn hàng mới (đã thanh toán VNPay): ${itemNames}`,
+                    order._id.toString()
+                );
+            }
+        }
+        return { success: true, orderId };
+    } else {
+        // Thất bại hoặc người dùng huỷ
+        return { success: false, orderId };
+    }
 };
 
 export const vendorStatsService = async (vendorId) => {

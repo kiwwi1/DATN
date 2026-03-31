@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema({
     shopName: {type: String},
     shopAddress: {type: String},
     phone: {type: String},
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
 },{minimize: false})
 // {minimize: false} is used to allow empty objects in the schema
 const userModel = mongoose.model.user || mongoose.model('user', userSchema)

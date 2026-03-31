@@ -1,50 +1,19 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { ShopContext } from '../../context/ShopContext';
 import Title from '../../components/ui/Title';
 import { toast } from 'react-toastify';
 import ProfileSidebar from '../../components/profile/ProfileSidebar';
 import { formatPrice } from '../../utils/priceFormat';
 import { formatImageUrl } from '../../utils/imageUtils';
-
-const STATUS_TABS = [
-  { id: 'all',        label: 'Tất cả' },
-  { id: 'pending',    label: 'Chờ thanh toán' },
-  { id: 'shipping',   label: 'Vận chuyển' },
-  { id: 'delivering', label: 'Chờ giao hàng' },
-  { id: 'delivered',  label: 'Hoàn thành' },
-  { id: 'cancelled',  label: 'Đã hủy' },
-];
-
-const STATUS_MAP = {
-  'Order Placed':      { label: 'Chờ xác nhận',    color: 'text-yellow-600' },
-  'Packing':           { label: 'Đang đóng gói',   color: 'text-blue-600' },
-  'Shipped':           { label: 'Đang vận chuyển', color: 'text-purple-600' },
-  'Out for delivery':  { label: 'Đang giao hàng',  color: 'text-orange-500' },
-  'Delivered':         { label: 'HOÀN THÀNH',      color: 'text-orange-500 font-semibold' },
-  'Cancelled':         { label: 'Đã hủy',          color: 'text-gray-400' },
-};
-
-const matchTab = (order, tab) => {
-  if (tab === 'all') return true;
-  if (tab === 'pending')    return order.status === 'Order Placed';
-  if (tab === 'shipping')   return ['Packing', 'Shipped'].includes(order.status);
-  if (tab === 'delivering') return order.status === 'Out for delivery';
-  if (tab === 'delivered')  return order.status === 'Delivered';
-  if (tab === 'cancelled')  return order.status === 'Cancelled';
-  return true;
-};
-
-const CANCEL_REASONS = [
-  'Tôi muốn thay đổi địa chỉ giao hàng',
-  'Tôi muốn thay đổi sản phẩm trong đơn hàng',
-  'Tôi tìm được giá rẻ hơn ở chỗ khác',
-  'Tôi không còn nhu cầu mua nữa',
-  'Đặt hàng nhầm / trùng đơn',
-  'Lý do khác',
-];
-
-const CANCELLABLE_STATUSES = ['Order Placed', 'Packing'];
+import {
+  STATUS_TABS,
+  STATUS_MAP,
+  matchTab,
+  CANCEL_REASONS,
+  CANCELLABLE_STATUSES,
+} from '../../constants/orderConstants';
 
 const Orders = () => {
   const { backendUrl, token, navigate } = useContext(ShopContext);
@@ -199,13 +168,29 @@ const Orders = () => {
                       const alreadyReviewed = reviewedIds.has(`${item._id}_${order._id}`);
                       return (
                         <div key={idx} className="flex items-start gap-3 px-4 py-4 border-b last:border-b-0">
-                          <img
-                            src={formatImageUrl(item.image?.[0])}
-                            className="w-16 h-16 object-cover rounded flex-shrink-0"
-                            alt={item.name}
-                          />
+                          {item._id ? (
+                            <Link to={`/product/${item._id}`}>
+                              <img
+                                src={formatImageUrl(item.image?.[0])}
+                                className="w-16 h-16 object-cover rounded flex-shrink-0"
+                                alt={item.name}
+                              />
+                            </Link>
+                          ) : (
+                            <img
+                              src={formatImageUrl(item.image?.[0])}
+                              className="w-16 h-16 object-cover rounded flex-shrink-0"
+                              alt={item.name}
+                            />
+                          )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</p>
+                            {item._id ? (
+                              <Link to={`/product/${item._id}`} className="text-sm font-medium text-gray-800 line-clamp-2 hover:text-orange-600">
+                                {item.name}
+                              </Link>
+                            ) : (
+                              <p className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</p>
+                            )}
                             {item.selectedAttributes?.length > 0 && (
                               <p className="text-xs text-gray-500 mt-1">
                                 Phân loại hàng: {item.selectedAttributes.map(a => a.value).join(', ')}

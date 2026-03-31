@@ -1,4 +1,5 @@
 import productModel from "../models/productModel.js";
+import userModel from "../models/userModel.js";
 import { uploadToR2 } from "../utils/r2Upload.js";
 
 export const syncFromVariants = (variants) => {
@@ -114,3 +115,53 @@ export const updateProductService = async (productId, vendorId, body, files) => 
 
 export const listVendorProductsService = async (vendorId) =>
     productModel.find({ vendorId });
+
+export const getVendorShopPublicService = async (vendorId) => {
+    const vendor = await userModel
+        .findOne({ _id: vendorId, role: "vendor" })
+        .select("name shopName followers createdAt");
+    if (!vendor) throw Object.assign(new Error("Vendor not found"), { status: 404 });
+
+    const products = await productModel
+        .find({ vendorId, isActive: true })
+        .sort({ date: -1 })
+        .lean();
+
+    const productCount = products.length;
+    const soldCount = products.reduce((s, p) => s + (Number(p.sold) || 0), 0);
+    const avgRating =
+        productCount > 0
+            ? Number(
+                  (
+                      products.reduce((s, p) => s + (Number(p.rating) || 0), 0) /
+                      productCount
+                  ).toFixed(1)
+              )
+            : 0;
+    const reviewCount = products.reduce((s, p) => s + (Number(p.reviewCount) || 0), 0);
+
+    const joinedAt =
+        vendor.createdAt ||
+        (typeof vendor._id?.getTimestamp === "function"
+            ? vendor._id.getTimestamp()
+            : null);
+
+    return {
+        vendor: {
+            _id: vendor._id,
+            name: vendor.name,
+            shopName: vendor.shopName || vendor.name,
+            followers: Number(vendor.followers) || 0,
+            createdAt: joinedAt,
+        },
+        stats: {
+            productCount,
+            soldCount,
+            avgRating,
+            reviewCount,
+            replyRate: 94,
+            replyTimeText: "trong vài giờ",
+        },
+        products,
+    };
+};

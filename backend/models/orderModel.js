@@ -31,6 +31,8 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: { type: String, required: true },
   payment: { type: Boolean, default: false, required: true },
   date: { type: Number, required: true },
+  vnp_TransactionNo: { type: String },
+  vnpTxnRef: { type: String },
   
   // Cancellation info
   cancelReason: { type: String },

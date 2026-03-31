@@ -146,6 +146,13 @@ const PlaceOrder = () => {
         toast.error('Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫99,999,999). Vui lòng chọn phương thức thanh toán COD.');
         return;
       }
+
+      // VNPay: tối đa 1 tỷ VNĐ (theo giới hạn sandbox)
+      const VNPAY_LIMIT = 1_000_000_000;
+      if (method === 'vnpay' && totalAmount > VNPAY_LIMIT) {
+        toast.error('Tổng đơn hàng vượt quá giới hạn VNPay (₫1,000,000,000).');
+        return;
+      }
       
       let orderData = {
         address: formData,
@@ -190,11 +197,18 @@ const PlaceOrder = () => {
         case 'stripe': {
           const response = await axios.post(backendUrl + '/api/order/place-order-stripe', orderData, {headers:{token}})
           if(response.data.success) {
-            // Clear selected items from sessionStorage before redirect
-            // Backend will handle removing items from cart
             sessionStorage.removeItem('selectedCartItems');
-            
             window.location.href = response.data.sessionUrl
+          } else {
+            toast.error(response.data.message)
+          }
+          break;
+        }
+        case 'vnpay': {
+          const response = await axios.post(backendUrl + '/api/order/place-order-vnpay', orderData, {headers:{token}})
+          if(response.data.success) {
+            sessionStorage.removeItem('selectedCartItems');
+            window.location.href = response.data.paymentUrl
           } else {
             toast.error(response.data.message)
           }
@@ -244,9 +258,9 @@ const PlaceOrder = () => {
                   <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'stripe' ?'bg-green-400':''}`}></p>
                   <img className='h-5 mx-4' src={assets.stripe_logo}></img>
                 </div>
-                <div onClick={()=>setMethod('zalopay')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
-                  <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'zalopay' ?'bg-green-400':''}`}></p>
-                  <img className='h-5 mx-4' src={assets.zalopay_logo}></img>
+                <div onClick={()=>setMethod('vnpay')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
+                  <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'vnpay' ? 'bg-green-400' : ''}`}></p>
+                  <span className='mx-4 font-bold text-[#005BAA] tracking-wide text-sm'>VNPay</span>
                 </div>
                 <div onClick={()=>setMethod('cod')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
                   <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'cod' ?'bg-green-400':''}`}></p>

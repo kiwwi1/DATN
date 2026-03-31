@@ -11,6 +11,7 @@ import reviewRouter from './routes/reviewRoute.js';
 import notificationRouter from './routes/notificationRoute.js';
 import interactionRouter from './routes/interactionRoute.js';
 import reviewModel from './models/reviewModel.js';
+import shopFollowRouter from './routes/shopFollowRoute.js';
 
 
 // App config
@@ -46,6 +47,7 @@ app.use('/api/category', categoryRouter);
 app.use('/api/review', reviewRouter);
 app.use('/api/notification', notificationRouter);
 app.use('/api/interaction', interactionRouter);
+app.use('/api/shop-follow', shopFollowRouter);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

@@ -1,5 +1,5 @@
-import React, { useEffect, useCallback } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import React, { useEffect, useCallback, useMemo } from "react";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { useContext } from "react";
 import { ShopContext } from "../../context/ShopContext";
 import { useState } from "react";
@@ -38,6 +38,42 @@ const Product = () => {
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewTotalPages, setReviewTotalPages] = useState(1);
   const [reviewTotal, setReviewTotal] = useState(0);
+  const [vendorFollowerCount, setVendorFollowerCount] = useState(null);
+
+  const vendorStats = useMemo(() => {
+    if (!productData) return null;
+    const vendorId = productData.vendorId?.toString?.() || productData.vendorId;
+    const shopName = productData.vendorShopName || "";
+    const vendorProducts = products.filter((p) => {
+      const pid = p.vendorId?.toString?.() || p.vendorId;
+      if (vendorId && pid) return String(pid) === String(vendorId);
+      if (shopName) return String(p.vendorShopName || "").toLowerCase() === String(shopName).toLowerCase();
+      return false;
+    });
+    const productCount = vendorProducts.length;
+    const sold = vendorProducts.reduce((s, p) => s + (Number(p.sold) || 0), 0);
+    return { productCount, sold };
+  }, [productData, products]);
+
+  useEffect(() => {
+    const loadFollowerCount = async () => {
+      if (!productData?.vendorId) {
+        setVendorFollowerCount(null);
+        return;
+      }
+      try {
+        const res = await axios.get(
+          `${backendUrl}/api/shop-follow/count/${productData.vendorId}`
+        );
+        if (res.data.success) {
+          setVendorFollowerCount(res.data.followerCount ?? null);
+        }
+      } catch {
+        setVendorFollowerCount(null);
+      }
+    };
+    loadFollowerCount();
+  }, [backendUrl, productData?.vendorId]);
   const [starCounts, setStarCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   const REVIEWS_PER_PAGE = 5;
   // Ảnh đính kèm
@@ -569,6 +605,78 @@ const Product = () => {
           </div>
         </div>
       </div>
+      {/* Vendor / Shop card */}
+      {productData?.vendorShopName && (
+        <div className="mt-10 sm:mt-14 border rounded-lg bg-white shadow-sm">
+          <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+                {String(productData.vendorShopName).trim().slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-gray-800 truncate">
+                    {productData.vendorShopName}
+                  </span>
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                    Online
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">Shop</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toast.info("Tính năng chat đang được phát triển.")}
+                className="px-4 py-2 text-sm border border-orange-500 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
+              >
+                Chat ngay
+              </button>
+              <Link
+                to={productData.vendorId ? `/shop/${productData.vendorId}` : `/collection?search=${encodeURIComponent(productData.vendorShopName)}`}
+                className="px-4 py-2 text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+              >
+                Xem shop
+              </Link>
+            </div>
+          </div>
+
+          <div className="border-t px-4 sm:px-5 py-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+            <div className="flex flex-col">
+              <span className="text-gray-500">Sản phẩm</span>
+              <span className="font-semibold text-orange-600">
+                {vendorStats?.productCount ?? "—"}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-gray-500">Đã bán</span>
+              <span className="font-semibold text-orange-600">
+                {vendorStats?.sold ?? "—"}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-gray-500">Đánh giá</span>
+              <span className="font-semibold text-gray-800">—</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-gray-500">Tỉ lệ phản hồi</span>
+              <span className="font-semibold text-gray-800">—</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-gray-500">Thời gian phản hồi</span>
+              <span className="font-semibold text-gray-800">—</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-gray-500">Người theo dõi</span>
+              <span className="font-semibold text-gray-800">
+                {vendorFollowerCount !== null ? vendorFollowerCount : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Description and Review Section */}
       <div className="mt-20">
         <div className="flex border-b">

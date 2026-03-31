@@ -1,5 +1,6 @@
 import React from "react";
 import { useState, useContext } from "react";
+import { Link } from "react-router-dom";
 import { ShopContext } from "../../context/ShopContext";
 import axios from 'axios'
 import { toast } from 'react-toastify'
@@ -102,7 +103,13 @@ const Login = () => {
         onChange={(e)=>setPassword(e.target.value)}
       ></input>
       <div className="w-full flex justify-between text-sm mt-[-8px]">
-        <p className="cursor-pointer">Forgot your password</p>
+        {currentState === "Login" ? (
+          <Link to="/forgot-password" className="cursor-pointer underline">
+            Quên mật khẩu
+          </Link>
+        ) : (
+          <span />
+        )}
         {currentState === "Login" ? (
           <p
             onClick={() => setCurrentState("Sign Up")}

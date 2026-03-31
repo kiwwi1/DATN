@@ -2,6 +2,8 @@ import {
     placeOrderService,
     placeOrderStripeService,
     verifyStripePaymentService,
+    placeOrderVNPayService,
+    verifyVNPayReturnService,
     allOrdersService,
     userOrdersService,
     updateOrderStatusService,
@@ -45,6 +47,34 @@ const verifyStripePayment = async (req, res) => {
         return res.status(400).json({ success: false, message: "Payment verification failed" });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const placeOrderVNPay = async (req, res) => {
+    try {
+        const { userId, items, amount, address } = req.body;
+        const ipAddr =
+            req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+            req.socket?.remoteAddress ||
+            "127.0.0.1";
+        const result = await placeOrderVNPayService({ userId, items, amount, address, ipAddr });
+        res.json({ success: true, ...result });
+    } catch (error) {
+        console.error("❌ Error placing VNPay order:", error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const verifyVNPayReturn = async (req, res) => {
+    const frontendUrl =
+        process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
+    try {
+        const { success, orderId } = await verifyVNPayReturnService(req.query);
+        const redirectUrl = `${frontendUrl}/verify?vnpay=1&success=${success}&orderId=${orderId}`;
+        return res.redirect(redirectUrl);
+    } catch (error) {
+        console.error("❌ VNPay return error:", error.message);
+        return res.redirect(`${frontendUrl}/verify?vnpay=1&success=false`);
     }
 };
 
@@ -127,4 +157,18 @@ const vendorStats = async (req, res) => {
     }
 };
 
-export { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus, cancelOrder, cancelOrderAdmin, vendorStats };
+export {
+    placeOrder,
+    allOrders,
+    userOrders,
+    updateOrderStatus,
+    placeOrderStripe,
+    verifyStripePayment,
+    placeOrderVNPay,
+    verifyVNPayReturn,
+    vendorOrders,
+    updateVendorOrderStatus,
+    cancelOrder,
+    cancelOrderAdmin,
+    vendorStats,
+};

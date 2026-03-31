@@ -6,6 +6,7 @@ import {
     singleProductService,
     updateProductService,
     listVendorProductsService,
+    getVendorShopPublicService,
 } from "../services/productService.js";
 
 const addProduct = async (req, res) => {
@@ -76,4 +77,23 @@ const listVendorProducts = async (req, res) => {
     }
 };
 
-export { addProduct, listProduct, removeProduct, singleProduct, updateProduct, listVendorProducts, listProductsByCategory };
+const vendorShopPublic = async (req, res) => {
+    try {
+        const { vendorId } = req.params;
+        const data = await getVendorShopPublicService(vendorId);
+        res.json({ success: true, ...data });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+export {
+    addProduct,
+    listProduct,
+    removeProduct,
+    singleProduct,
+    updateProduct,
+    listVendorProducts,
+    listProductsByCategory,
+    vendorShopPublic,
+};

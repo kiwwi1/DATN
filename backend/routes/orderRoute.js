@@ -1,5 +1,19 @@
 import express from 'express';
-import { placeOrder, allOrders, userOrders, updateOrderStatus, placeOrderStripe, verifyStripePayment, vendorOrders, updateVendorOrderStatus, cancelOrder, cancelOrderAdmin, vendorStats } from '../controllers/orderController.js';
+import {
+    placeOrder,
+    allOrders,
+    userOrders,
+    updateOrderStatus,
+    placeOrderStripe,
+    verifyStripePayment,
+    placeOrderVNPay,
+    verifyVNPayReturn,
+    vendorOrders,
+    updateVendorOrderStatus,
+    cancelOrder,
+    cancelOrderAdmin,
+    vendorStats,
+} from '../controllers/orderController.js';
 import adminAuth from '../middleware/adminAuth.js';
 import authUser from '../middleware/auth.js';
 import vendorAuth from '../middleware/vendorAuth.js';
@@ -24,6 +38,10 @@ orderRouter.post('/user-orders',authUser, userOrders);
 orderRouter.post('/cancel',authUser, cancelOrder);
 //Verify Payment
 orderRouter.post('/verify-stripe',authUser, verifyStripePayment);
+
+// VNPay
+orderRouter.post('/place-order-vnpay', authUser, placeOrderVNPay);
+orderRouter.get('/vnpay-return', verifyVNPayReturn);
 
 //Admin Features - Cancel
 orderRouter.post('/cancel-admin',adminAuth, cancelOrderAdmin);

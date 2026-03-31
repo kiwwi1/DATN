@@ -6,6 +6,8 @@ import {
     getUserProfileService,
     updateUserProfileService,
     loginAdminService,
+    requestPasswordResetService,
+    resetPasswordWithTokenService,
 } from "../services/userService.js";
 
 const loginUser = async (req, res) => {
@@ -77,4 +79,38 @@ const loginAdmin = async (req, res) => {
     }
 };
 
-export { loginUser, registerUser, loginAdmin, registerVendor, getUserProfile, updateUserProfile, loginWithGoogle };
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        await requestPasswordResetService(email);
+        res.json({
+            success: true,
+            message:
+                "Nếu email đã đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.",
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        await resetPasswordWithTokenService(token, password);
+        res.json({ success: true, message: "Đặt lại mật khẩu thành công." });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export {
+    loginUser,
+    registerUser,
+    loginAdmin,
+    registerVendor,
+    getUserProfile,
+    updateUserProfile,
+    loginWithGoogle,
+    forgotPassword,
+    resetPassword,
+};

@@ -210,7 +210,11 @@ const ShopContextProvider = (props) => {
     const getRecommendations = useCallback(async () => {
         if (!token) return;
         try {
-            const res = await axios.post(backendUrl + '/api/interaction/recommendations', {}, { headers: { token } });
+            const res = await axios.post(
+                backendUrl + '/api/interaction/recommendations?limit=30',
+                {},
+                { headers: { token } }
+            );
             if (res.data.success) setRecommendations(res.data.products);
         } catch { /* non-critical */ }
     }, [token, backendUrl]);

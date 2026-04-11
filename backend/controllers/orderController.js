@@ -11,6 +11,7 @@ import {
     updateVendorOrderStatusService,
     cancelOrderService,
     vendorStatsService,
+    deleteOrderService,
 } from "../services/orderService.js";
 
 const placeOrder = async (req, res) => {
@@ -157,6 +158,15 @@ const vendorStats = async (req, res) => {
     }
 };
 
+const deleteOrder = async (req, res) => {
+    try {
+        await deleteOrderService(req.params.id);
+        res.json({ success: true, message: "Order deleted successfully" });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
 export {
     placeOrder,
     allOrders,
@@ -171,4 +181,5 @@ export {
     cancelOrder,
     cancelOrderAdmin,
     vendorStats,
+    deleteOrder,
 };

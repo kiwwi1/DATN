@@ -43,8 +43,12 @@ const listProductsByCategory = async (req, res) => {
 
 const removeProduct = async (req, res) => {
     try {
-        await removeProductService(req.body.id, req.vendorId);
-        res.json({ success: true, message: "Product removed successfully" });
+        const result = await removeProductService(req.body.id, req.vendorId);
+        const message =
+            result?.mode === "soft_deleted"
+                ? "Product has linked data, marked inactive instead of deleting"
+                : "Product removed successfully";
+        res.json({ success: true, message, mode: result?.mode || "hard_deleted" });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }

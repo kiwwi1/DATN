@@ -15,6 +15,7 @@ import Product from './pages/main/Product'
 import Cart from './pages/shop/Cart'
 import Footer from './components/layout/Footer'
 import SearchBar from './components/layout/SearchBar'
+import FloatingChatButton from './components/layout/FloatingChatButton'
 import { ToastContainer } from 'react-toastify';
 import Verify from './pages/shop/Verify'
 import VendorRegis from './pages/auth/VendorRegis'
@@ -64,6 +65,7 @@ const App = () => {
         
       </Routes>
       <Footer />
+      <FloatingChatButton />
 
     </div>
   )

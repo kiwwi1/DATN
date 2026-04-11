@@ -1,6 +1,7 @@
 import productModel from "../models/productModel.js";
 import userModel from "../models/userModel.js";
 import { uploadToR2 } from "../utils/r2Upload.js";
+import { getProductDeleteImpact } from "./deletionGuardService.js";
 
 export const syncFromVariants = (variants) => {
     const prices = variants.map((v) => Number(v.price)).filter((p) => !isNaN(p) && p >= 0);
@@ -61,7 +62,23 @@ export const removeProductService = async (productId, vendorId) => {
     if (product.vendorId.toString() !== vendorId.toString()) {
         throw Object.assign(new Error("Unauthorized - You can only delete your own products"), { status: 403 });
     }
+
+    const impact = await getProductDeleteImpact(productId);
+    const hasReferences =
+        impact.hasOrders || impact.hasReviews || impact.hasInteractions;
+
+    // Có tham chiếu lịch sử thì chỉ ẩn sản phẩm để tránh vỡ dữ liệu.
+    if (hasReferences) {
+        product.isActive = false;
+        await product.save();
+        return {
+            mode: "soft_deleted",
+            message: "Product has related orders/reviews/interactions, switched to inactive instead of hard delete",
+        };
+    }
+
     await productModel.findByIdAndDelete(productId);
+    return { mode: "hard_deleted" };
 };
 
 export const singleProductService = async (productId) => productModel.findById(productId);

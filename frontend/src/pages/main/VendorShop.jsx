@@ -110,6 +110,32 @@ const VendorShop = () => {
     }
   };
 
+  const handleStartChat = async () => {
+    if (!token) {
+      toast.info('Vui lòng đăng nhập để nhắn tin với shop');
+      navigate('/login');
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/chat/init`,
+        { vendorId },
+        { headers: { token } }
+      );
+      if (res.data.success) {
+        const conversationId = res.data.conversation?._id;
+        if (!conversationId) throw new Error('Không lấy được cuộc hội thoại');
+        window.dispatchEvent(
+          new CustomEvent('open-chat-conversation', { detail: { conversationId } })
+        );
+      } else {
+        toast.error(res.data.message || 'Không thể tạo cuộc hội thoại');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     switch (activeTab) {
       case 'sale':
@@ -163,7 +189,13 @@ const VendorShop = () => {
               >
                 {followLoading ? 'Đang xử lý...' : isFollowing ? '✓ Đang theo dõi' : '+ Theo dõi'}
               </button>
-              <button className="py-2 text-sm border border-white/50 rounded hover:bg-white/10">Chat</button>
+              <button
+                type="button"
+                onClick={handleStartChat}
+                className="py-2 text-sm border border-white/50 rounded hover:bg-white/10"
+              >
+                Chat
+              </button>
             </div>
           </div>
 

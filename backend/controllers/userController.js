@@ -8,6 +8,7 @@ import {
     loginAdminService,
     requestPasswordResetService,
     resetPasswordWithTokenService,
+    deleteUserService,
 } from "../services/userService.js";
 
 const loginUser = async (req, res) => {
@@ -103,6 +104,15 @@ const resetPassword = async (req, res) => {
     }
 };
 
+const deleteUser = async (req, res) => {
+    try {
+        await deleteUserService(req.params.id);
+        res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
 export {
     loginUser,
     registerUser,
@@ -113,4 +123,5 @@ export {
     loginWithGoogle,
     forgotPassword,
     resetPassword,
+    deleteUser,
 };

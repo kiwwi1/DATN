@@ -17,7 +17,7 @@ const pushSSE = (userId, payload) => {
  * @param {"order_placed"|"order_status"|"order_cancelled"} type
  * @param {string} title
  * @param {string} message
- * @param {string} [orderId]
+ * @param {string|Object} [orderId] — id đơn hàng (ObjectId hoặc chuỗi hex hợp lệ)
  */
 export const createNotification = async (userId, type, title, message, orderId) => {
     try {
@@ -26,14 +26,16 @@ export const createNotification = async (userId, type, title, message, orderId) 
             type,
             title,
             message,
-            orderId: orderId || null,
+            orderId: orderId ?? null,
         });
+        const orderIdOut =
+            notification.orderId != null ? notification.orderId.toString() : null;
         pushSSE(userId, {
             _id: notification._id,
             type,
             title,
             message,
-            orderId: orderId || null,
+            orderId: orderIdOut,
             read: false,
             createdAt: notification.createdAt,
         });

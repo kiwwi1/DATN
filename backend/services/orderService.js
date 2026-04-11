@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { createNotification } from "./notificationService.js";
 import { trackInteractionService } from "./interactionService.js";
 import { buildVNPayUrl, verifyVNPaySignature } from "../utils/vnpay.js";
+import { ensureOrderDeletable } from "./deletionGuardService.js";
 
 const currency = "vnd";
 export const deliveryFee = 30000;
@@ -143,7 +144,7 @@ export const placeOrderService = async ({ userId, items, amount, address }) => {
             "order_placed",
             "Đơn hàng mới",
             `Bạn có đơn hàng mới: ${itemNames}`,
-            newOrder._id.toString()
+            newOrder._id
         );
     }
 
@@ -235,7 +236,7 @@ export const verifyStripePaymentService = async (orderId, success) => {
                 "order_placed",
                 "Đơn hàng mới",
                 `Bạn có đơn hàng mới (đã thanh toán): ${itemNames}`,
-                order._id.toString()
+                order._id
             );
         }
         return true;
@@ -324,7 +325,7 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
                 "order_cancelled",
                 "Đơn hàng bị hủy",
                 `Khách hàng đã hủy đơn hàng. Lý do: ${cancelReason || "Không có lý do"}`,
-                orderId
+                order._id
             );
         }
     } else {
@@ -334,7 +335,7 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
             "order_cancelled",
             "Đơn hàng đã bị hủy",
             `Đơn hàng của bạn đã bị hủy. Lý do: ${cancelReason || "Không có lý do"}`,
-            orderId
+            order._id
         );
     }
 
@@ -362,6 +363,12 @@ export const allOrdersService = async () => orderModel.find({}).sort({ date: -1 
 
 export const userOrdersService = async (userId) => orderModel.find({ userId }).sort({ date: -1 });
 
+export const deleteOrderService = async (orderId) => {
+    const order = await orderModel.findById(orderId);
+    await ensureOrderDeletable(order);
+    await orderModel.findByIdAndDelete(orderId);
+};
+
 const STATUS_LABEL = {
     "Packing": "Đang đóng gói",
     "Shipped": "Đang vận chuyển",
@@ -382,7 +389,7 @@ export const updateOrderStatusService = async (orderId, status) => {
         "order_status",
         "Cập nhật đơn hàng",
         `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-        orderId
+        order._id
     );
 
     return order;
@@ -415,7 +422,7 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId) 
         "order_status",
         "Cập nhật đơn hàng",
         `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-        orderId
+        order._id
     );
 
     return order;
@@ -496,7 +503,7 @@ export const verifyVNPayReturnService = async (query) => {
                     "order_placed",
                     "Đơn hàng mới",
                     `Bạn có đơn hàng mới (đã thanh toán VNPay): ${itemNames}`,
-                    order._id.toString()
+                    order._id
                 );
             }
         }

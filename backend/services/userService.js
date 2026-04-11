@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { sendPasswordResetEmail } from "../utils/sendResetEmail.js";
+import { ensureUserDeletable } from "./deletionGuardService.js";
 
 const createToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET);
 
@@ -144,4 +145,12 @@ export const resetPasswordWithTokenService = async (token, newPassword) => {
             $unset: { passwordResetToken: "", passwordResetExpires: "" },
         }
     );
+};
+
+export const deleteUserService = async (userId) => {
+    const user = await userModel.findById(userId);
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+
+    await ensureUserDeletable(userId);
+    await userModel.findByIdAndDelete(userId);
 };

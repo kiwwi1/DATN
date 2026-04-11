@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useMemo } from "react";
-import { useParams, useLocation, Link } from "react-router-dom";
+import { useParams, useLocation, Link, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { ShopContext } from "../../context/ShopContext";
 import { useState } from "react";
@@ -12,6 +12,7 @@ import { formatImageUrl } from "../../utils/imageUtils";
 const Product = () => {
   const { productId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { products, addToCart, backendUrl, token, userId, trackInteraction } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
@@ -80,6 +81,54 @@ const Product = () => {
   const [newImages, setNewImages] = useState([]);       // File[] chờ upload
   const [previewUrls, setPreviewUrls] = useState([]);   // blob URL để preview
   const [keepImages, setKeepImages] = useState([]);     // URL ảnh cũ giữ lại khi edit
+
+  const handleStartChat = async () => {
+    if (!token) {
+      toast.info("Vui lòng đăng nhập để nhắn tin với shop.");
+      navigate("/login");
+      return;
+    }
+    const vendorId = productData?.vendorId;
+    if (!vendorId) {
+      toast.error("Không tìm thấy thông tin shop.");
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/chat/init`,
+        { vendorId },
+        { headers: { token } }
+      );
+      if (!res.data.success) {
+        throw new Error(res.data.message || "Không thể tạo cuộc hội thoại");
+      }
+      const conversationId = res.data.conversation?._id;
+      if (!conversationId) throw new Error("Không lấy được cuộc hội thoại");
+      const quickOptions = [
+        "Sản phẩm này còn hàng không shop?",
+        "Mình có thể được tư vấn phiên bản phù hợp không?",
+        "Shop hỗ trợ freeship/giảm giá cho sản phẩm này không?",
+        "Sản phẩm này có bảo hành/đổi trả như thế nào?",
+      ];
+      window.dispatchEvent(
+        new CustomEvent("open-chat-conversation", {
+          detail: {
+            conversationId,
+            productContext: {
+              id: productData._id,
+              name: productData.name,
+              price: productData.price,
+              image: Array.isArray(productData.image) ? productData.image[0] : "",
+              vendorId: productData.vendorId,
+            },
+            quickOptions,
+          },
+        })
+      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
 
   // Track viewed khi mở trang; track tổng timeSpent khi rời trang
   useEffect(() => {
@@ -629,7 +678,7 @@ const Product = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => toast.info("Tính năng chat đang được phát triển.")}
+                onClick={handleStartChat}
                 className="px-4 py-2 text-sm border border-orange-500 text-orange-600 hover:bg-orange-50 rounded-md transition-colors"
               >
                 Chat ngay

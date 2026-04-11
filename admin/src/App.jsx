@@ -7,6 +7,7 @@ import Add from "./pages/Add";
 import List from "./pages/List";
 import Orders from "./pages/Orders";
 import Stats from "./pages/Stats";
+import Chat from "./pages/Chat";
 import Login from "./components/Login";
 import VendorValidator from "./components/VendorValidator";
 import { useState, useEffect, useRef } from "react";
@@ -136,6 +137,7 @@ const App = () => {
                 <Route path="/add" element={<Add token={token} />} />
                 <Route path="/list" element={<List token={token} />} />
                 <Route path="/orders" element={<Orders token={token} />} />
+                <Route path="/chat" element={<Chat token={token} />} />
               </Routes>
             </div>
           </div>

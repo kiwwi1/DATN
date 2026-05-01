@@ -2,6 +2,7 @@ import {
     loginUserService,
     loginWithGoogleService,
     registerUserService,
+    verifyEmailService,
     registerVendorService,
     getUserProfileService,
     updateUserProfileService,
@@ -9,13 +10,34 @@ import {
     requestPasswordResetService,
     resetPasswordWithTokenService,
     deleteUserService,
+    refreshAccessTokenService,
 } from "../services/userService.js";
+
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+};
+
+const clearAuthCookies = (res) => {
+    res.clearCookie("accessToken", COOKIE_OPTIONS);
+    res.clearCookie("refreshToken", COOKIE_OPTIONS);
+};
+
+const attachAuthCookies = (res, { accessToken, refreshToken }) => {
+    const accessMaxAge = Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000);
+    const refreshMaxAge = Number(process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS || 7 * 24 * 60 * 60 * 1000);
+
+    res.cookie("accessToken", accessToken, { ...COOKIE_OPTIONS, maxAge: accessMaxAge });
+    res.cookie("refreshToken", refreshToken, { ...COOKIE_OPTIONS, maxAge: refreshMaxAge });
+};
 
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const token = await loginUserService(email, password);
-        res.json({ success: true, token });
+        const tokens = await loginUserService(email, password);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -24,8 +46,9 @@ const loginUser = async (req, res) => {
 const loginWithGoogle = async (req, res) => {
     try {
         const { credential } = req.body;
-        const token = await loginWithGoogleService(credential);
-        res.json({ success: true, token });
+        const tokens = await loginWithGoogleService(credential);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -34,8 +57,19 @@ const loginWithGoogle = async (req, res) => {
 const registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        const token = await registerUserService(name, email, password);
-        res.json({ success: true, token });
+        const result = await registerUserService(name, email, password);
+        res.json({ success: true, ...result });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+const verifyEmail = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const tokens = await verifyEmailService(email, otp);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -113,9 +147,30 @@ const deleteUser = async (req, res) => {
     }
 };
 
+const refreshAuth = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+        const accessToken = await refreshAccessTokenService(refreshToken);
+        res.cookie("accessToken", accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000),
+        });
+        res.json({ success: true, accessToken });
+    } catch (error) {
+        clearAuthCookies(res);
+        res.status(401).json({ success: false, message: error.message });
+    }
+};
+
+const logoutUser = async (_req, res) => {
+    clearAuthCookies(res);
+    res.json({ success: true, message: "Logged out successfully" });
+};
+
 export {
     loginUser,
     registerUser,
+    verifyEmail,
     loginAdmin,
     registerVendor,
     getUserProfile,
@@ -124,4 +179,6 @@ export {
     forgotPassword,
     resetPassword,
     deleteUser,
+    refreshAuth,
+    logoutUser,
 };

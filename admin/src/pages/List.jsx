@@ -36,6 +36,7 @@ const ConfirmModal = ({ message, onConfirm, onCancel }) => (
 // ── Image Slot ────────────────────────────────────────────────────────────────
 const ImageSlot = ({ slot, onChange, onRemove, index }) => {
   const inputRef = useRef(null)
+  const inputId = `edit-product-image-slot-${index}`
   const preview = slot?.type === 'new'
     ? URL.createObjectURL(slot.file)
     : slot?.type === 'existing'
@@ -45,8 +46,8 @@ const ImageSlot = ({ slot, onChange, onRemove, index }) => {
   return (
     <div className="relative w-20 h-20">
       <label
+        htmlFor={inputId}
         className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors flex items-center justify-center overflow-hidden"
-        onClick={() => inputRef.current?.click()}
       >
         {preview ? (
           <img src={preview} alt={`slot-${index}`} className="w-full h-full object-cover" />
@@ -54,6 +55,7 @@ const ImageSlot = ({ slot, onChange, onRemove, index }) => {
           <img src={assets.upload_area} alt="upload" className="w-8 h-8 opacity-50" />
         )}
         <input
+          id={inputId}
           ref={inputRef}
           type="file"
           hidden
@@ -87,6 +89,7 @@ const List = ({ token }) => {
     attributes: [], variants: [], bestseller: false
   })
   const [editImages, setEditImages] = useState([null, null, null, null])
+  const [isGeneratingEditDescription, setIsGeneratingEditDescription] = useState(false)
 
   // Categories
   const [mainCategories, setMainCategories] = useState([])
@@ -245,6 +248,66 @@ const List = ({ token }) => {
     }
   }
 
+  const handleGenerateEditDescription = async () => {
+    if (!formData.name?.trim()) {
+      toast.error('Vui lòng nhập tên sản phẩm trước khi tạo mô tả')
+      return
+    }
+
+    try {
+      setIsGeneratingEditDescription(true)
+
+      const selectedMainCategory = mainCategories.find((cat) => cat._id === formData.category)
+      const selectedSubCategory = subCategories.find((cat) => cat._id === formData.subCategory)
+      const firstImageSlot = editImages.find(Boolean)
+
+      let imageBase64 = ''
+      let imageMimeType = ''
+      let imageUrl = ''
+
+      if (firstImageSlot?.type === 'new' && firstImageSlot.file) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result || ''))
+          reader.onerror = () => reject(new Error('Không đọc được ảnh đã chọn'))
+          reader.readAsDataURL(firstImageSlot.file)
+        })
+        const match = dataUrl.match(/^data:(.+);base64,(.+)$/)
+        if (match) {
+          imageMimeType = match[1] || 'image/jpeg'
+          imageBase64 = match[2] || ''
+        }
+      } else if (firstImageSlot?.type === 'existing' && firstImageSlot.url) {
+        imageUrl = firstImageSlot.url
+      }
+
+      const response = await axios.post(
+        backendUrl + '/api/product/generate-description',
+        {
+          name: formData.name.trim(),
+          category: selectedMainCategory?.name || '',
+          subCategory: selectedSubCategory?.name || '',
+          attributes: formData.attributes || [],
+          imageBase64,
+          imageMimeType,
+          imageUrl,
+        },
+        { headers: { token } }
+      )
+
+      if (response.data?.success && response.data?.description) {
+        setFormData(prev => ({ ...prev, description: response.data.description }))
+        toast.success('Đã tạo mô tả tự động')
+      } else {
+        toast.error(response.data?.message || 'Không thể tạo mô tả')
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Lỗi khi tạo mô tả bằng AI')
+    } finally {
+      setIsGeneratingEditDescription(false)
+    }
+  }
+
   // Auto-fill price from min variant price in modal
   useEffect(() => {
     if (formData.variants.length > 0) {
@@ -332,7 +395,17 @@ const List = ({ token }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Mô tả</label>
+                <div className="flex items-center justify-between mb-1 gap-3">
+                  <label className="block text-sm font-medium">Mô tả</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateEditDescription}
+                    disabled={isGeneratingEditDescription}
+                    className="text-xs px-3 py-1.5 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isGeneratingEditDescription ? 'Đang tạo...' : 'AI tạo mô tả'}
+                  </button>
+                </div>
                 <textarea
                   name="description" value={formData.description} onChange={handleInputChange}
                   className="w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -480,7 +553,8 @@ const List = ({ token }) => {
                 key={item._id}
                 className="grid grid-cols-[80px_1fr_100px] md:grid-cols-[80px_1fr_160px_120px_100px] gap-2 items-center px-3 py-2.5 bg-white hover:bg-gray-50 transition-colors"
               >
-                <img className="w-12 h-12 object-cover rounded border" src={formatImageUrl(item.image?.[0])} alt={item.name} />
+                <img className="w-12 h-12 object-cover rounded border" src={formatImageUrl(item.image)}
+                            referrerPolicy="no-referrer" alt={item.name} />
                 <div className="min-w-0">
                   <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
                   {item.bestseller && (

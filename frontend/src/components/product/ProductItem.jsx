@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { formatPrice } from '../../utils/priceFormat'
 import { formatImageUrl } from '../../utils/imageUtils'
 import { ShopContext } from '../../context/ShopContext'
+import { localizeProductName } from '../../utils/productNameUtils'
 
 const ProductItem = ({ id, image, name, price, originalPrice, discount, rating, sold }) => {
   const { trackInteraction, token } = useContext(ShopContext);
   const hasDiscount = discount > 0 && originalPrice && originalPrice > price
+  const displayName = localizeProductName(name)
 
   const handleClick = () => {
     if (token) trackInteraction(id, 'clicked');
@@ -18,8 +20,9 @@ const ProductItem = ({ id, image, name, price, originalPrice, discount, rating, 
       <div className='relative overflow-hidden aspect-square'>
         <img 
           className='w-full h-full object-cover hover:scale-110 transition-transform duration-300' 
-          src={formatImageUrl(image?.[0])} 
-          alt={name} 
+          src={formatImageUrl(image)} 
+          alt={displayName}
+          referrerPolicy="no-referrer"
         />
         
         {/* Discount Badge */}
@@ -34,7 +37,7 @@ const ProductItem = ({ id, image, name, price, originalPrice, discount, rating, 
       <div className='p-3'>
         {/* Product Name */}
         <p className='text-sm text-gray-800 line-clamp-2 h-10 mb-2'>
-          {name}
+          {displayName}
         </p>
 
         {/* Rating and Sold */}

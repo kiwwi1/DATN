@@ -1,20 +1,24 @@
 import jwt from 'jsonwebtoken';
 
 const authUser = async (req,res,next) => {
-    const { token } = req.headers;
-        if(!token){
-            res.json({success:false, message: 'Unauthorized'})
-        }
+    const headerToken = req.headers?.token;
+    const cookieToken = req.cookies?.accessToken;
+    const token = headerToken || cookieToken;
+    if (!token) {
+        return res.status(401).json({success:false, message: 'Unauthorized'});
+    }
     try {
-        const token_decode = jwt.verify(token,process.env.JWT_SECRET)
+        const token_decode = jwt.verify(token,process.env.JWT_SECRET);
+        if (token_decode?.type && token_decode.type !== "access") {
+            throw new Error("Invalid token type");
+        }
         if (!req.body) req.body = {};
         req.body.userId = token_decode.id;
-        // moi lan user login se dc tao 1 token sau do khi cham den endpoint nao thi se lay token do va lay id cua user roi chuyen tiep 
         next();    
-        }
+    }
      catch (error) {
-        console.log(error)
-        res.json({success:false, message: error.message})
+        console.log(error);
+        return res.status(401).json({success:false, message: error.message});
     }
 }
 

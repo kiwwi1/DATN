@@ -93,6 +93,7 @@ const Stats = ({ token }) => {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
+  const [productRankMode, setProductRankMode] = useState('top')
 
   const fetchStats = useCallback(async () => {
     if (!token) return
@@ -329,34 +330,106 @@ const Stats = ({ token }) => {
           )}
         </ChartCard>
 
-        {/* Top selling products */}
-        <ChartCard title="🏆 Top sản phẩm bán chạy" subtitle="Xếp hạng theo số lượng đã bán">
-          {stats.products.topSelling.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-10">Chưa có dữ liệu bán hàng</p>
-          ) : (
-            <div className="space-y-3">
-              {stats.products.topSelling.map((p, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
-                    i === 0 ? 'bg-yellow-100 text-yellow-600'
-                    : i === 1 ? 'bg-gray-200 text-gray-600'
-                    : i === 2 ? 'bg-orange-100 text-orange-600'
-                    : 'bg-gray-50 text-gray-400'}`}>{i+1}</span>
-                  {p.image && <img src={formatImageUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded border flex-shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
-                    <p className="text-xs text-gray-400">{formatPrice(p.revenue)}</p>
+        {/* Top / slow selling products */}
+        <ChartCard
+          title={productRankMode === 'top' ? '🏆 Top sản phẩm bán chạy' : '🐢 Sản phẩm bán chậm'}
+          subtitle={productRankMode === 'top'
+            ? 'Xếp hạng theo số lượng đã bán'
+            : 'Sản phẩm đang bán (đang hoạt động), ít lượt bán nhất'}
+        >
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-4">
+            <button
+              type="button"
+              onClick={() => setProductRankMode('top')}
+              className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                productRankMode === 'top' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Bán chạy
+            </button>
+            <button
+              type="button"
+              onClick={() => setProductRankMode('slow')}
+              className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                productRankMode === 'slow' ? 'bg-white shadow text-amber-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Bán chậm
+            </button>
+          </div>
+          {(() => {
+            const list = productRankMode === 'top'
+              ? stats.products.topSelling
+              : (stats.products.slowSelling ?? [])
+            if (list.length === 0) {
+              return (
+                <p className="text-xs text-gray-400 text-center py-10">
+                  {productRankMode === 'top' ? 'Chưa có dữ liệu bán hàng' : 'Không có sản phẩm đang hoạt động để hiển thị'}
+                </p>
+              )
+            }
+            return (
+              <div className="space-y-3">
+                {list.map((p, i) => (
+                  <div key={p._id?.toString?.() ?? `${productRankMode}-${p.name}-${i}`} className="flex items-center gap-3">
+                    <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                      productRankMode === 'slow'
+                        ? i === 0 ? 'bg-amber-100 text-amber-700'
+                          : i === 1 ? 'bg-orange-50 text-orange-600'
+                            : i === 2 ? 'bg-yellow-50 text-yellow-700'
+                              : 'bg-gray-50 text-gray-400'
+                        : i === 0 ? 'bg-yellow-100 text-yellow-600'
+                          : i === 1 ? 'bg-gray-200 text-gray-600'
+                            : i === 2 ? 'bg-orange-100 text-orange-600'
+                              : 'bg-gray-50 text-gray-400'}`}>{i + 1}</span>
+                    {p.image && <img src={formatImageUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded border flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                      <p className="text-xs text-gray-400">
+                        {productRankMode === 'slow'
+                          ? `Tồn: ${p.stock ?? 0} · ${formatPrice(p.revenue)}`
+                          : formatPrice(p.revenue)}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-bold ${productRankMode === 'slow' ? 'text-amber-700' : 'text-blue-600'}`}>{p.sold}</p>
+                      <p className="text-xs text-gray-400">đã bán</p>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-blue-600">{p.sold}</p>
-                    <p className="text-xs text-gray-400">đã bán</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )
+          })()}
         </ChartCard>
       </div>
+
+      <ChartCard
+        title="⚠️ Sản phẩm sắp hết hàng"
+        subtitle={`Ngưỡng tồn ≤ 5 · ${stats.products.lowStock ?? 0} sản phẩm (hiển thị tối đa 20, ưu tiên tồn thấp nhất)`}
+      >
+        {(stats.products.lowStockItems ?? []).length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-10">Không có sản phẩm nào dưới ngưỡng tồn kho</p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+            {(stats.products.lowStockItems ?? []).map((p) => (
+              <div key={p._id?.toString?.() ?? p.name} className="flex items-center gap-3 rounded-lg border border-amber-100/80 bg-amber-50/40 px-2 py-2">
+                {p.image && <img src={formatImageUrl(p.image)} alt={p.name} className="w-9 h-9 object-cover rounded border border-amber-100 flex-shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                  {!p.isActive && <p className="text-[10px] text-gray-400">Đang ẩn</p>}
+                </div>
+                <span
+                  className={`flex-shrink-0 text-xs font-bold tabular-nums px-2 py-1 rounded-md ${
+                    (p.stock ?? 0) === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {p.stock ?? 0} còn
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ChartCard>
 
       {/* ── Recent Orders table ── */}
       <ChartCard title="🕒 Đơn hàng gần đây">

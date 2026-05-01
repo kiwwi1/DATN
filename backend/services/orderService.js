@@ -528,7 +528,11 @@ export const vendorStatsService = async (vendorId) => {
     // --- Fetch all orders & vendor products in parallel ---
     const [allOrders, products] = await Promise.all([
         orderModel.find({ "items.vendorId": vendorId }).sort({ date: -1 }).lean(),
-        productModel.find({ vendorId }).select("stock name category").populate("category", "name").lean(),
+        productModel
+            .find({ vendorId })
+            .select("stock name category image sold isActive")
+            .populate("category", "name")
+            .lean(),
     ]);
 
     let totalRevenue = 0, todayRevenue = 0, weekRevenue = 0, monthRevenue = 0;
@@ -614,9 +618,48 @@ export const vendorStatsService = async (vendorId) => {
 
     const topSelling = Object.values(productSalesMap).sort((a, b) => b.sold - a.sold).slice(0, 5);
 
+    const slowSelling = products
+        .filter((p) => p.isActive !== false)
+        .sort((a, b) => {
+            const sa = a.sold ?? 0;
+            const sb = b.sold ?? 0;
+            if (sa !== sb) return sa - sb;
+            return (b.stock ?? 0) - (a.stock ?? 0);
+        })
+        .slice(0, 5)
+        .map((p) => {
+            const pid = p._id?.toString();
+            const fromOrders = pid ? productSalesMap[pid] : null;
+            const img = Array.isArray(p.image) ? p.image[0] : p.image;
+            return {
+                _id: p._id,
+                name: p.name,
+                image: img || null,
+                sold: fromOrders?.sold ?? p.sold ?? 0,
+                revenue: fromOrders?.revenue ?? 0,
+                stock: p.stock ?? 0,
+            };
+        });
+
+    const LOW_STOCK_THRESHOLD = 5;
+
     const totalProducts = products.length;
     const totalStock    = products.reduce((s, p) => s + (p.stock || 0), 0);
-    const lowStock      = products.filter((p) => p.stock <= 5).length;
+    const lowStock      = products.filter((p) => (p.stock ?? 0) <= LOW_STOCK_THRESHOLD).length;
+    const lowStockItems = products
+        .filter((p) => (p.stock ?? 0) <= LOW_STOCK_THRESHOLD)
+        .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0))
+        .slice(0, 20)
+        .map((p) => {
+            const img = Array.isArray(p.image) ? p.image[0] : p.image;
+            return {
+                _id: p._id,
+                name: p.name,
+                image: img || null,
+                stock: p.stock ?? 0,
+                isActive: p.isActive !== false,
+            };
+        });
 
     const recentOrders = allOrders.slice(0, 10).map((o) => ({
         _id:      o._id,
@@ -629,6 +672,6 @@ export const vendorStatsService = async (vendorId) => {
     return {
         revenue:  { total: totalRevenue, today: todayRevenue, week: weekRevenue, month: monthRevenue, chart: revenueChart },
         orders:   { total: allOrders.length, byStatus: ordersByStatus, monthlyChart: ordersChart, recent: recentOrders },
-        products: { total: totalProducts, totalStock, lowStock, topSelling, categoryChart },
+        products: { total: totalProducts, totalStock, lowStock, lowStockItems, topSelling, slowSelling, categoryChart },
     };
 };

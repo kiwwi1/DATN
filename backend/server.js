@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import 'dotenv/config';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -15,6 +16,7 @@ import interactionRouter from './routes/interactionRoute.js';
 import reviewModel from './models/reviewModel.js';
 import shopFollowRouter from './routes/shopFollowRoute.js';
 import chatRouter from './routes/chatRoute.js';
+import { getImageProxy } from './controllers/imageProxyController.js';
 
 
 // App config
@@ -45,9 +47,10 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser());
 
-
-
+// Ảnh từ CDN bên ngoài (Pexels, DummyJSON, …) — tránh chặn hotlink
+app.get('/api/image-proxy', getImageProxy);
 
 //api endpoints
 app.use('/api/user', userRouter);

@@ -18,6 +18,7 @@ const Add = ({ token }) => {
   const [subCategory, setSubCategory] = useState("");
   const [price, setPrice] = useState("");
   const [bestseller, setBestseller] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   // Flexible attributes system
   const [attributes, setAttributes] = useState([]);
@@ -217,6 +218,61 @@ const Add = ({ token }) => {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    if (!name.trim()) {
+      toast.error("Vui lòng nhập tên sản phẩm trước khi tạo mô tả");
+      return;
+    }
+    try {
+      setIsGeneratingDescription(true);
+      const selectedMainCategory = mainCategories.find((cat) => cat._id === category);
+      const selectedSubCategory = subCategories.find((cat) => cat._id === subCategory);
+      const primaryImage = image1 || image2 || image3 || image4;
+
+      let imageBase64 = "";
+      let imageMimeType = "";
+      if (primaryImage) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Không đọc được ảnh đã chọn"));
+          reader.readAsDataURL(primaryImage);
+        });
+        const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+        if (match) {
+          imageMimeType = match[1] || "image/jpeg";
+          imageBase64 = match[2] || "";
+        }
+      }
+
+      const response = await axios.post(
+        backendUrl + "/api/product/generate-description",
+        {
+          name: name.trim(),
+          category: selectedMainCategory?.name || "",
+          subCategory: selectedSubCategory?.name || "",
+          attributes,
+          price: price ? `${Number(price).toLocaleString("vi-VN")}đ` : "",
+          variants: attributes.map((attr) => `${attr.name}: ${attr.values.join(", ")}`),
+          imageBase64,
+          imageMimeType,
+        },
+        { headers: { token } }
+      );
+
+      if (response.data?.success && response.data?.description) {
+        setDescription(response.data.description);
+        toast.success("Đã tạo mô tả tự động");
+      } else {
+        toast.error(response.data?.message || "Không thể tạo mô tả");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi khi tạo mô tả bằng AI");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 ">
       <form
@@ -327,9 +383,17 @@ const Add = ({ token }) => {
         </div>
 
         <div className="w-full">
-          <p className="text-sm font-medium text-gray-700 mb-2">
-            Product Description
-          </p>
+          <div className="flex items-center justify-between mb-2 gap-3">
+            <p className="text-sm font-medium text-gray-700">Product Description</p>
+            <button
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={isGeneratingDescription}
+              className="text-xs px-3 py-1.5 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {isGeneratingDescription ? "Đang tạo..." : "AI tạo mô tả"}
+            </button>
+          </div>
           <textarea
             onChange={(e) => setDescription(e.target.value)}
             value={description}

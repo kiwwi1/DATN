@@ -5,7 +5,8 @@ import Title from '../../components/ui/Title';
 import { assets } from '../../assets/assets';
 import CartTotal from '../../components/cart/CartTotal';
 import { formatPrice } from '../../utils/priceFormat';
-import { formatImageUrl } from '../../utils/imageUtils';
+import { formatImageUrl, asImageArray } from '../../utils/imageUtils';
+import { localizeProductName } from '../../utils/productNameUtils';
 
 const Cart = () => {
   const { cartItems, products, updateQuantity, navigate, token } = useContext(ShopContext);
@@ -140,6 +141,7 @@ const Cart = () => {
               console.warn(`Product with ID ${item._id} not found`);
               return null;
             }
+            const displayName = localizeProductName(productData.name);
             
             return (
               <div
@@ -165,15 +167,16 @@ const Cart = () => {
                   <div className='flex-shrink-0'>
                     <img
                       className='w-full sm:w-24 h-24 object-cover rounded-lg'
-                      src={productData.image && productData.image.length > 0 ? formatImageUrl(productData.image[0]) : assets.placeholder_image}
-                      alt={productData.name}
+                      src={asImageArray(productData.image).length ? formatImageUrl(productData.image) : assets.placeholder_image}
+                      alt={displayName}
+                      referrerPolicy="no-referrer"
                     />
                   </div>
 
                   {/* Product Info */}
                   <div className='flex-1 min-w-0'>
                     <h3 className='font-medium text-gray-900 mb-1 line-clamp-2'>
-                      {productData.name}
+                      {displayName}
                     </h3>
                     {productData.brand && (
                       <p className='text-sm text-blue-600 mb-2'>{productData.brand}</p>

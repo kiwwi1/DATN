@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import ProfileSidebar from '../../components/profile/ProfileSidebar';
 import { formatPrice } from '../../utils/priceFormat';
 import { formatImageUrl } from '../../utils/imageUtils';
+import { localizeProductName } from '../../utils/productNameUtils';
 import {
   STATUS_TABS,
   STATUS_MAP,
@@ -166,30 +167,33 @@ const Orders = () => {
                     {/* Items */}
                     {order.items.map((item, idx) => {
                       const alreadyReviewed = reviewedIds.has(`${item._id}_${order._id}`);
+                      const displayName = localizeProductName(item.name);
                       return (
                         <div key={idx} className="flex items-start gap-3 px-4 py-4 border-b last:border-b-0">
                           {item._id ? (
                             <Link to={`/product/${item._id}`}>
                               <img
-                                src={formatImageUrl(item.image?.[0])}
+                                src={formatImageUrl(item.image)}
                                 className="w-16 h-16 object-cover rounded flex-shrink-0"
-                                alt={item.name}
+                                alt={displayName}
+                                referrerPolicy="no-referrer"
                               />
                             </Link>
                           ) : (
                             <img
-                              src={formatImageUrl(item.image?.[0])}
+                              src={formatImageUrl(item.image)}
                               className="w-16 h-16 object-cover rounded flex-shrink-0"
-                              alt={item.name}
+                              alt={displayName}
+                              referrerPolicy="no-referrer"
                             />
                           )}
                           <div className="flex-1 min-w-0">
                             {item._id ? (
                               <Link to={`/product/${item._id}`} className="text-sm font-medium text-gray-800 line-clamp-2 hover:text-orange-600">
-                                {item.name}
+                                {displayName}
                               </Link>
                             ) : (
-                              <p className="text-sm font-medium text-gray-800 line-clamp-2">{item.name}</p>
+                              <p className="text-sm font-medium text-gray-800 line-clamp-2">{displayName}</p>
                             )}
                             {item.selectedAttributes?.length > 0 && (
                               <p className="text-xs text-gray-500 mt-1">

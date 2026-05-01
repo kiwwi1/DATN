@@ -25,6 +25,13 @@ const TYPE_ICON = {
       </svg>
     </div>
   ),
+  price_drop: (
+    <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+      <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0l-3-3m3 3l-3 3M11 4H3m0 0l3 3M3 4l3-3" />
+      </svg>
+    </div>
+  ),
 };
 
 const formatTime = (date) => {
@@ -51,6 +58,7 @@ const ProfileNotifications = () => {
 
   const handleClick = (n) => {
     if (n.orderId) navigate('/orders');
+    if (n.productId) navigate(`/product/${n.productId}`);
   };
 
   const unread = notifications.filter((n) => !n.read).length;

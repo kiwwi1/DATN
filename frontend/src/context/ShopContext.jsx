@@ -24,6 +24,10 @@ const ShopContextProvider = (props) => {
     const sseRef = useRef(null);
     const navigate = useNavigate();
 
+    useEffect(() => {
+        axios.defaults.withCredentials = true;
+    }, []);
+
     // Function to get userId from token
     const getUserIdFromToken = (token) => {
         try {
@@ -170,16 +174,16 @@ const ShopContextProvider = (props) => {
 
     const unreadCount = notifications.filter((n) => !n.read).length;
 
-    const loadNotifications = useCallback(async (tok) => {
+    const loadNotifications = useCallback(async () => {
         try {
-            const res = await axios.get(backendUrl + '/api/notification/list', { headers: { token: tok } });
+            const res = await axios.get(backendUrl + '/api/notification/list');
             if (res.data.success) setNotifications(res.data.notifications);
         } catch { /* non-critical */ }
     }, [backendUrl]);
 
-    const markAllNotificationsRead = useCallback(async (tok) => {
+    const markAllNotificationsRead = useCallback(async () => {
         try {
-            await axios.post(backendUrl + '/api/notification/read-all', {}, { headers: { token: tok } });
+            await axios.post(backendUrl + '/api/notification/read-all', {});
             setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         } catch { /* non-critical */ }
     }, [backendUrl]);
@@ -191,8 +195,8 @@ const ShopContextProvider = (props) => {
             setNotifications([]);
             return;
         }
-        loadNotifications(token);
-        const es = new EventSource(`${backendUrl}/api/notification/stream?token=${token}`);
+        loadNotifications();
+        const es = new EventSource(`${backendUrl}/api/notification/stream`, { withCredentials: true });
         sseRef.current = es;
         es.onmessage = (e) => {
             try {
@@ -263,11 +267,20 @@ const ShopContextProvider = (props) => {
     },[getAllCategories])
 
     useEffect(()=>{
-        const savedToken = localStorage.getItem('token');
-        if(!token && savedToken){
-            setToken(savedToken)
+        const restoreAuth = async () => {
+            try {
+                const response = await axios.post(backendUrl + '/api/user/refresh', {});
+                if (response.data.success && response.data.accessToken) {
+                    setToken(response.data.accessToken);
+                }
+            } catch {
+                setToken('');
+            }
+        };
+        if (!token) {
+            restoreAuth();
         }
-    },[token])
+    },[token, backendUrl])
 
     // Load cart và user profile sau khi có token và products đã load xong
     useEffect(()=>{

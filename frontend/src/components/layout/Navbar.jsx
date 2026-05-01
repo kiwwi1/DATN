@@ -3,12 +3,13 @@ import {assets} from '../../assets/assets'
 import { Link, NavLink } from 'react-router-dom'
 import { useContext } from 'react'
 import { ShopContext } from '../../context/ShopContext'
+import axios from 'axios'
 
 
 
 const Navbar = () => {
     const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
-    const {token, setToken, navigate, setCartItems, userRole, unreadCount, markAllNotificationsRead} = useContext(ShopContext);
+    const {token, setToken, navigate, setCartItems, userRole, unreadCount, markAllNotificationsRead, backendUrl} = useContext(ShopContext);
 
     const {setShowSearch, getCartCount} = useContext(ShopContext);
     
@@ -17,13 +18,8 @@ const Navbar = () => {
         const fetchCartData = async () => {
             if (token) {
                 try {
-                    const response = await fetch('http://localhost:4000/api/cart/get', {
-                        headers: {
-                            token: token
-                        }
-                    });
-                    
-                    const data = await response.json();
+                    const response = await axios.post(backendUrl + '/api/cart/get', {}, { withCredentials: true });
+                    const data = response.data;
                     if (data.success) {
                         setCartItems(data.cartData || {});
                     }
@@ -34,17 +30,21 @@ const Navbar = () => {
         };
         
         fetchCartData();
-    }, [token, setCartItems]);
+    }, [token, setCartItems, backendUrl]);
     
-    const LogoutHandler = () => {
+    const LogoutHandler = async () => {
+        try {
+            await axios.post(backendUrl + '/api/user/logout', {}, { withCredentials: true });
+        } catch {
+            // noop: clear client state regardless.
+        }
         navigate('/login')
-        localStorage.removeItem('token')
         setToken('')
         setCartItems({})
     }
 
     const handleBellClick = () => {
-        if (token) markAllNotificationsRead(token);
+        if (token) markAllNotificationsRead();
         navigate('/profile/notifications');
     };
   return (

@@ -14,12 +14,13 @@ const pushSSE = (userId, payload) => {
 /**
  * Tạo thông báo trong DB và đẩy SSE ngay lập tức nếu client đang online.
  * @param {string|ObjectId} userId  - người nhận
- * @param {"order_placed"|"order_status"|"order_cancelled"} type
+ * @param {"order_placed"|"order_status"|"order_cancelled"|"price_drop"} type
  * @param {string} title
  * @param {string} message
  * @param {string|Object} [orderId] — id đơn hàng (ObjectId hoặc chuỗi hex hợp lệ)
+ * @param {string|Object} [productId] — id sản phẩm
  */
-export const createNotification = async (userId, type, title, message, orderId) => {
+export const createNotification = async (userId, type, title, message, orderId, productId) => {
     try {
         const notification = await notificationModel.create({
             userId,
@@ -27,15 +28,19 @@ export const createNotification = async (userId, type, title, message, orderId) 
             title,
             message,
             orderId: orderId ?? null,
+            productId: productId ?? null,
         });
         const orderIdOut =
             notification.orderId != null ? notification.orderId.toString() : null;
+        const productIdOut =
+            notification.productId != null ? notification.productId.toString() : null;
         pushSSE(userId, {
             _id: notification._id,
             type,
             title,
             message,
             orderId: orderIdOut,
+            productId: productIdOut,
             read: false,
             createdAt: notification.createdAt,
         });

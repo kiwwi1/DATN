@@ -297,6 +297,7 @@ const FloatingChatButton = () => {
                             src={formatImageUrl(activeProductContext.image)}
                             alt={activeProductContext.name}
                             className="h-12 w-12 rounded object-cover bg-white"
+                            referrerPolicy="no-referrer"
                           />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-xs text-gray-800">{activeProductContext.name}</p>

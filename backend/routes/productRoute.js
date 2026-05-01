@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     addProduct,
+    generateProductDescription,
     listProduct,
     removeProduct,
     singleProduct,
@@ -20,6 +21,7 @@ productRouter.post('/add',vendorAuth,upload.fields([{name:'image1',maxCount:1},{
 productRouter.get('/list', listProduct); // Public route for all products
 productRouter.get('/vendor-list', vendorAuth, listVendorProducts); // Vendor-specific products
 productRouter.post('/remove', vendorAuth, removeProduct);
+productRouter.post('/generate-description', vendorAuth, generateProductDescription);
 productRouter.get('/single', singleProduct); // single product details
 productRouter.post('/update', vendorAuth, upload.fields([{name:'image0',maxCount:1},{name:'image1',maxCount:1},{name:'image2',maxCount:1},{name:'image3',maxCount:1}]), updateProduct);
 productRouter.get('/list-by-category', listProductsByCategory);

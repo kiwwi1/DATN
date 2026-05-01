@@ -1,5 +1,6 @@
 import {
     addProductService,
+    generateProductDescriptionService,
     listProductsService,
     listProductsByCategoryService,
     removeProductService,
@@ -91,8 +92,53 @@ const vendorShopPublic = async (req, res) => {
     }
 };
 
+const generateProductDescription = async (req, res) => {
+    try {
+        const {
+            name,
+            category,
+            subCategory,
+            attributes,
+            target,
+            price,
+            usp,
+            specs,
+            benefits,
+            material,
+            variants,
+            imageBase64,
+            imageMimeType,
+            imageUrl,
+        } = req.body;
+        const result = await generateProductDescriptionService({
+            name,
+            category,
+            subCategory,
+            attributes,
+            target,
+            price,
+            usp,
+            specs,
+            benefits,
+            material,
+            variants,
+            imageBase64,
+            imageMimeType,
+            imageUrl,
+        });
+        res.json({
+            success: true,
+            description: result.description,
+            source: result.source,
+        });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
 export {
     addProduct,
+    generateProductDescription,
     listProduct,
     removeProduct,
     singleProduct,

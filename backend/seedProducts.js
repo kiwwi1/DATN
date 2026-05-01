@@ -292,11 +292,49 @@ const DEFAULT_POOL = [
     '1503341504253-dff4815485f1','1558618047-0f0f2da8e55b',
 ];
 
+const FALLBACK_IMAGE_POOL = [
+    'https://picsum.photos/seed/datn-fallback-1/800/800',
+    'https://picsum.photos/seed/datn-fallback-2/800/800',
+    'https://picsum.photos/seed/datn-fallback-3/800/800',
+];
+
+const UNSPLASH_ID_REGEX = /^[a-zA-Z0-9_-]{12,40}$/;
+
+const sanitizeUnsplashPool = (poolMap) => {
+    const cleaned = {};
+    let removed = 0;
+
+    for (const [pool, ids] of Object.entries(poolMap)) {
+        const unique = [...new Set((ids || []).filter(Boolean).map(String))];
+        const valid = unique.filter((id) => UNSPLASH_ID_REGEX.test(id));
+        removed += unique.length - valid.length;
+        cleaned[pool] = valid;
+    }
+
+    if (removed > 0) {
+        console.warn(`⚠ Removed ${removed} invalid Unsplash photo id(s) from pools`);
+    }
+
+    return cleaned;
+};
+
+const SAFE_UNSPLASH_POOL = sanitizeUnsplashPool(UNSPLASH_POOL);
+const SAFE_DEFAULT_POOL = [...new Set(DEFAULT_POOL.filter((id) => UNSPLASH_ID_REGEX.test(id)))];
+
+const toSeededImageUrl = (id) =>
+    `https://picsum.photos/seed/datn-${encodeURIComponent(id)}/800/800`;
+
 const getImages = (pool, count = 3) => {
-    const ids = UNSPLASH_POOL[pool] || DEFAULT_POOL;
+    const ids = SAFE_UNSPLASH_POOL[pool] && SAFE_UNSPLASH_POOL[pool].length
+        ? SAFE_UNSPLASH_POOL[pool]
+        : SAFE_DEFAULT_POOL;
     const shuffled = [...ids].sort(() => Math.random() - 0.5);
-    const chosen = shuffled.slice(0, Math.min(count, ids.length));
-    return chosen.map(id => `https://images.unsplash.com/photo-${id}?w=800&h=800&fit=crop&auto=format`);
+    const chosen = shuffled.slice(0, Math.min(count, ids.length)).map(toSeededImageUrl);
+
+    if (chosen.length > 0) return chosen;
+
+    // Last-resort fallback để tránh ảnh trống/vỡ khi pool lỗi hoàn toàn.
+    return FALLBACK_IMAGE_POOL.slice(0, Math.max(1, count));
 };
 
 // ── Vendor data ────────────────────────────────────────────────────────────────
@@ -384,8 +422,19 @@ const seedProducts = async () => {
                     password: hashed,
                     role: 'vendor',
                     shopName: v.shopName,
+                    emailVerified: true,
                 });
                 console.log(`👤 Created vendor: ${v.shopName}`);
+            } else if (!user.emailVerified) {
+                await userModel.updateOne(
+                    { _id: user._id },
+                    {
+                        $set: { emailVerified: true },
+                        $unset: { emailVerificationToken: '', emailVerificationExpires: '' },
+                    }
+                );
+                user.emailVerified = true;
+                console.log(`✉️  Bỏ qua xác minh email (seed) cho vendor: ${v.shopName}`);
             }
             vendorIds.push({ _id: user._id, shopName: v.shopName });
         }

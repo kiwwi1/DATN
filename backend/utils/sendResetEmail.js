@@ -14,6 +14,29 @@ const getTransporter = () => {
 
 /**
  * @param {string} to
+ * @param {string} otp - 6-digit OTP code
+ */
+export const sendVerificationEmail = async (to, otp) => {
+    const from = process.env.MAIL_FROM || process.env.MAIL_USER;
+    const transporter = getTransporter();
+    await transporter.sendMail({
+        from: `"Shop" <${from}>`,
+        to,
+        subject: "Xác minh email đăng ký tài khoản",
+        text: `Mã xác minh của bạn là: ${otp}\n\nMã có hiệu lực trong 15 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto">
+            <h2 style="color:#111">Xác minh email của bạn</h2>
+            <p>Cảm ơn bạn đã đăng ký! Vui lòng nhập mã OTP bên dưới để hoàn tất đăng ký:</p>
+            <div style="font-size:36px;font-weight:bold;letter-spacing:8px;text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:20px 0">${otp}</div>
+            <p style="color:#666;font-size:13px">Mã có hiệu lực trong <strong>15 phút</strong>. Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.</p>
+          </div>
+        `,
+    });
+};
+
+/**
+ * @param {string} to
  * @param {string} resetUrl - full URL to frontend reset page with ?token=
  */
 export const sendPasswordResetEmail = async (to, resetUrl) => {

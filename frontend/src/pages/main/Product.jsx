@@ -7,13 +7,14 @@ import axios from "axios";
 import RelatedProducts from "../../components/product/RelatedProducts";
 import { formatPrice } from "../../utils/priceFormat";
 import { toast } from "react-toastify";
-import { formatImageUrl } from "../../utils/imageUtils";
+import { formatImageUrl, asImageArray } from "../../utils/imageUtils";
+import { localizeProductName } from "../../utils/productNameUtils";
 
 const Product = () => {
   const { productId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { products, addToCart, backendUrl, token, userId, trackInteraction } = useContext(ShopContext);
+  const { products, addToCart, backendUrl, token, userId, trackInteraction, cartItems } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState(""); // Deprecated: for backward compatibility with old products
@@ -40,6 +41,9 @@ const Product = () => {
   const [reviewTotalPages, setReviewTotalPages] = useState(1);
   const [reviewTotal, setReviewTotal] = useState(0);
   const [vendorFollowerCount, setVendorFollowerCount] = useState(null);
+  const [priceAlertEnabled, setPriceAlertEnabled] = useState(false);
+  const [priceAlertLoading, setPriceAlertLoading] = useState(false);
+  const displayName = productData ? localizeProductName(productData.name) : "";
 
   const vendorStats = useMemo(() => {
     if (!productData) return null;
@@ -77,6 +81,11 @@ const Product = () => {
   }, [backendUrl, productData?.vendorId]);
   const [starCounts, setStarCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   const REVIEWS_PER_PAGE = 5;
+  const isInCart = useMemo(() => {
+    const row = cartItems?.[productId];
+    if (!row || typeof row !== "object") return false;
+    return Object.values(row).some((qty) => Number(qty) > 0);
+  }, [cartItems, productId]);
   // Ảnh đính kèm
   const [newImages, setNewImages] = useState([]);       // File[] chờ upload
   const [previewUrls, setPreviewUrls] = useState([]);   // blob URL để preview
@@ -116,9 +125,9 @@ const Product = () => {
             conversationId,
             productContext: {
               id: productData._id,
-              name: productData.name,
+              name: localizeProductName(productData.name),
               price: productData.price,
-              image: Array.isArray(productData.image) ? productData.image[0] : "",
+              image: asImageArray(productData.image)[0] || "",
               vendorId: productData.vendorId,
             },
             quickOptions,
@@ -153,7 +162,7 @@ const Product = () => {
     products.map((item) => {
       if (item._id == productId) {
         setProductData(item);
-        setImage(formatImageUrl(item.image[0]));
+        setImage(formatImageUrl(item.image));
         setSize("");
         setSelectedAttributes({});
         return null;
@@ -214,6 +223,56 @@ const Product = () => {
   useEffect(() => {
     fetchProductData();
   }, [fetchProductData]);
+
+  useEffect(() => {
+    const fetchPriceAlertStatus = async () => {
+      if (!token || !productId || !isInCart) {
+        setPriceAlertEnabled(false);
+        return;
+      }
+      try {
+        const res = await axios.get(
+          `${backendUrl}/api/notification/price-alert/status?productId=${productId}`,
+          { headers: { token } }
+        );
+        if (res.data.success) {
+          setPriceAlertEnabled(!!res.data.enabled);
+        }
+      } catch {
+        setPriceAlertEnabled(false);
+      }
+    };
+    fetchPriceAlertStatus();
+  }, [backendUrl, token, productId, isInCart]);
+
+  const handleTogglePriceAlert = async (enabled) => {
+    if (!token) {
+      toast.info("Vui lòng đăng nhập để bật thông báo giảm giá.");
+      return;
+    }
+    if (!isInCart) {
+      toast.info("Hãy thêm sản phẩm vào giỏ hàng trước khi bật thông báo.");
+      return;
+    }
+    setPriceAlertLoading(true);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/notification/price-alert/subscribe`,
+        { productId, enabled },
+        { headers: { token } }
+      );
+      if (res.data.success) {
+        setPriceAlertEnabled(!!res.data.enabled);
+        toast.success(enabled ? "Đã bật thông báo giảm giá." : "Đã tắt thông báo giảm giá.");
+      } else {
+        toast.error(res.data.message || "Không thể cập nhật thông báo.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Không thể cập nhật thông báo.");
+    } finally {
+      setPriceAlertLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (productId) {
@@ -364,23 +423,24 @@ const Product = () => {
         {/* ------------product image--------------- */}
         <div className="flex-1 flex flex-col-reverse sm:flex-row gap-3">
           <div className="flex sm:flex-col overflow-x-auto sm:overflow-y-scroll justify-between gap-3 w-full sm:justify-normal sm:w-[18.7%]">
-            {productData.image.map((item, index) => (
+            {asImageArray(productData.image).map((item, index) => (
               <img
                 key={index}
                 onClick={() => setImage(formatImageUrl(item))}
                 className={`w-[24%] sm:w-full cursor-pointer sm:mb-3 flex-shrink-0 `}
                 src={formatImageUrl(item)}
                 alt={productData.name}
+                referrerPolicy="no-referrer"
               />
             ))}
           </div>
           <div className="w-full sm:w-[80%]">
-            <img className="w-full h-auto" src={image}></img>
+            <img className="w-full h-auto" src={image} alt="" referrerPolicy="no-referrer" />
           </div>
         </div>
         {/* ------product info------------ */}
         <div className="flex-1">
-          <h1 className="font-medium text-2xl mt-2">{productData.name}</h1>
+          <h1 className="font-medium text-2xl mt-2">{displayName}</h1>
           
           {/* Brand and Shop Info */}
           <div className="flex items-center gap-3 mt-3">
@@ -588,38 +648,52 @@ const Product = () => {
               : !hasVariants && productData.stock === 0;
 
             return (
-              <button
-                onClick={() => {
-                  if (productData.attributes && productData.attributes.length > 0) {
-                    if (!allAttrsSelected) {
-                      toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
-                      return;
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    if (productData.attributes && productData.attributes.length > 0) {
+                      if (!allAttrsSelected) {
+                        toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
+                        return;
+                      }
+                      if (isOutOfStock) {
+                        toast.error("Biến thể này đã hết hàng");
+                        return;
+                      }
+                      const attributeString = Object.entries(selectedAttributes)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                      addToCart(productData._id, attributeString);
+                    } else {
+                      if (isOutOfStock) {
+                        toast.error("Sản phẩm đã hết hàng");
+                        return;
+                      }
+                      addToCart(productData._id, size);
                     }
-                    if (isOutOfStock) {
-                      toast.error("Biến thể này đã hết hàng");
-                      return;
-                    }
-                    const attributeString = Object.entries(selectedAttributes)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join(', ');
-                    addToCart(productData._id, attributeString);
-                  } else {
-                    if (isOutOfStock) {
-                      toast.error("Sản phẩm đã hết hàng");
-                      return;
-                    }
-                    addToCart(productData._id, size);
-                  }
-                }}
-                disabled={isOutOfStock}
-                className={`w-full sm:w-auto px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all shadow-lg ${
-                  isOutOfStock
-                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700 text-white'
-                }`}
-              >
-                {isOutOfStock ? 'HẾT HÀNG' : 'THÊM VÀO GIỎ HÀNG'}
-              </button>
+                  }}
+                  disabled={isOutOfStock}
+                  className={`w-full sm:w-auto px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all shadow-lg ${
+                    isOutOfStock
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-orange-600 hover:bg-orange-700 text-white'
+                  }`}
+                >
+                  {isOutOfStock ? 'HẾT HÀNG' : 'THÊM VÀO GIỎ HÀNG'}
+                </button>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={priceAlertEnabled}
+                    disabled={!isInCart || priceAlertLoading}
+                    onChange={(e) => handleTogglePriceAlert(e.target.checked)}
+                  />
+                  Nhận thông báo khi sản phẩm này giảm giá
+                  {!isInCart && (
+                    <span className="text-xs text-gray-400">(cần thêm vào giỏ trước)</span>
+                  )}
+                </label>
+              </div>
             );
           })()}
           

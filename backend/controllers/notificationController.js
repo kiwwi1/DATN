@@ -6,14 +6,18 @@ import {
     markAllReadService,
     markOneReadService,
 } from "../services/notificationService.js";
+import {
+    getPriceAlertStatusService,
+    setPriceAlertSubscriptionService,
+} from "../services/priceDropNotificationService.js";
 
 /**
  * GET /api/notification/stream
  * SSE endpoint — client kết nối một lần, server push events liên tục.
- * Token truyền qua query param vì EventSource không hỗ trợ custom headers.
+ * Ưu tiên đọc token từ HttpOnly cookie, fallback query param để tương thích cũ.
  */
 export const sseStream = (req, res) => {
-    const token = req.query.token;
+    const token = req.cookies?.accessToken || req.query.token;
     if (!token) {
         return res.status(401).json({ success: false, message: "Unauthorized" });
     }
@@ -70,6 +74,32 @@ export const markOneRead = async (req, res) => {
     try {
         const notification = await markOneReadService(req.params.id, req.body.userId);
         res.json({ success: true, notification });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+/** GET /api/notification/price-alert/status?productId=... */
+export const getPriceAlertStatus = async (req, res) => {
+    try {
+        const { productId } = req.query;
+        const enabled = await getPriceAlertStatusService(req.body.userId, productId);
+        res.json({ success: true, enabled });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+/** POST /api/notification/price-alert/subscribe */
+export const setPriceAlertSubscription = async (req, res) => {
+    try {
+        const { productId, enabled } = req.body;
+        const alert = await setPriceAlertSubscriptionService(
+            req.body.userId,
+            productId,
+            enabled
+        );
+        res.json({ success: true, enabled: !!alert.enabled });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }

@@ -2,6 +2,7 @@ import express from 'express';
 import {
     loginUser,
     registerUser,
+    verifyEmail,
     loginAdmin,
     registerVendor,
     getUserProfile,
@@ -10,6 +11,8 @@ import {
     forgotPassword,
     resetPassword,
     deleteUser,
+    refreshAuth,
+    logoutUser,
 } from '../controllers/userController.js';
 import authUser from '../middleware/auth.js';
 import adminAuth from '../middleware/adminAuth.js';
@@ -17,6 +20,7 @@ const userRouter = express.Router();
 
 userRouter.post('/login', loginUser);
 userRouter.post('/register', registerUser);
+userRouter.post('/verify-email', verifyEmail);
 userRouter.post('/admin', loginAdmin);
 userRouter.post('/register-vendor', authUser, registerVendor);
 userRouter.post('/profile', authUser, getUserProfile);
@@ -24,5 +28,7 @@ userRouter.post('/update-profile', authUser, updateUserProfile);
 userRouter.post('/google', loginWithGoogle);
 userRouter.post('/forgot-password', forgotPassword);
 userRouter.post('/reset-password', resetPassword);
+userRouter.post('/refresh', refreshAuth);
+userRouter.post('/logout', logoutUser);
 userRouter.delete('/delete/:id', adminAuth, deleteUser);
 export default userRouter;

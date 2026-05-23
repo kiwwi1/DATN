@@ -7,6 +7,13 @@ import { getDefaultAttributesForCategory } from "../utils/categoryHelper.js";
 import AttributesManager from "../components/AttributesManager.jsx";
 import VariantsManager from "../components/VariantsManager.jsx";
 
+const getRawPriceValue = (value) => String(value || "").replace(/\D/g, "");
+const formatPriceInput = (value) => {
+  const rawValue = getRawPriceValue(value);
+  if (!rawValue) return "";
+  return Number(rawValue).toLocaleString("vi-VN");
+};
+
 const Add = ({ token }) => {
   const [image1, setImage1] = useState(false);
   const [image2, setImage2] = useState(false);
@@ -28,7 +35,7 @@ const Add = ({ token }) => {
   useEffect(() => {
     if (variants.length > 0) {
       const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p) && p > 0);
-      if (prices.length > 0) setPrice(String(Math.min(...prices)));
+      if (prices.length > 0) setPrice(formatPriceInput(String(Math.min(...prices))));
     }
   }, [variants]);
 
@@ -111,8 +118,10 @@ const Add = ({ token }) => {
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     try {
+      const rawPrice = getRawPriceValue(price);
+
       // Validate required fields
-      if (!name || !description || !price) {
+      if (!name || !description || !rawPrice) {
         toast.error("Please fill all required fields");
         return;
       }
@@ -145,7 +154,7 @@ const Add = ({ token }) => {
 
       formData.append("name", name);
       formData.append("description", description);
-      formData.append("price", price);
+      formData.append("price", rawPrice);
       formData.append("category", category);
       formData.append("subCategory", subCategory);
       formData.append("attributes", JSON.stringify(attributes));
@@ -252,7 +261,7 @@ const Add = ({ token }) => {
           category: selectedMainCategory?.name || "",
           subCategory: selectedSubCategory?.name || "",
           attributes,
-          price: price ? `${Number(price).toLocaleString("vi-VN")}đ` : "",
+          price: price ? `${Number(getRawPriceValue(price)).toLocaleString("vi-VN")}đ` : "",
           variants: attributes.map((attr) => `${attr.name}: ${attr.values.join(", ")}`),
           imageBase64,
           imageMimeType,
@@ -476,13 +485,12 @@ const Add = ({ token }) => {
               ₫
             </span>
             <input
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => setPrice(formatPriceInput(e.target.value))}
               value={price}
-              type="number"
+              type="text"
+              inputMode="numeric"
               className="w-full border-2 border-gray-300 rounded-lg p-2.5 pl-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
               placeholder="0"
-              min="0"
-              step="1"
               required
             />
           </div>

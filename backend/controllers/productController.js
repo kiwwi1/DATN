@@ -5,6 +5,7 @@ import {
     listProductsByCategoryService,
     removeProductService,
     singleProductService,
+    toggleProductActiveService,
     updateProductService,
     listVendorProductsService,
     getVendorShopPublicService,
@@ -68,6 +69,20 @@ const updateProduct = async (req, res) => {
     try {
         const product = await updateProductService(req.body.productId, req.vendorId, req.body, req.files);
         res.json({ success: true, message: "Product updated successfully", product });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const toggleProductActive = async (req, res) => {
+    try {
+        const { productId, isActive } = req.body;
+        const product = await toggleProductActiveService(productId, req.vendorId, isActive);
+        res.json({
+            success: true,
+            message: product.isActive ? "Product is now visible" : "Product is now hidden",
+            product,
+        });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
@@ -146,4 +161,5 @@ export {
     listVendorProducts,
     listProductsByCategory,
     vendorShopPublic,
+    toggleProductActive,
 };

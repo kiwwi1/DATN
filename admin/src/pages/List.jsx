@@ -150,7 +150,25 @@ const List = ({ token }) => {
     try {
       const response = await axios.post(backendUrl + '/api/product/remove', { id }, { headers: { token } })
       if (response.data.success) {
-        toast.success('Đã xoá sản phẩm')
+        toast.success(response.data.message || 'Đã xoá sản phẩm')
+        await fetchList()
+      } else {
+        toast.error(response.data.message)
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message)
+    }
+  }
+
+  const toggleProductVisibility = async (productId, isActive) => {
+    try {
+      const response = await axios.post(
+        backendUrl + '/api/product/toggle-active',
+        { productId, isActive },
+        { headers: { token } }
+      )
+      if (response.data.success) {
+        toast.success(isActive ? 'Đã hiện sản phẩm' : 'Đã ẩn sản phẩm')
         await fetchList()
       } else {
         toast.error(response.data.message)
@@ -539,11 +557,12 @@ const List = ({ token }) => {
       ) : (
         <>
           {/* Table header */}
-          <div className="hidden md:grid grid-cols-[80px_1fr_160px_120px_100px] items-center text-xs font-semibold text-gray-500 uppercase px-3 py-2 bg-gray-100 rounded-t border">
+          <div className="hidden md:grid grid-cols-[80px_1fr_150px_110px_120px_180px] items-center text-xs font-semibold text-gray-500 uppercase px-3 py-2 bg-gray-100 rounded-t border">
             <span>Ảnh</span>
             <span>Tên sản phẩm</span>
             <span>Danh mục</span>
             <span>Giá</span>
+            <span className="text-center">Trạng thái</span>
             <span className="text-center">Thao tác</span>
           </div>
 
@@ -551,7 +570,7 @@ const List = ({ token }) => {
             {paginated.map((item) => (
               <div
                 key={item._id}
-                className="grid grid-cols-[80px_1fr_100px] md:grid-cols-[80px_1fr_160px_120px_100px] gap-2 items-center px-3 py-2.5 bg-white hover:bg-gray-50 transition-colors"
+                className="grid grid-cols-[80px_1fr_120px] md:grid-cols-[80px_1fr_150px_110px_120px_180px] gap-2 items-center px-3 py-2.5 bg-white hover:bg-gray-50 transition-colors"
               >
                 <img className="w-12 h-12 object-cover rounded border" src={formatImageUrl(item.image)}
                             referrerPolicy="no-referrer" alt={item.name} />
@@ -568,7 +587,28 @@ const List = ({ token }) => {
                   )}
                 </p>
                 <p className="font-semibold text-gray-800 text-sm hidden md:block">{formatPrice(item.price)}</p>
-                <div className="flex gap-2 justify-end md:justify-center">
+                <div className="hidden md:flex justify-center">
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      item.isActive !== false
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {item.isActive !== false ? 'Đang hiển thị' : 'Đã ẩn'}
+                  </span>
+                </div>
+                <div className="flex gap-2 justify-end md:justify-center flex-wrap">
+                  <button
+                    onClick={() => toggleProductVisibility(item._id, item.isActive === false)}
+                    className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                      item.isActive === false
+                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {item.isActive === false ? 'Hiện' : 'Ẩn'}
+                  </button>
                   <button
                     onClick={() => openUpdateModal(item)}
                     className="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded font-medium transition-colors"

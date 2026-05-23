@@ -53,7 +53,7 @@ const CategorySelection = () => {
             {/* Title */}
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-gray-800">
-                    <Title text1={'CATEGORIES'} text2={' PRODUCTS'}/>   
+                    <Title text1={'DANH MỤC'} text2={' SẢN PHẨM'}/>   
                 </h2>
                 {totalPages > 1 && (
                     <div className="flex items-center gap-1">

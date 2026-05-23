@@ -6,7 +6,6 @@ import {
     registerVendorService,
     getUserProfileService,
     updateUserProfileService,
-    loginAdminService,
     requestPasswordResetService,
     resetPasswordWithTokenService,
     deleteUserService,
@@ -104,16 +103,6 @@ const updateUserProfile = async (req, res) => {
     }
 };
 
-const loginAdmin = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const token = loginAdminService(email, password);
-        res.json({ success: true, token });
-    } catch (error) {
-        res.json({ success: false, message: error.message });
-    }
-};
-
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
@@ -171,7 +160,6 @@ export {
     loginUser,
     registerUser,
     verifyEmail,
-    loginAdmin,
     registerVendor,
     getUserProfile,
     updateUserProfile,

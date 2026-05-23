@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Login from "./components/Login";
 import VendorValidator from "./components/VendorValidator";
 import { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import 'react-toastify/dist/ReactToastify.css';
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -21,32 +22,25 @@ const App = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const sseRef = useRef(null);
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  const handleLogin = (tok, rememberMe = true) => {
-    setToken(tok);
-    if (rememberMe) {
-      localStorage.setItem("token", tok);
-      sessionStorage.removeItem("token");
-    } else {
-      sessionStorage.setItem("token", tok);
-      localStorage.removeItem("token");
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${backendUrl}/api/user/logout`, {}, { withCredentials: true });
+    } catch {
+      // noop
     }
-  };
-
-  const handleLogout = () => {
     setToken("");
     setVendorInfo(null);
     setNotifications([]);
     setUnreadCount(0);
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("vendorToken");
   };
 
   const loadVendorInfo = async (tok) => {
     try {
       const res = await fetch(`${backendUrl}/api/user/profile`, {
         method: 'POST',
+        credentials: 'include',
         headers: { token: tok, 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
@@ -57,7 +51,10 @@ const App = () => {
 
   const loadNotifications = async (tok) => {
     try {
-      const res = await fetch(`${backendUrl}/api/notification/list`, { headers: { token: tok } });
+      const res = await fetch(`${backendUrl}/api/notification/list`, {
+        credentials: 'include',
+        headers: { token: tok },
+      });
       const data = await res.json();
       if (data.success) {
         setNotifications(data.notifications);
@@ -68,24 +65,30 @@ const App = () => {
 
   const markAllRead = async (tok) => {
     try {
-      await fetch(`${backendUrl}/api/notification/read-all`, { method: 'POST', headers: { token: tok } });
+      await fetch(`${backendUrl}/api/notification/read-all`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { token: tok },
+      });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch { /* non-critical */ }
   };
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const vendorTokenFromUrl = urlParams.get("vendorToken");
-
-    if (vendorTokenFromUrl) {
-      setToken(vendorTokenFromUrl);
-      localStorage.setItem("token", vendorTokenFromUrl);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-      const savedToken = localStorage.getItem("token") || sessionStorage.getItem("token");
-      if (savedToken) setToken(savedToken);
-    }
+    const restoreAuth = async () => {
+      try {
+        const response = await axios.post(`${backendUrl}/api/user/refresh`, {}, { withCredentials: true });
+        if (response.data.success && response.data.accessToken) {
+          setToken(response.data.accessToken);
+        }
+      } catch {
+        setToken("");
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+    restoreAuth();
   }, []);
 
   useEffect(() => {
@@ -99,7 +102,7 @@ const App = () => {
     loadVendorInfo(token);
     loadNotifications(token);
 
-    const es = new EventSource(`${backendUrl}/api/notification/stream?token=${token}`);
+    const es = new EventSource(`${backendUrl}/api/notification/stream`, { withCredentials: true });
     sseRef.current = es;
     es.onmessage = (e) => {
       try {
@@ -116,8 +119,10 @@ const App = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       <ToastContainer />
-      {token === "" ? (
-        <Login onLogin={handleLogin} />
+      {checkingSession ? (
+        <Login isCheckingSession />
+      ) : token === "" ? (
+        <Login />
       ) : (
         <VendorValidator token={token} onLogout={handleLogout}>
           <Navbar

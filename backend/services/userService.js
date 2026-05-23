@@ -167,13 +167,6 @@ export const updateUserProfileService = async (userId, { name, email, phone }) =
     return user;
 };
 
-export const loginAdminService = (email, password) => {
-    if (email !== process.env.ADMIN_EMAIL || password !== process.env.ADMIN_PASSWORD) {
-        throw new Error("Invalid credentials");
-    }
-    return jwt.sign(email + password, process.env.JWT_SECRET);
-};
-
 export const refreshAccessTokenService = async (refreshToken) => {
     if (!refreshToken) throw new Error("Unauthorized");
 

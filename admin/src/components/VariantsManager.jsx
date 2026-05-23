@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { formatPrice } from '../utils/priceFormat'
 
 // Tạo tích Descartes từ mảng các mảng giá trị
@@ -22,9 +22,17 @@ function comboLabel(combination) {
     return Object.entries(combination).map(([k, v]) => `${k}: ${v}`).join(' / ')
 }
 
+const getRawPriceValue = (value) => String(value || '').replace(/\D/g, '')
+const formatPriceInput = (value) => {
+    const rawValue = getRawPriceValue(value)
+    if (!rawValue) return ''
+    return Number(rawValue).toLocaleString('vi-VN')
+}
+
 const VariantsManager = ({ attributes, variants, onChange }) => {
     // Dùng ref để tránh stale closure trong useEffect
     const variantsRef = useRef(variants)
+    const [quickPrice, setQuickPrice] = useState('')
     useEffect(() => { variantsRef.current = variants }, [variants])
 
     // Tái tạo danh sách variant khi attributes thay đổi
@@ -73,6 +81,12 @@ const VariantsManager = ({ attributes, variants, onChange }) => {
         onChange(updated)
     }
 
+    const handlePriceChange = (index, value) => {
+        const updated = [...variants]
+        updated[index] = { ...updated[index], price: Number(getRawPriceValue(value)) || 0 }
+        onChange(updated)
+    }
+
     // Điền nhanh cùng giá cho tất cả biến thể
     const fillAllPrice = (price) => {
         onChange(variants.map(v => ({ ...v, price: Number(price) || 0 })))
@@ -105,11 +119,22 @@ const VariantsManager = ({ attributes, variants, onChange }) => {
                     <span className="text-gray-500">
                         Điền nhanh — Giá:
                         <input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
                             placeholder="0"
-                            onBlur={e => { if (e.target.value) fillAllPrice(e.target.value) }}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fillAllPrice(e.target.value); e.target.value = '' } }}
+                            value={quickPrice}
+                            onChange={e => setQuickPrice(formatPriceInput(e.target.value))}
+                            onBlur={() => {
+                                if (quickPrice) fillAllPrice(getRawPriceValue(quickPrice))
+                                setQuickPrice('')
+                            }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    fillAllPrice(getRawPriceValue(quickPrice))
+                                    setQuickPrice('')
+                                }
+                            }}
                             className="ml-1 w-24 border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 outline-none"
                         />
                     </span>
@@ -118,7 +143,6 @@ const VariantsManager = ({ attributes, variants, onChange }) => {
                         <input
                             type="number"
                             min="0"
-                            placeholder="0"
                             onBlur={e => { if (e.target.value) fillAllStock(e.target.value) }}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fillAllStock(e.target.value); e.target.value = '' } }}
                             className="ml-1 w-16 border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 outline-none"
@@ -144,10 +168,10 @@ const VariantsManager = ({ attributes, variants, onChange }) => {
                                 </td>
                                 <td className="px-3 py-2">
                                     <input
-                                        type="number"
-                                        value={variant.price}
-                                        onChange={e => handleChange(idx, 'price', e.target.value)}
-                                        min="0"
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={variant.price ? formatPriceInput(variant.price) : ''}
+                                        onChange={e => handlePriceChange(idx, e.target.value)}
                                         className="w-full border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         placeholder="0"
                                         required
@@ -156,11 +180,10 @@ const VariantsManager = ({ attributes, variants, onChange }) => {
                                 <td className="px-3 py-2">
                                     <input
                                         type="number"
-                                        value={variant.stock}
+                                        value={variant.stock || ''}
                                         onChange={e => handleChange(idx, 'stock', e.target.value)}
                                         min="0"
                                         className="w-full border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        placeholder="0"
                                     />
                                 </td>
                             </tr>

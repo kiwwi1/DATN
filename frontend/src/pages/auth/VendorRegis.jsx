@@ -21,8 +21,7 @@ const VendorRegis = () => {
       navigate('/login')
     } else if (userRole === 'vendor') {
       // If user is already a vendor, redirect to vendor dashboard
-      // Pass token via URL parameter (will be stored in admin's localStorage)
-      window.open(`http://localhost:5174/add?vendorToken=${token}`, '_blank')
+      window.open('http://localhost:5174/add', '_blank')
       navigate('/') // Stay on main site
     }
   }, [token, navigate, userRole])
@@ -63,7 +62,7 @@ const VendorRegis = () => {
       console.log(response.data)
       
       if (response.data.success) {
-        toast.success('Đăng ký vendor thành công! Chờ admin phê duyệt.')
+        toast.success('Dang ky vendor thanh cong!')
         navigate('/')
       } else {
         toast.error(response.data.message || 'Đăng ký vendor thất bại')
@@ -171,3 +170,4 @@ const VendorRegis = () => {
 }
 
 export default VendorRegis
+

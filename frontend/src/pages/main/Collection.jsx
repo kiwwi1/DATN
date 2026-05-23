@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useContext } from 'react';
 import { ShopContext } from '../../context/ShopContext';
 import ProductItem from '../../components/product/ProductItem';
 import { useSearchParams } from 'react-router-dom';
+import { normalizeSearchText } from '../../utils/searchUtils';
 
 const SORT_OPTIONS = [
   { key: 'relevant', label: 'Liên Quan' },
@@ -15,8 +16,9 @@ const SORT_OPTIONS = [
 const ITEMS_PER_PAGE = 30;
 
 const Collection = () => {
-  const { products, search, showSearch, homepageCategories, trackInteraction, token } = useContext(ShopContext);
+  const { products, homepageCategories, trackInteraction, token } = useContext(ShopContext);
   const [searchParams] = useSearchParams();
+  const trackedSearchTermRef = useRef('');
 
   const [filterProducts, setFilterProducts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -83,13 +85,13 @@ const Collection = () => {
 
   useEffect(() => {
     let copy = products.slice();
-    const searchTerm = searchParams.get('search') || (showSearch ? search : '');
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
+    const searchTerm = searchParams.get('search') || '';
+    const normalizedSearchTerm = normalizeSearchText(searchTerm);
+    if (normalizedSearchTerm) {
       copy = copy.filter(p =>
-        p.name?.toLowerCase().includes(lower) ||
-        p.brand?.toLowerCase().includes(lower) ||
-        p.vendorShopName?.toLowerCase().includes(lower)
+        normalizeSearchText(p.name).includes(normalizedSearchTerm) ||
+        normalizeSearchText(p.brand).includes(normalizedSearchTerm) ||
+        normalizeSearchText(p.vendorShopName).includes(normalizedSearchTerm)
       );
     }
     const categoryFromUrl = searchParams.get('category');
@@ -119,11 +121,22 @@ const Collection = () => {
     setCurrentPage(1);
 
     // Track searched signal cho top 5 sản phẩm khi user đang tìm kiếm
-    const activeTerm = searchParams.get('search') || (showSearch ? search : '');
-    if (activeTerm && token && copy.length > 0) {
-      copy.slice(0, 5).forEach((p) => trackInteraction(p._id, 'searched'));
+  }, [selectedCategories, products, sortType, searchParams, appliedMin, appliedMax, getAllChildrenCategoryIds]);
+
+  useEffect(() => {
+    const searchTerm = searchParams.get('search') || '';
+    const normalizedSearchTerm = normalizeSearchText(searchTerm);
+
+    if (!normalizedSearchTerm) {
+      trackedSearchTermRef.current = '';
+      return;
     }
-  }, [selectedCategories, search, showSearch, products, sortType, searchParams, appliedMin, appliedMax, getAllChildrenCategoryIds, trackInteraction, token]);
+    if (!token || filterProducts.length === 0) return;
+    if (trackedSearchTermRef.current === normalizedSearchTerm) return;
+
+    trackedSearchTermRef.current = normalizedSearchTerm;
+    filterProducts.slice(0, 5).forEach((p) => trackInteraction(p._id, 'searched'));
+  }, [searchParams, token, filterProducts, trackInteraction]);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [currentPage]);
 

@@ -11,10 +11,13 @@ import { formatImageUrl, asImageArray } from "../../utils/imageUtils";
 import { localizeProductName } from "../../utils/productNameUtils";
 
 const Product = () => {
+  const getCategoryId = (categoryLike) =>
+    typeof categoryLike === "object" ? categoryLike?._id : categoryLike;
+
   const { productId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { products, addToCart, backendUrl, token, userId, trackInteraction, cartItems } = useContext(ShopContext);
+  const { products, addToCart, backendUrl, token, userId, trackInteraction, cartItems, homepageCategories } = useContext(ShopContext);
   const [productData, setProductData] = useState(false);
   const [image, setImage] = useState("");
   const [size, setSize] = useState(""); // Deprecated: for backward compatibility with old products
@@ -44,6 +47,39 @@ const Product = () => {
   const [priceAlertEnabled, setPriceAlertEnabled] = useState(false);
   const [priceAlertLoading, setPriceAlertLoading] = useState(false);
   const displayName = productData ? localizeProductName(productData.name) : "";
+  const breadcrumbSegments = useMemo(() => {
+    if (!productData) return [];
+
+    const categories = homepageCategories?.categories || [];
+    const categoriesById = new Map(categories.map((cat) => [String(cat._id), cat]));
+    const productCategoryId = getCategoryId(productData.subSubCategory) || getCategoryId(productData.subCategory) || getCategoryId(productData.category);
+
+    const categoryTrail = [];
+    if (productCategoryId && categoriesById.size > 0) {
+      let cursor = categoriesById.get(String(productCategoryId));
+      while (cursor) {
+        categoryTrail.unshift(cursor);
+        const parentId =
+          typeof cursor.parentCategory === "object"
+            ? cursor.parentCategory?._id
+            : cursor.parentCategory;
+        if (!parentId) break;
+        cursor = categoriesById.get(String(parentId));
+      }
+    } else if (typeof productData.category === "object" && productData.category?.name) {
+      categoryTrail.push({
+        _id: productData.category?._id || "",
+        name: productData.category.name,
+      });
+    }
+
+    return categoryTrail
+      .filter((cat) => cat?.name)
+      .map((cat) => ({
+        label: cat.name,
+        to: cat?._id ? `/collection?category=${cat._id}` : "/collection",
+      }));
+  }, [productData, homepageCategories]);
 
   const vendorStats = useMemo(() => {
     if (!productData) return null;
@@ -418,6 +454,25 @@ const Product = () => {
   return productData ? (
     // neu productData ton tai thi render ra
     <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
+      {/* Breadcrumb */}
+      <div className="bg-gray-100 rounded px-4 py-3 mb-4 text-sm text-gray-700 overflow-x-auto">
+        <div className="whitespace-nowrap">
+          <Link to="/" className="text-blue-600 hover:underline">
+            Trang chủ
+          </Link>
+          {breadcrumbSegments.map((item) => (
+            <React.Fragment key={item.to}>
+              <span className="mx-2 text-gray-400">›</span>
+              <Link to={item.to} className="text-blue-600 hover:underline">
+                {item.label}
+              </Link>
+            </React.Fragment>
+          ))}
+          <span className="mx-2 text-gray-400">›</span>
+          <span className="text-gray-800">{displayName}</span>
+        </div>
+      </div>
+
       {/* ------------product data---------------- */}
       <div className="flex gap-12 sm:gap-12 flex-col sm:flex-row">
         {/* ------------product image--------------- */}

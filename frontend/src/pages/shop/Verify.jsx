@@ -16,54 +16,72 @@ const Verify = () => {
         try {
             const res = await axios.post(backendUrl + '/api/cart/get', {}, { headers: { token } })
             if (res.data.success) setCartItems(res.data.cartData)
-        } catch (_) {}
+        } catch {
+            // non-critical
+        }
     }
 
-    // ── VNPay: backend đã xử lý trước khi redirect ──────────────────────────
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    // VNPay: backend verifies signature before redirecting to this page.
     const handleVNPayResult = async () => {
         sessionStorage.removeItem('selectedCartItems')
         if (success === 'true') {
-            toast.success('Thanh toán VNPay thành công!')
+            toast.success('Thanh toan VNPay thanh cong!')
             await refreshCart()
             navigate('/orders')
         } else {
-            toast.error('Thanh toán VNPay thất bại hoặc đã bị huỷ.')
+            toast.error('Thanh toan VNPay that bai hoac da bi huy.')
             navigate('/cart')
         }
         setLoading(false)
     }
 
-    // ── Stripe: frontend gọi API verify ─────────────────────────────────────
+    // Stripe: do not trust query success. Poll backend payment status.
     const verifyStripePayment = async () => {
         try {
             if (!token) {
-                toast.error('Bạn chưa đăng nhập')
+                toast.error('Ban chua dang nhap')
                 navigate('/login')
                 return
             }
             if (!orderId) {
-                toast.error('Thiếu mã đơn hàng')
+                toast.error('Thieu ma don hang')
                 navigate('/cart')
                 return
             }
 
-            const response = await axios.post(
-                backendUrl + '/api/order/verify-stripe',
-                { orderId, success },
-                { headers: { token } }
-            )
-
-            if (response.data.success) {
-                toast.success('Thanh toán thành công!')
-                sessionStorage.removeItem('selectedCartItems')
-                await refreshCart()
-                navigate('/orders')
-            } else {
-                toast.error(response.data.message || 'Xác minh thanh toán thất bại')
+            if (success !== 'true') {
+                toast.error('Thanh toan that bai hoac da bi huy')
                 navigate('/cart')
+                return
             }
+
+            const maxAttempts = 6
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                const response = await axios.post(
+                    backendUrl + '/api/order/verify-stripe',
+                    { orderId },
+                    { headers: { token } }
+                )
+
+                if (response.data.success && response.data.paid) {
+                    toast.success('Thanh toan thanh cong!')
+                    sessionStorage.removeItem('selectedCartItems')
+                    await refreshCart()
+                    navigate('/orders')
+                    return
+                }
+
+                if (attempt < maxAttempts) {
+                    await wait(1500)
+                }
+            }
+
+            toast.info('Thanh toan dang duoc xu ly, vui long kiem tra lai trong don hang')
+            navigate('/orders')
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Xác minh thanh toán thất bại')
+            toast.error(error.response?.data?.message || 'Xac minh thanh toan that bai')
             navigate('/cart')
         } finally {
             setLoading(false)
@@ -85,11 +103,11 @@ const Verify = () => {
             {loading ? (
                 <>
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                    <p className="text-xl text-gray-700">Đang xử lý thanh toán...</p>
-                    <p className="text-sm text-gray-500 mt-2">Vui lòng không đóng trang này</p>
+                    <p className="text-xl text-gray-700">Dang xu ly thanh toan...</p>
+                    <p className="text-sm text-gray-500 mt-2">Vui long khong dong trang nay</p>
                 </>
             ) : (
-                <p className="text-xl">Đang chuyển hướng...</p>
+                <p className="text-xl">Dang chuyen huong...</p>
             )}
         </div>
     )

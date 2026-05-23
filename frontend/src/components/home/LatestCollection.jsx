@@ -4,13 +4,15 @@ import { useContext } from 'react'
 import Title from '../ui/Title';
 import ProductItem from '../product/ProductItem';
 
+const LATEST_LIMIT = 5;
+
 const LatestCollection = () => {
     const { products,navigate } = useContext(ShopContext);
     const [latestProducts, setLatestProducts] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     
     useEffect(() => {
-        setLatestProducts(products.slice(0, 10));
+        setLatestProducts(products.slice(0, LATEST_LIMIT));
         setIsVisible(true);
     }, [products]);
 
@@ -22,10 +24,10 @@ const LatestCollection = () => {
             <div className='relative'>
                 <div className='text-center py-16'>
                     <div className={`transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-                        <Title text1={'LATEST'} text2={' COLLECTIONS'}/>
+                        <Title text1={'BỘ SƯU TẬP'} text2={' MỚI NHẤT'}/>
                         <p className='w-3/4 m-auto text-sm md:text-base text-gray-600 mt-4 leading-relaxed'>
-                            Discover our newest arrivals, featuring the latest trends and timeless classics. 
-                            Each piece is carefully selected to bring you the finest in fashion.
+                            Cập nhật những sản phẩm mới nhất theo xu hướng hiện đại, dễ phối đồ và phù hợp với nhiều phong cách.
+                            Mỗi thiết kế đều được chọn lọc kỹ để mang đến trải nghiệm mua sắm tốt hơn cho bạn.
                         </p>
                     </div>
                 </div>
@@ -60,7 +62,7 @@ const LatestCollection = () => {
                     isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
                 }`}>
                     <button onClick={() => navigate('/collection')} className='px-8 py-4 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg'>
-                        View All Collections
+                        Xem Tất Cả Sản Phẩm
                     </button>
                 </div>
             </div>

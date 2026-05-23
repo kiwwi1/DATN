@@ -11,6 +11,30 @@ export const syncFromVariants = (variants) => {
     return { price, stock };
 };
 
+export const buildVariantKey = (combination = {}) => {
+    const entries = Object.entries(combination || {})
+        .map(([name, value]) => [String(name || "").trim(), String(value || "").trim()])
+        .filter(([name, value]) => name && value)
+        .sort(([a], [b]) => a.localeCompare(b));
+
+    if (entries.length === 0) return "";
+    return entries.map(([name, value]) => `${name}:${value}`).join("|");
+};
+
+export const normalizeVariantsWithKeys = (variants = []) => {
+    return (Array.isArray(variants) ? variants : []).map((variant) => {
+        const combination = variant?.combination && typeof variant.combination === "object"
+            ? variant.combination
+            : {};
+        const variantKey = buildVariantKey(combination);
+        return {
+            ...variant,
+            combination,
+            variantKey,
+        };
+    });
+};
+
 export const addProductService = async ({ body, files, vendorId, vendorShopName }) => {
     const { name, description, price, category, subCategory, attributes, sizes, variants, bestseller } = body;
 
@@ -20,7 +44,7 @@ export const addProductService = async ({ body, files, vendorId, vendorShopName 
 
     const parsedAttributes = attributes ? JSON.parse(attributes) : [];
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
-    const parsedVariants = variants ? JSON.parse(variants) : [];
+    const parsedVariants = normalizeVariantsWithKeys(variants ? JSON.parse(variants) : []);
 
     const imageFiles = [files?.image1?.[0], files?.image2?.[0], files?.image3?.[0], files?.image4?.[0]].filter(Boolean);
 
@@ -52,10 +76,13 @@ export const addProductService = async ({ body, files, vendorId, vendorShopName 
     return product;
 };
 
-export const listProductsService = async () => productModel.find({});
+export const listProductsService = async () =>
+    productModel
+        .find({ isActive: true })
+        .sort({ date: -1 });
 
 export const listProductsByCategoryService = async (category) =>
-    productModel.find({ category });
+    productModel.find({ category, isActive: true });
 
 export const removeProductService = async (productId, vendorId) => {
     const product = await productModel.findById(productId);
@@ -84,6 +111,18 @@ export const removeProductService = async (productId, vendorId) => {
 
 export const singleProductService = async (productId) => productModel.findById(productId);
 
+export const toggleProductActiveService = async (productId, vendorId, isActive) => {
+    const product = await productModel.findById(productId);
+    if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
+    if (product.vendorId.toString() !== vendorId.toString()) {
+        throw Object.assign(new Error("Unauthorized - You can only update your own products"), { status: 403 });
+    }
+
+    product.isActive = Boolean(isActive);
+    await product.save();
+    return product;
+};
+
 export const updateProductService = async (productId, vendorId, body, files) => {
     const { name, description, price, category, subCategory, bestseller, attributes, variants, imageSlots } = body;
 
@@ -97,9 +136,11 @@ export const updateProductService = async (productId, vendorId, body, files) => 
     const parsedAttributes = attributes
         ? typeof attributes === "string" ? JSON.parse(attributes) : attributes
         : product.attributes;
-    const parsedVariants = variants
-        ? typeof variants === "string" ? JSON.parse(variants) : variants
-        : product.variants;
+    const parsedVariants = normalizeVariantsWithKeys(
+        variants
+            ? (typeof variants === "string" ? JSON.parse(variants) : variants)
+            : product.variants
+    );
 
     const variantSync = parsedVariants?.length > 0 ? syncFromVariants(parsedVariants) : null;
 

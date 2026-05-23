@@ -5,6 +5,7 @@ import 'dotenv/config';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import connectDB from './config/mongodb.js';
+import { initRedis } from './config/redis.js';
 import userRouter from './routes/userRoute.js';
 import productRouter from './routes/productRoute.js';
 import orderRouter from './routes/orderRoute.js';
@@ -16,7 +17,11 @@ import interactionRouter from './routes/interactionRoute.js';
 import reviewModel from './models/reviewModel.js';
 import shopFollowRouter from './routes/shopFollowRoute.js';
 import chatRouter from './routes/chatRoute.js';
+import addressRouter from './routes/addressRoute.js';
+import locationRouter from './routes/locationRoute.js';
 import { getImageProxy } from './controllers/imageProxyController.js';
+import { expirePendingReservationsService } from './services/orderService.js';
+import { stripeWebhook } from './controllers/orderController.js';
 
 
 // App config
@@ -41,6 +46,11 @@ connectDB().then(async () => {
     }
 });
 
+initRedis();
+
+// Stripe webhook must use raw body and be mounted before express.json()
+app.post('/api/order/stripe-webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
 // Middlewares
 app.use(cors({
     origin: ['http://localhost:5173', 'http://localhost:5174'],
@@ -63,6 +73,8 @@ app.use('/api/notification', notificationRouter);
 app.use('/api/interaction', interactionRouter);
 app.use('/api/shop-follow', shopFollowRouter);
 app.use('/api/chat', chatRouter);
+app.use('/api/address', addressRouter);
+app.use('/api/location', locationRouter);
 
 io.on('connection', (socket) => {
     socket.on('join_room', (conversationId) => {
@@ -74,4 +86,20 @@ io.on('connection', (socket) => {
 httpServer.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
+const RESERVATION_SWEEP_INTERVAL_MS = Number(process.env.RESERVATION_SWEEP_INTERVAL_MS || 60_000);
+const reservationSweepTimer = setInterval(async () => {
+    try {
+        const expired = await expirePendingReservationsService();
+        if (expired > 0) {
+            console.log(`[orders] expired reservations released: ${expired}`);
+        }
+    } catch (error) {
+        console.error("[orders] reservation sweep failed:", error.message);
+    }
+}, Math.max(10_000, RESERVATION_SWEEP_INTERVAL_MS));
+
+if (typeof reservationSweepTimer.unref === "function") {
+    reservationSweepTimer.unref();
+}
 

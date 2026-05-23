@@ -1,7 +1,8 @@
 import {
     placeOrderService,
     placeOrderStripeService,
-    verifyStripePaymentService,
+    getStripePaymentStatusService,
+    processStripeWebhookService,
     placeOrderVNPayService,
     verifyVNPayReturnService,
     allOrdersService,
@@ -13,68 +14,102 @@ import {
     vendorStatsService,
     deleteOrderService,
 } from "../services/orderService.js";
+import { markAddressUsedService } from "../services/addressService.js";
+
+const buildOrderErrorResponse = (res, error, fallbackMessage) => {
+    return res.status(error.status || 500).json({
+        success: false,
+        message: error.message || fallbackMessage,
+        code: error.code,
+        items: error.items,
+    });
+};
 
 const placeOrder = async (req, res) => {
     try {
-        const { userId, items, amount, address } = req.body;
-        const newOrder = await placeOrderService({ userId, items, amount, address });
+        const { userId, items, amount, address, addressId } = req.body;
+        if (addressId) {
+            await markAddressUsedService(userId, addressId);
+        }
+        const idempotencyKey = req.headers["x-idempotency-key"] || req.body?.idempotencyKey;
+        const newOrder = await placeOrderService({ userId, items, amount, address, idempotencyKey });
         res.json({ success: true, message: "Order placed successfully", orderId: newOrder._id });
     } catch (error) {
-        console.error("❌ Error placing order:", error);
-        res.json({ success: false, message: error.message });
+        console.error("Error placing order:", error);
+        return buildOrderErrorResponse(res, error, "Failed to place order");
     }
 };
 
 const placeOrderStripe = async (req, res) => {
     try {
-        const { userId, items, amount, address } = req.body;
+        const { userId, items, amount, address, addressId } = req.body;
+        if (addressId) {
+            await markAddressUsedService(userId, addressId);
+        }
         const { origin } = req.headers;
-        const result = await placeOrderStripeService({ userId, items, amount, address, origin });
+        const idempotencyKey = req.headers["x-idempotency-key"] || req.body?.idempotencyKey;
+        const result = await placeOrderStripeService({ userId, items, amount, address, origin, idempotencyKey });
         res.json({ success: true, message: "Order placed successfully", ...result });
     } catch (error) {
-        console.error("❌ Error placing Stripe order:", error);
-        res.json({ success: false, message: error.message });
+        console.error("Error placing Stripe order:", error);
+        return buildOrderErrorResponse(res, error, "Failed to place Stripe order");
     }
 };
 
 const verifyStripePayment = async (req, res) => {
     try {
-        const { orderId, success } = req.body;
+        const { orderId } = req.body;
         if (!orderId) return res.status(400).json({ success: false, message: "Order ID is required" });
-        const paid = await verifyStripePaymentService(orderId, success);
-        if (paid) {
-            return res.json({ success: true, message: "Payment verified successfully" });
-        }
-        return res.status(400).json({ success: false, message: "Payment verification failed" });
+        const result = await getStripePaymentStatusService(orderId, req.body.userId);
+        return res.json({ success: true, ...result });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        return buildOrderErrorResponse(res, error, "Failed to fetch Stripe payment status");
+    }
+};
+
+const stripeWebhook = async (req, res) => {
+    try {
+        const signature = req.headers["stripe-signature"];
+        const result = await processStripeWebhookService({ rawBody: req.body, signature });
+        return res.json({ received: true, ...result });
+    } catch (error) {
+        const status = error.status || 500;
+        if (status >= 500) {
+            console.error("Stripe webhook processing failed:", error);
+        } else {
+            console.warn("Stripe webhook rejected:", error.message);
+        }
+        return res.status(status).json({ success: false, message: error.message });
     }
 };
 
 const placeOrderVNPay = async (req, res) => {
     try {
-        const { userId, items, amount, address } = req.body;
+        const { userId, items, amount, address, addressId } = req.body;
+        if (addressId) {
+            await markAddressUsedService(userId, addressId);
+        }
+        const idempotencyKey = req.headers["x-idempotency-key"] || req.body?.idempotencyKey;
         const ipAddr =
             req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
             req.socket?.remoteAddress ||
             "127.0.0.1";
-        const result = await placeOrderVNPayService({ userId, items, amount, address, ipAddr });
+        const result = await placeOrderVNPayService({ userId, items, amount, address, ipAddr, idempotencyKey });
         res.json({ success: true, ...result });
     } catch (error) {
-        console.error("❌ Error placing VNPay order:", error);
-        res.json({ success: false, message: error.message });
+        console.error("Error placing VNPay order:", error);
+        return buildOrderErrorResponse(res, error, "Failed to place VNPay order");
     }
 };
 
 const verifyVNPayReturn = async (req, res) => {
-    const frontendUrl =
-        process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
+    const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
     try {
         const { success, orderId } = await verifyVNPayReturnService(req.query);
         const redirectUrl = `${frontendUrl}/verify?vnpay=1&success=${success}&orderId=${orderId}`;
         return res.redirect(redirectUrl);
     } catch (error) {
-        console.error("❌ VNPay return error:", error.message);
+        console.error("VNPay return error:", error.message);
         return res.redirect(`${frontendUrl}/verify?vnpay=1&success=false`);
     }
 };
@@ -99,8 +134,8 @@ const userOrders = async (req, res) => {
 
 const updateOrderStatus = async (req, res) => {
     try {
-        const { orderId, status } = req.body;
-        const order = await updateOrderStatusService(orderId, status);
+        const { orderId, status, trackingNumber } = req.body;
+        const order = await updateOrderStatusService(orderId, status, trackingNumber);
         res.json({ success: true, message: "Order status updated successfully", order });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -118,8 +153,8 @@ const vendorOrders = async (req, res) => {
 
 const updateVendorOrderStatus = async (req, res) => {
     try {
-        const { orderId, status } = req.body;
-        const order = await updateVendorOrderStatusService(orderId, status, req.vendorId);
+        const { orderId, status, trackingNumber } = req.body;
+        const order = await updateVendorOrderStatusService(orderId, status, req.vendorId, trackingNumber);
         res.json({ success: true, message: "Order status updated successfully", order });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -182,4 +217,5 @@ export {
     cancelOrderAdmin,
     vendorStats,
     deleteOrder,
+    stripeWebhook,
 };

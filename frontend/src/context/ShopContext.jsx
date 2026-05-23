@@ -215,7 +215,7 @@ const ShopContextProvider = (props) => {
         if (!token) return;
         try {
             const res = await axios.post(
-                backendUrl + '/api/interaction/recommendations?limit=30',
+                backendUrl + '/api/interaction/recommendations',
                 {},
                 { headers: { token } }
             );

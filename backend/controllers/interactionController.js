@@ -22,7 +22,8 @@ const trackInteraction = async (req, res) => {
 const getRecommendations = async (req, res) => {
     try {
         const { userId } = req.body;
-        const limit = parseInt(req.query.limit) || 10;
+        const parsedLimit = Number.parseInt(req.query.limit, 10);
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
         const products = await getRecommendationsService(userId, limit);
         res.json({ success: true, products });
     } catch (error) {

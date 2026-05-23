@@ -232,12 +232,19 @@ const Orders = () => {
 
                     {/* Order footer */}
                     <div className="px-4 py-3 bg-gray-50 flex items-center justify-between gap-4">
-                      <p className="text-sm text-gray-600">
-                        Thành tiền:{' '}
-                        <span className="text-orange-600 font-semibold text-base">
-                          {formatPrice(order.amount)}
-                        </span>
-                      </p>
+                      <div className="text-sm text-gray-600">
+                        <p>
+                          Thành tiền:{' '}
+                          <span className="text-orange-600 font-semibold text-base">
+                            {formatPrice(order.amount)}
+                          </span>
+                        </p>
+                        {order.trackingNumber && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Mã vận đơn: <span className="font-medium text-gray-700">{order.trackingNumber}</span>
+                          </p>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         {CANCELLABLE_STATUSES.includes(order.status) && (
                           <button

@@ -294,7 +294,7 @@ const FloatingChatButton = () => {
                         <p className="mb-2 text-xs text-gray-500">Bạn đang trao đổi với Người bán về sản phẩm này</p>
                         <div className="flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2">
                           <img
-                            src={formatImageUrl(activeProductContext.image)}
+                            src={formatImageUrl(activeProductContext.image, { variant: "thumb", width: 96, height: 96, fit: "cover", quality: 76, format: "webp" })}
                             alt={activeProductContext.name}
                             className="h-12 w-12 rounded object-cover bg-white"
                             referrerPolicy="no-referrer"

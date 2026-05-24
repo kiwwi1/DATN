@@ -1,4 +1,3 @@
-import React from "react";
 import { ToastContainer, toast } from "react-toastify";
 import Navbar from "./components/Navbar";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -117,8 +116,8 @@ const App = () => {
   }, [token]);
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <ToastContainer />
+    <div className="admin-shell">
+      <ToastContainer position="top-right" />
       {checkingSession ? (
         <Login isCheckingSession />
       ) : token === "" ? (
@@ -132,10 +131,11 @@ const App = () => {
             notifications={notifications}
             markAllRead={() => markAllRead(token)}
           />
-          <hr />
-          <div className="w-full flex">
-            <Sidebar />
-            <div className="w-[70%] mx-auto ml-[max(5vw,25px)] my-8 text-gray-600 text-base">
+          <div className="admin-layout">
+            <aside className="admin-sidebar">
+              <Sidebar />
+            </aside>
+            <div className="admin-main">
               <Routes>
                 <Route path="/" element={<Navigate to="/stats" replace />} />
                 <Route path="/stats" element={<Stats token={token} />} />

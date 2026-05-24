@@ -1,238 +1,246 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import axios from "axios";
-import { io } from "socket.io-client";
-import { toast } from "react-toastify";
-import { backendUrl } from "../App";
+import { useEffect, useMemo, useRef, useState } from 'react'
+import axios from 'axios'
+import { io } from 'socket.io-client'
+import { toast } from 'react-toastify'
+import { backendUrl } from '../App'
 
 const Chat = ({ token }) => {
-  const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const socketRef = useRef(null);
-  const bottomRef = useRef(null);
+  const [conversations, setConversations] = useState([])
+  const [activeId, setActiveId] = useState('')
+  const [messages, setMessages] = useState([])
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const socketRef = useRef(null)
+  const bottomRef = useRef(null)
 
   const activeConversation = useMemo(
-    () => conversations.find((c) => c._id === activeId) || null,
+    () => conversations.find((conversation) => conversation._id === activeId) || null,
     [conversations, activeId]
-  );
+  )
 
   useEffect(() => {
-    if (!token) return;
-    const socket = io(backendUrl, { transports: ["websocket"] });
-    socketRef.current = socket;
+    if (!token) return
+    const socket = io(backendUrl, { transports: ['websocket'] })
+    socketRef.current = socket
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [token]);
+      socket.disconnect()
+      socketRef.current = null
+    }
+  }, [token])
 
   const loadConversations = async () => {
-    if (!token) return;
-    setLoading(true);
+    if (!token) return
+    setLoading(true)
     try {
-      const res = await axios.get(`${backendUrl}/api/chat/list`, {
-        headers: { token },
-      });
-      if (res.data.success) {
-        const list = res.data.conversations || [];
-        setConversations(list);
-        setActiveId((prev) => prev || list[0]?._id || "");
+      const response = await axios.get(`${backendUrl}/api/chat/list`, { headers: { token } })
+      if (response.data.success) {
+        const nextConversations = response.data.conversations || []
+        setConversations(nextConversations)
+        setActiveId((prev) => prev || nextConversations[0]?._id || '')
       } else {
-        toast.error(res.data.message || "Không tải được danh sách chat");
+        toast.error(response.data.message || 'Không tải được danh sách chat')
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const loadMessages = async (conversationId) => {
     if (!token || !conversationId) {
-      setMessages([]);
-      return;
+      setMessages([])
+      return
     }
     try {
-      const res = await axios.get(`${backendUrl}/api/chat/${conversationId}/messages`, {
-        headers: { token },
-      });
-      if (res.data.success) {
-        setMessages(res.data.messages || []);
+      const response = await axios.get(`${backendUrl}/api/chat/${conversationId}/messages`, { headers: { token } })
+      if (response.data.success) {
+        setMessages(response.data.messages || [])
         setConversations((prev) =>
-          prev.map((c) => (c._id === conversationId ? { ...c, unreadCount: 0 } : c))
-        );
+          prev.map((conversation) =>
+            conversation._id === conversationId ? { ...conversation, unreadCount: 0 } : conversation
+          )
+        )
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message)
     }
-  };
+  }
 
   useEffect(() => {
-    loadConversations();
+    loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token])
 
   useEffect(() => {
-    if (!activeId || !socketRef.current) return;
-    socketRef.current.emit("join_room", activeId);
-    loadMessages(activeId);
+    if (!activeId || !socketRef.current) return
+    socketRef.current.emit('join_room', activeId)
+    loadMessages(activeId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeId])
 
   useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
+    const socket = socketRef.current
+    if (!socket) return
 
-    const onNewMessage = (msg) => {
-      if (!msg?.conversationId) return;
-      const conversationId = msg.conversationId.toString();
+    const onNewMessage = (message) => {
+      if (!message?.conversationId) return
+      const conversationId = message.conversationId.toString()
+
       setConversations((prev) =>
         prev
-          .map((c) => {
-            if (c._id !== conversationId) return c;
-            const unreadCount = c.unreadCount || 0;
+          .map((conversation) => {
+            if (conversation._id !== conversationId) return conversation
             return {
-              ...c,
-              lastMessage: msg.content,
-              updatedAt: msg.createdAt,
-              unreadCount: c._id === activeId ? 0 : unreadCount + 1,
-            };
+              ...conversation,
+              lastMessage: message.content,
+              updatedAt: message.createdAt,
+              unreadCount: conversation._id === activeId ? 0 : (conversation.unreadCount || 0) + 1,
+            }
           })
-          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-      );
+          .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))
+      )
 
       if (conversationId === activeId) {
         setMessages((prev) => {
-          if (prev.some((m) => m._id === msg._id)) return prev;
-          return [...prev, msg];
-        });
+          if (prev.some((item) => item._id === message._id)) return prev
+          return [...prev, message]
+        })
       }
-    };
+    }
 
-    socket.on("new_message", onNewMessage);
-    return () => socket.off("new_message", onNewMessage);
-  }, [activeId]);
+    socket.on('new_message', onNewMessage)
+    return () => socket.off('new_message', onNewMessage)
+  }, [activeId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const onSend = async () => {
-    if (!token || !activeId || !text.trim()) return;
-    setSending(true);
+    if (!token || !activeId || !text.trim()) return
+    setSending(true)
     try {
-      const res = await axios.post(
+      const response = await axios.post(
         `${backendUrl}/api/chat/${activeId}/send`,
         { content: text },
         { headers: { token } }
-      );
-      if (res.data.success) {
-        setText("");
+      )
+      if (response.data.success) {
+        setText('')
       } else {
-        toast.error(res.data.message || "Gửi tin nhắn thất bại");
+        toast.error(response.data.message || 'Gửi tin nhắn thất bại')
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message)
     } finally {
-      setSending(false);
+      setSending(false)
     }
-  };
+  }
 
   return (
-    <div className="h-[80vh] bg-white rounded-lg shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-[320px_1fr]">
-      <div className="border-r border-gray-100">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">Tin nhắn khách hàng</h2>
-        </div>
-        <div className="overflow-y-auto h-[calc(80vh-64px)]">
-          {loading ? (
-            <p className="p-4 text-sm text-gray-500">Đang tải...</p>
-          ) : conversations.length === 0 ? (
-            <p className="p-4 text-sm text-gray-500">Chưa có cuộc hội thoại nào</p>
-          ) : (
-            conversations.map((c) => (
+    <section className="space-y-4">
+      <div>
+        <h1 className="admin-page-title">Tin nhắn khách hàng</h1>
+        <p className="admin-page-subtitle">Trao đổi trực tiếp với khách để xử lý đơn hàng nhanh hơn.</p>
+      </div>
+
+      <div className="admin-card grid h-[78vh] overflow-hidden lg:grid-cols-[320px_1fr]">
+        <aside className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-800">Danh sách hội thoại</h2>
+          </div>
+
+          <div className="h-[260px] overflow-y-auto lg:h-[calc(78vh-53px)]">
+            {loading ? (
+              <p className="p-4 text-sm text-slate-500">Đang tải hội thoại...</p>
+            ) : conversations.length === 0 ? (
+              <p className="p-4 text-sm text-slate-500">Chưa có cuộc hội thoại nào</p>
+            ) : (
+              conversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation._id}
+                  onClick={() => setActiveId(conversation._id)}
+                  className={`w-full border-b border-slate-100 px-4 py-3 text-left transition ${
+                    activeId === conversation._id ? 'bg-pink-50' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                      {conversation.partner?.name || 'Khách hàng'}
+                    </p>
+                    {conversation.unreadCount > 0 && (
+                      <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-pink-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                        {conversation.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-xs text-slate-500">{conversation.lastMessage || 'Chưa có tin nhắn'}</p>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <div className="flex min-h-0 flex-col">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <p className="text-sm font-semibold text-slate-800">
+              {activeConversation?.partner?.name || 'Chọn một cuộc hội thoại'}
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto bg-slate-50 p-4">
+            {activeId ? (
+              <div className="space-y-3">
+                {messages.map((message) => {
+                  const mine = message.senderRole === 'vendor'
+                  return (
+                    <div key={message._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[78%] rounded-lg px-3 py-2 text-sm ${
+                          mine
+                            ? 'bg-pink-500 text-white'
+                            : 'border border-slate-200 bg-white text-slate-800'
+                        }`}
+                      >
+                        {message.content}
+                      </div>
+                    </div>
+                  )
+                })}
+                <div ref={bottomRef} />
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Hãy chọn một cuộc hội thoại để bắt đầu phản hồi.</p>
+            )}
+          </div>
+
+          <div className="border-t border-slate-200 bg-white p-3">
+            <div className="flex items-center gap-2">
+              <input
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && onSend()}
+                disabled={!activeId || sending}
+                placeholder={activeId ? 'Nhập phản hồi...' : 'Chọn hội thoại để nhắn tin'}
+                className="admin-input"
+              />
               <button
                 type="button"
-                key={c._id}
-                onClick={() => setActiveId(c._id)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${
-                  activeId === c._id ? "bg-orange-50" : ""
-                }`}
+                onClick={onSend}
+                disabled={!activeId || sending || !text.trim()}
+                className="admin-btn-primary px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-sm text-gray-800 truncate">
-                    {c.partner?.name || "Khách hàng"}
-                  </p>
-                  {c.unreadCount > 0 && (
-                    <span className="text-xs bg-orange-500 text-white rounded-full px-2 py-0.5">
-                      {c.unreadCount}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 truncate mt-1">
-                  {c.lastMessage || "Chưa có tin nhắn"}
-                </p>
+                Gửi
               </button>
-            ))
-          )}
+            </div>
+          </div>
         </div>
       </div>
+    </section>
+  )
+}
 
-      <div className="flex flex-col">
-        <div className="p-4 border-b border-gray-100">
-          <p className="font-medium text-gray-800">
-            {activeConversation?.partner?.name || "Chọn cuộc hội thoại"}
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-          {activeId ? (
-            messages.map((m) => {
-              const mine = m.senderRole === "vendor";
-              return (
-                <div key={m._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] px-3 py-2 rounded-lg text-sm ${
-                      mine
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-800 border border-gray-100"
-                    }`}
-                  >
-                    {m.content}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-gray-500">Hãy chọn một cuộc hội thoại.</p>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        <div className="p-3 border-t border-gray-100 bg-white flex items-center gap-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onSend()}
-            disabled={!activeId || sending}
-            placeholder={activeId ? "Nhập phản hồi..." : "Chọn cuộc hội thoại để nhắn"}
-            className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-400 disabled:bg-gray-100"
-          />
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={!activeId || sending || !text.trim()}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded disabled:opacity-50"
-          >
-            Gửi
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Chat;
+export default Chat

@@ -5,6 +5,7 @@ import Title from "../../components/ui/Title";
 import CartTotal from "../../components/cart/CartTotal";
 import { assets } from "../../assets/assets";
 import { ShopContext } from "../../context/ShopContext";
+import { isDefaultCartOptionKey } from "../../constants/cartOption";
 
 const PlaceOrder = () => {
   const { navigate, cartItems, setCartItems, token, backendUrl, delivery_fee, products } = useContext(ShopContext);
@@ -165,7 +166,10 @@ const PlaceOrder = () => {
         vendorShopName: productData.vendorShopName || "",
       };
 
-      if (selectedItem.size.includes(":")) {
+      const optionKey = String(selectedItem.size || "");
+      if (isDefaultCartOptionKey(optionKey)) {
+        orderItem.selectedAttributes = [];
+      } else if (optionKey.includes(":")) {
         const attributes = selectedItem.size.split(",").map((attr) => {
           const [name, value] = attr.split(":").map((s) => s.trim());
           return { name, value };
@@ -206,7 +210,9 @@ const PlaceOrder = () => {
           vendorShopName: productData.vendorShopName || "",
         };
 
-        if (optionKey.includes(":")) {
+        if (isDefaultCartOptionKey(optionKey)) {
+          orderItem.selectedAttributes = [];
+        } else if (optionKey.includes(":")) {
           const attributes = optionKey.split(",").map((attr) => {
             const [name, value] = attr.split(":").map((s) => s.trim());
             return { name, value };

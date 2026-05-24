@@ -9,6 +9,44 @@ import { formatPrice } from "../../utils/priceFormat";
 import { toast } from "react-toastify";
 import { formatImageUrl, asImageArray } from "../../utils/imageUtils";
 import { localizeProductName } from "../../utils/productNameUtils";
+import { normalizeCartOptionKey } from "../../constants/cartOption";
+
+const unwrapProxyImageUrl = (value) => {
+  if (!value || typeof value !== "string") return value;
+  if (!value.includes("/api/image-proxy")) return value;
+
+  try {
+    const parsed = new URL(value, window.location.origin);
+    const original = parsed.searchParams.get("url");
+    if (!original) return value;
+    return decodeURIComponent(original);
+  } catch {
+    return value;
+  }
+};
+
+const normalizeFirstImageLikeSecond = (imageInput) => {
+  const images = asImageArray(imageInput);
+  if (images.length < 2) return images;
+
+  const first = images[0];
+  const second = images[1];
+
+  if (typeof first === "string" && first.trim() && typeof second === "object" && second !== null) {
+    const source = unwrapProxyImageUrl(first.trim());
+    return [
+      {
+        ...second,
+        main: source,
+        thumb: source,
+        original: source,
+      },
+      ...images.slice(1),
+    ];
+  }
+
+  return images;
+};
 
 const Product = () => {
   const getCategoryId = (categoryLike) =>
@@ -46,6 +84,10 @@ const Product = () => {
   const [vendorFollowerCount, setVendorFollowerCount] = useState(null);
   const [priceAlertEnabled, setPriceAlertEnabled] = useState(false);
   const [priceAlertLoading, setPriceAlertLoading] = useState(false);
+  const productImages = useMemo(
+    () => normalizeFirstImageLikeSecond(productData?.image),
+    [productData?.image]
+  );
   const displayName = productData ? localizeProductName(productData.name) : "";
   const breadcrumbSegments = useMemo(() => {
     if (!productData) return [];
@@ -197,8 +239,17 @@ const Product = () => {
   const fetchProductData = useCallback(() => {
     products.map((item) => {
       if (item._id == productId) {
-        setProductData(item);
-        setImage(formatImageUrl(item.image));
+        const normalizedImages = normalizeFirstImageLikeSecond(item.image);
+        setProductData({ ...item, image: normalizedImages });
+        setImage(
+          formatImageUrl(normalizedImages[0] || "", {
+            variant: "main",
+            width: 1200,
+            fit: "contain",
+            quality: 84,
+            format: "webp",
+          })
+        );
         setSize("");
         setSelectedAttributes({});
         return null;
@@ -478,19 +529,36 @@ const Product = () => {
         {/* ------------product image--------------- */}
         <div className="flex-1 flex flex-col-reverse sm:flex-row gap-3">
           <div className="flex sm:flex-col overflow-x-auto sm:overflow-y-scroll justify-between gap-3 w-full sm:justify-normal sm:w-[18.7%]">
-            {asImageArray(productData.image).map((item, index) => (
+            {productImages.map((item, index) => (
               <img
                 key={index}
-                onClick={() => setImage(formatImageUrl(item))}
-                className={`w-[24%] sm:w-full cursor-pointer sm:mb-3 flex-shrink-0 `}
-                src={formatImageUrl(item)}
+                onClick={() =>
+                  setImage(
+                    formatImageUrl(item, {
+                      variant: "main",
+                      width: 1200,
+                      fit: "contain",
+                      quality: 84,
+                      format: "webp",
+                    })
+                  )
+                }
+                className={`w-[24%] sm:w-full aspect-square object-cover cursor-pointer sm:mb-3 flex-shrink-0 rounded border border-gray-100`}
+                src={formatImageUrl(item, {
+                  variant: "thumb",
+                  width: 240,
+                  height: 240,
+                  fit: "cover",
+                  quality: 76,
+                  format: "webp",
+                })}
                 alt={productData.name}
                 referrerPolicy="no-referrer"
               />
             ))}
           </div>
           <div className="w-full sm:w-[80%]">
-            <img className="w-full h-auto" src={image} alt="" referrerPolicy="no-referrer" />
+            <img className="w-full max-w-[760px] mx-auto h-auto object-contain" src={image} alt={displayName} referrerPolicy="no-referrer" />
           </div>
         </div>
         {/* ------product info------------ */}
@@ -550,10 +618,10 @@ const Product = () => {
           {/* Price Section */}
           {(() => {
             // Find the matching SKU variant based on current selection
-            const hasVariants = productData.variants && productData.variants.length > 0;
-            const allAttrsSelected = productData.attributes && productData.attributes.length > 0
-              && productData.attributes.every(a => selectedAttributes[a.name]);
-            const selectedVariant = hasVariants && allAttrsSelected
+            const hasSkuVariants = Array.isArray(productData.variants) && productData.variants.length > 0;
+            const hasAttributes = Array.isArray(productData.attributes) && productData.attributes.length > 0;
+            const allAttrsSelected = hasAttributes && productData.attributes.every(a => selectedAttributes[a.name]);
+            const selectedVariant = hasSkuVariants && allAttrsSelected
               ? productData.variants.find(v => {
                   const combo = v.combination || {};
                   return productData.attributes.every(a => combo[a.name] === selectedAttributes[a.name]);
@@ -570,7 +638,7 @@ const Product = () => {
                     <p className="text-3xl font-bold text-orange-600">
                       {formatPrice(displayPrice)}
                     </p>
-                    {!selectedVariant && hasVariants && (
+                    {!selectedVariant && hasSkuVariants && (
                       <span className="text-sm text-gray-400">Từ</span>
                     )}
                     {productData.discount > 0 && productData.originalPrice && !selectedVariant && (
@@ -601,9 +669,9 @@ const Product = () => {
                   ) : (
                     selectedVariant
                       ? <span className="text-red-500 font-medium">Hết hàng</span>
-                      : hasVariants && allAttrsSelected
+                      : hasSkuVariants && allAttrsSelected
                         ? <span className="text-red-500 font-medium">Hết hàng</span>
-                        : displayStock === 0 && !hasVariants
+                        : displayStock === 0 && !hasSkuVariants
                           ? <span className="text-red-500 font-medium">Hết hàng</span>
                           : null
                   )}
@@ -689,10 +757,11 @@ const Product = () => {
           )}
 
           {(() => {
-            const hasVariants = productData.variants && productData.variants.length > 0;
-            const allAttrsSelected = productData.attributes && productData.attributes.length > 0
-              && productData.attributes.every(a => selectedAttributes[a.name]);
-            const selectedVariant = hasVariants && allAttrsSelected
+            const hasSkuVariants = Array.isArray(productData.variants) && productData.variants.length > 0;
+            const hasAttributes = Array.isArray(productData.attributes) && productData.attributes.length > 0;
+            const allAttrsSelected = hasAttributes && productData.attributes.every(a => selectedAttributes[a.name]);
+            const hasLegacySizes = !hasAttributes && Array.isArray(productData.sizes) && productData.sizes.length > 0;
+            const selectedVariant = hasSkuVariants && allAttrsSelected
               ? productData.variants.find(v => {
                   const combo = v.combination || {};
                   return productData.attributes.every(a => combo[a.name] === selectedAttributes[a.name]);
@@ -700,13 +769,18 @@ const Product = () => {
               : null;
             const isOutOfStock = selectedVariant
               ? selectedVariant.stock === 0
-              : !hasVariants && productData.stock === 0;
+              : !hasSkuVariants && productData.stock === 0;
 
             return (
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => {
-                    if (productData.attributes && productData.attributes.length > 0) {
+                    if (!token) {
+                      toast.info("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
+                      navigate("/login");
+                      return;
+                    }
+                    if (hasSkuVariants && hasAttributes) {
                       if (!allAttrsSelected) {
                         toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
                         return;
@@ -720,11 +794,15 @@ const Product = () => {
                         .join(', ');
                       addToCart(productData._id, attributeString);
                     } else {
+                      if (hasLegacySizes && !size) {
+                        toast.error("Vui long chon kich thuoc san pham!");
+                        return;
+                      }
                       if (isOutOfStock) {
                         toast.error("Sản phẩm đã hết hàng");
                         return;
                       }
-                      addToCart(productData._id, size);
+                      addToCart(productData._id, size || normalizeCartOptionKey(""));
                     }
                   }}
                   disabled={isOutOfStock}

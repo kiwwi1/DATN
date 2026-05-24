@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import { normalizeCartOptionKey } from '../constants/cartOption';
 
 export const ShopContext = createContext();
 
@@ -50,31 +51,31 @@ const ShopContextProvider = (props) => {
 
     // Hàm thêm sản phẩm vào giỏ hàng
     const addToCart = async (itemId, size) => {
-        if (!size) {
-            toast.error('Please select a size!');
+        if (!token) {
+            toast.info('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.');
+            navigate('/login');
             return;
         }
+        const optionKey = normalizeCartOptionKey(size);
         let cartData = structuredClone(cartItems);
         if (cartData[itemId]) {
-            if (cartData[itemId][size]) {
-                cartData[itemId][size] += 1;
+            if (cartData[itemId][optionKey]) {
+                cartData[itemId][optionKey] += 1;
             } else {
-                cartData[itemId][size] = 1;
+                cartData[itemId][optionKey] = 1;
             }
         } else {
             cartData[itemId] = {};
-            cartData[itemId][size] = 1;
+            cartData[itemId][optionKey] = 1;
         }
         setCartItems(cartData);
 
-        if(token){
-            try {
-              await axios.post(backendUrl+"/api/cart/add", {itemId,size},{headers:{token}})
-                
-            } catch (error) {
-                console.log(error)
-                toast.error(error.response.data.message)  
-            }
+        try {
+          await axios.post(backendUrl+"/api/cart/add", {itemId,size: optionKey},{headers:{token}})
+            
+        } catch (error) {
+            console.log(error)
+            toast.error(error.response.data.message)  
         }
     };
 
@@ -115,12 +116,13 @@ const ShopContextProvider = (props) => {
 
     // Hàm cập nhật số lượng sản phẩm trong giỏ hàng
     const updateQuantity = async (itemId, size, quantity) => {
+        const optionKey = normalizeCartOptionKey(size);
         let cartData = structuredClone(cartItems);
-        cartData[itemId][size] = quantity;
+        cartData[itemId][optionKey] = quantity;
         setCartItems(cartData);
         if(token){
             try {
-                await axios.post(backendUrl+"/api/cart/update", {itemId,size,quantity},{headers:{token}}
+                await axios.post(backendUrl+"/api/cart/update", {itemId,size: optionKey,quantity},{headers:{token}}
                 )
                 
             } catch (error) {

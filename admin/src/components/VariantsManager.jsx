@@ -1,205 +1,211 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatPrice } from '../utils/priceFormat'
 
-// Tạo tích Descartes từ mảng các mảng giá trị
 function cartesian(arrays) {
-    if (arrays.length === 0) return [[]]
-    const [first, ...rest] = arrays
-    const restProduct = cartesian(rest)
-    return first.flatMap(val => restProduct.map(combo => [val, ...combo]))
+  if (arrays.length === 0) return [[]]
+  const [first, ...rest] = arrays
+  const restProduct = cartesian(rest)
+  return first.flatMap((value) => restProduct.map((combo) => [value, ...combo]))
 }
 
-// Tạo key duy nhất từ combination object (để dedup)
 function comboKey(combination) {
-    return Object.entries(combination)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([k, v]) => `${k}:${v}`)
-        .join('|')
+  return Object.entries(combination)
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([key, value]) => `${key}:${value}`)
+    .join('|')
 }
 
-// Tạo label hiển thị cho một combination
 function comboLabel(combination) {
-    return Object.entries(combination).map(([k, v]) => `${k}: ${v}`).join(' / ')
+  return Object.entries(combination)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(' / ')
 }
 
 const getRawPriceValue = (value) => String(value || '').replace(/\D/g, '')
 const formatPriceInput = (value) => {
-    const rawValue = getRawPriceValue(value)
-    if (!rawValue) return ''
-    return Number(rawValue).toLocaleString('vi-VN')
+  const rawValue = getRawPriceValue(value)
+  if (!rawValue) return ''
+  return Number(rawValue).toLocaleString('vi-VN')
 }
 
 const VariantsManager = ({ attributes, variants, onChange }) => {
-    // Dùng ref để tránh stale closure trong useEffect
-    const variantsRef = useRef(variants)
-    const [quickPrice, setQuickPrice] = useState('')
-    useEffect(() => { variantsRef.current = variants }, [variants])
+  const variantsRef = useRef(variants)
+  const [quickPrice, setQuickPrice] = useState('')
 
-    // Tái tạo danh sách variant khi attributes thay đổi
-    useEffect(() => {
-        if (!attributes || attributes.length === 0) {
-            onChange([])
-            return
-        }
+  useEffect(() => {
+    variantsRef.current = variants
+  }, [variants])
 
-        const validAttrs = attributes.filter(a => a.values && a.values.length > 0)
-        if (validAttrs.length === 0) {
-            onChange([])
-            return
-        }
-
-        const attrValues = validAttrs.map(a =>
-            a.values.map(v => ({ name: a.name, value: v }))
-        )
-        const combos = cartesian(attrValues)
-
-        // Lookup từ variants hiện tại để giữ lại price/stock
-        const existingMap = {}
-        ;(variantsRef.current || []).forEach(v => {
-            if (v.combination) existingMap[comboKey(v.combination)] = v
-        })
-
-        const newVariants = combos.map(combo => {
-            const combination = {}
-            combo.forEach(({ name, value }) => { combination[name] = value })
-            const key = comboKey(combination)
-            const existing = existingMap[key]
-            return {
-                combination,
-                price: existing ? existing.price : 0,
-                stock: existing ? existing.stock : 0,
-            }
-        })
-
-        onChange(newVariants)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [attributes])
-
-    const handleChange = (index, field, value) => {
-        const updated = [...variants]
-        updated[index] = { ...updated[index], [field]: Number(value) || 0 }
-        onChange(updated)
+  useEffect(() => {
+    if (!attributes || attributes.length === 0) {
+      onChange([])
+      return
     }
 
-    const handlePriceChange = (index, value) => {
-        const updated = [...variants]
-        updated[index] = { ...updated[index], price: Number(getRawPriceValue(value)) || 0 }
-        onChange(updated)
+    const validAttributes = attributes.filter((attribute) => attribute.values && attribute.values.length > 0)
+    if (validAttributes.length === 0) {
+      onChange([])
+      return
     }
 
-    // Điền nhanh cùng giá cho tất cả biến thể
-    const fillAllPrice = (price) => {
-        onChange(variants.map(v => ({ ...v, price: Number(price) || 0 })))
-    }
-
-    // Điền nhanh cùng stock cho tất cả biến thể
-    const fillAllStock = (stock) => {
-        onChange(variants.map(v => ({ ...v, stock: Number(stock) || 0 })))
-    }
-
-    if (!variants || variants.length === 0) {
-        return (
-            <div className="mt-4 p-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 text-center">
-                Thêm thuộc tính ở trên để tự động tạo bảng biến thể (SKU).
-            </div>
-        )
-    }
-
-    const minPrice = Math.min(...variants.map(v => v.price || 0).filter(p => p > 0))
-    const totalStock = variants.reduce((s, v) => s + (v.stock || 0), 0)
-
-    return (
-        <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">
-                    Giá &amp; Tồn kho theo biến thể
-                    <span className="ml-2 text-xs font-normal text-gray-500">({variants.length} tổ hợp)</span>
-                </p>
-                <div className="flex gap-2 text-xs">
-                    <span className="text-gray-500">
-                        Điền nhanh — Giá:
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="0"
-                            value={quickPrice}
-                            onChange={e => setQuickPrice(formatPriceInput(e.target.value))}
-                            onBlur={() => {
-                                if (quickPrice) fillAllPrice(getRawPriceValue(quickPrice))
-                                setQuickPrice('')
-                            }}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    fillAllPrice(getRawPriceValue(quickPrice))
-                                    setQuickPrice('')
-                                }
-                            }}
-                            className="ml-1 w-24 border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 outline-none"
-                        />
-                    </span>
-                    <span className="text-gray-500">
-                        Tồn:
-                        <input
-                            type="number"
-                            min="0"
-                            onBlur={e => { if (e.target.value) fillAllStock(e.target.value) }}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fillAllStock(e.target.value); e.target.value = '' } }}
-                            className="ml-1 w-16 border border-gray-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-blue-500 outline-none"
-                        />
-                    </span>
-                </div>
-            </div>
-
-            <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-3 py-2 text-left font-medium text-gray-600">Phân loại</th>
-                            <th className="px-3 py-2 text-left font-medium text-gray-600 w-40">Giá (VNĐ) *</th>
-                            <th className="px-3 py-2 text-left font-medium text-gray-600 w-32">Tồn kho</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {variants.map((variant, idx) => (
-                            <tr key={idx} className={variant.stock === 0 ? 'bg-red-50' : 'hover:bg-gray-50'}>
-                                <td className="px-3 py-2 text-gray-700 font-medium">
-                                    {comboLabel(variant.combination)}
-                                </td>
-                                <td className="px-3 py-2">
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={variant.price ? formatPriceInput(variant.price) : ''}
-                                        onChange={e => handlePriceChange(idx, e.target.value)}
-                                        className="w-full border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        placeholder="0"
-                                        required
-                                    />
-                                </td>
-                                <td className="px-3 py-2">
-                                    <input
-                                        type="number"
-                                        value={variant.stock || ''}
-                                        onChange={e => handleChange(idx, 'stock', e.target.value)}
-                                        min="0"
-                                        className="w-full border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                    />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex gap-4 mt-1.5 text-xs text-gray-500">
-                {minPrice > 0 && (
-                    <span>Giá hiển thị: từ <strong className="text-orange-600">{formatPrice(minPrice)}</strong></span>
-                )}
-                <span>Tổng tồn kho: <strong>{totalStock}</strong></span>
-            </div>
-        </div>
+    const attributeValues = validAttributes.map((attribute) =>
+      attribute.values.map((value) => ({ name: attribute.name, value }))
     )
+    const combinations = cartesian(attributeValues)
+
+    const existingMap = {}
+    ;(variantsRef.current || []).forEach((variant) => {
+      if (variant.combination) existingMap[comboKey(variant.combination)] = variant
+    })
+
+    const nextVariants = combinations.map((combo) => {
+      const combination = {}
+      combo.forEach(({ name, value }) => {
+        combination[name] = value
+      })
+      const existing = existingMap[comboKey(combination)]
+      return {
+        combination,
+        price: existing ? existing.price : 0,
+        stock: existing ? existing.stock : 0,
+      }
+    })
+
+    onChange(nextVariants)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attributes])
+
+  const handleChange = (index, field, value) => {
+    const updated = [...variants]
+    updated[index] = { ...updated[index], [field]: Number(value) || 0 }
+    onChange(updated)
+  }
+
+  const handlePriceChange = (index, value) => {
+    const updated = [...variants]
+    updated[index] = { ...updated[index], price: Number(getRawPriceValue(value)) || 0 }
+    onChange(updated)
+  }
+
+  const fillAllPrice = (price) => {
+    onChange(variants.map((variant) => ({ ...variant, price: Number(price) || 0 })))
+  }
+
+  const fillAllStock = (stock) => {
+    onChange(variants.map((variant) => ({ ...variant, stock: Number(stock) || 0 })))
+  }
+
+  if (!variants || variants.length === 0) {
+    return (
+      <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm text-slate-500">
+        Thêm thuộc tính ở trên để tự động tạo bảng biến thể (SKU).
+      </div>
+    )
+  }
+
+  const minPrice = Math.min(...variants.map((variant) => variant.price || 0).filter((price) => price > 0))
+  const totalStock = variants.reduce((sum, variant) => sum + (variant.stock || 0), 0)
+
+  return (
+    <section className="admin-card p-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-800">
+          Giá và tồn kho theo biến thể
+          <span className="ml-2 text-xs font-normal text-slate-500">({variants.length} tổ hợp)</span>
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1">
+            Điền nhanh giá:
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={quickPrice}
+              onChange={(event) => setQuickPrice(formatPriceInput(event.target.value))}
+              onBlur={() => {
+                if (quickPrice) fillAllPrice(getRawPriceValue(quickPrice))
+                setQuickPrice('')
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                fillAllPrice(getRawPriceValue(quickPrice))
+                setQuickPrice('')
+              }}
+              className="admin-input w-28 px-2 py-1 text-xs"
+            />
+          </span>
+          <span className="inline-flex items-center gap-1">
+            Điền nhanh tồn:
+            <input
+              type="number"
+              min="0"
+              onBlur={(event) => {
+                if (event.target.value) fillAllStock(event.target.value)
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                fillAllStock(event.target.value)
+                event.target.value = ''
+              }}
+              className="admin-input w-16 px-2 py-1 text-xs"
+            />
+          </span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100 text-slate-600">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Phân loại</th>
+              <th className="w-44 px-3 py-2 text-left font-semibold">Giá (VNĐ) *</th>
+              <th className="w-32 px-3 py-2 text-left font-semibold">Tồn kho</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {variants.map((variant, index) => (
+              <tr key={index} className={variant.stock === 0 ? 'bg-rose-50/50' : 'hover:bg-slate-50'}>
+                <td className="px-3 py-2 font-medium text-slate-700">{comboLabel(variant.combination)}</td>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={variant.price ? formatPriceInput(variant.price) : ''}
+                    onChange={(event) => handlePriceChange(index, event.target.value)}
+                    className="admin-input py-1.5"
+                    placeholder="0"
+                    required
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={variant.stock || ''}
+                    onChange={(event) => handleChange(index, 'stock', event.target.value)}
+                    className="admin-input py-1.5"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-600">
+        {minPrice > 0 && (
+          <span>
+            Giá hiển thị từ: <strong className="text-pink-600">{formatPrice(minPrice)}</strong>
+          </span>
+        )}
+        <span>
+          Tổng tồn kho: <strong>{totalStock}</strong>
+        </span>
+      </div>
+    </section>
+  )
 }
 
 export default VariantsManager

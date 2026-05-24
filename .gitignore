@@ -21,7 +21,7 @@ frontend/dist/
 
 backend/node_modules/
 backend/dist/
-backend/scripts/
+backend/scripts/output/
 
 ############################
 # Environment & secrets

@@ -17,6 +17,33 @@ const getStripe = () => {
     return _stripe;
 };
 
+const pickImageUrl = (imageLike, variant = "main") => {
+    const pickFromObject = (obj) => {
+        if (!obj || typeof obj !== "object") return "";
+        const direct = typeof obj[variant] === "string" ? obj[variant].trim() : "";
+        if (direct) return direct;
+        const fallback = ["main", "url", "original", "thumb", "src"];
+        for (const key of fallback) {
+            const value = typeof obj[key] === "string" ? obj[key].trim() : "";
+            if (value) return value;
+        }
+        return "";
+    };
+
+    if (Array.isArray(imageLike)) {
+        for (const item of imageLike) {
+            if (!item) continue;
+            if (typeof item === "string" && item.trim()) return item.trim();
+            const picked = pickFromObject(item);
+            if (picked) return picked;
+        }
+        return "";
+    }
+
+    if (typeof imageLike === "string") return imageLike.trim();
+    return pickFromObject(imageLike);
+};
+
 // Parse "Size: M, MÃƒÂ u sÃ¡ÂºÂ¯c: Ã„ÂÃ¡Â»Â" Ã¢â€ â€™ { "Size": "M", "MÃƒÂ u sÃ¡ÂºÂ¯c": "Ã„ÂÃ¡Â»Â" }
 const PAYMENT_RESERVATION_TTL_MIN = Number(process.env.PAYMENT_RESERVATION_TTL_MIN || 15);
 const PAYMENT_RESERVATION_TTL_MS = Math.max(1, PAYMENT_RESERVATION_TTL_MIN) * 60 * 1000;
@@ -407,8 +434,8 @@ export const placeOrderService = async ({ userId, items, amount, address, idempo
             await createNotification(
                 vendor.vendorId,
                 'order_placed',
-                'ÄÆ¡n hÃ ng má»›i',
-                `Báº¡n cÃ³ Ä‘Æ¡n hÃ ng má»›i: ${itemNames}`,
+                'Đơn hàng mới',
+                `Bạn có đơn hàng mới: ${itemNames}`,
                 newOrder._id
             );
         }
@@ -474,7 +501,7 @@ export const placeOrderStripeService = async ({ userId, items, amount, address, 
                 product_data: {
                     name: item.name,
                     description: item.brand ? `Brand: ${item.brand}` : undefined,
-                    images: item.image?.length ? [item.image[0]] : undefined,
+                    images: pickImageUrl(item.image) ? [pickImageUrl(item.image)] : undefined,
                 },
                 unit_amount: Math.round(item.price),
             },
@@ -536,8 +563,8 @@ const markStripeOrderPaid = async (order) => {
         await createNotification(
             vendor.vendorId,
             'order_placed',
-            'Don hang moi',
-            `Ban co don hang moi (da thanh toan): ${itemNames}`,
+            'Đơn hàng mới',
+            `Bạn có đơn hàng mới (đã thanh toán): ${itemNames}`,
             order._id
         );
     }
@@ -672,8 +699,8 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
             await createNotification(
                 vendor.vendorId,
                 "order_cancelled",
-                "Ã„ÂÃ†Â¡n hÃƒÂ ng bÃ¡Â»â€¹ hÃ¡Â»Â§y",
-                `KhÃƒÂ¡ch hÃƒÂ ng Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n hÃƒÂ ng. LÃƒÂ½ do: ${cancelReason || "KhÃƒÂ´ng cÃƒÂ³ lÃƒÂ½ do"}`,
+                "Đơn hàng bị hủy",
+                `Khách hàng đã hủy đơn hàng. Lý do: ${cancelReason || "Không có lý do"}`,
                 order._id
             );
         }
@@ -682,8 +709,8 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
         await createNotification(
             order.userId,
             "order_cancelled",
-            "Ã„ÂÃ†Â¡n hÃƒÂ ng Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ hÃ¡Â»Â§y",
-            `Ã„ÂÃ†Â¡n hÃƒÂ ng cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ hÃ¡Â»Â§y. LÃƒÂ½ do: ${cancelReason || "KhÃƒÂ´ng cÃƒÂ³ lÃƒÂ½ do"}`,
+            "Đơn hàng đã bị hủy",
+            `Đơn hàng của bạn đã bị hủy. Lý do: ${cancelReason || "Không có lý do"}`,
             order._id
         );
     }
@@ -720,11 +747,11 @@ export const deleteOrderService = async (orderId) => {
 };
 
 const STATUS_LABEL = {
-    "Packing": "Ã„Âang Ã„â€˜ÃƒÂ³ng gÃƒÂ³i",
-    "Shipped": "Ã„Âang vÃ¡ÂºÂ­n chuyÃ¡Â»Æ’n",
-    "Out for delivery": "Ã„Âang giao hÃƒÂ ng",
-    "Delivered": "Ã„ÂÃƒÂ£ giao thÃƒÂ nh cÃƒÂ´ng",
-    "Cancelled": "Ã„ÂÃƒÂ£ hÃ¡Â»Â§y",
+    "Packing": "Đang đóng gói",
+    "Shipped": "Đang vận chuyển",
+    "Out for delivery": "Đang giao hàng",
+    "Delivered": "Đã giao thành công",
+    "Cancelled": "Đã hủy",
 };
 
 const TRACKING_REQUIRED_STATUSES = new Set(["Shipped", "Out for delivery", "Delivered"]);
@@ -754,8 +781,8 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
     await createNotification(
         order.userId,
         "order_status",
-        "CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t Ã„â€˜Ã†Â¡n hÃƒÂ ng",
-        `Ã„ÂÃ†Â¡n hÃƒÂ ng cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ chuyÃ¡Â»Æ’n sang trÃ¡ÂºÂ¡ng thÃƒÂ¡i: ${label}`,
+        "Cập nhật đơn hàng",
+        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
         order._id
     );
 
@@ -797,8 +824,8 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     await createNotification(
         order.userId,
         "order_status",
-        "CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t Ã„â€˜Ã†Â¡n hÃƒÂ ng",
-        `Ã„ÂÃ†Â¡n hÃƒÂ ng cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ chuyÃ¡Â»Æ’n sang trÃ¡ÂºÂ¡ng thÃƒÂ¡i: ${label}`,
+        "Cập nhật đơn hàng",
+        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
         order._id
     );
 
@@ -909,8 +936,8 @@ export const verifyVNPayReturnService = async (query) => {
             await createNotification(
                 vendor.vendorId,
                 'order_placed',
-                'ÄÆ¡n hÃ ng má»›i',
-                `Báº¡n cÃ³ Ä‘Æ¡n hÃ ng má»›i (Ä‘Ã£ thanh toÃ¡n VNPay): ${itemNames}`,
+                'Đơn hàng mới',
+                `Bạn có đơn hàng mới (đã thanh toán VNPay): ${itemNames}`,
                 order._id
             );
         }
@@ -1016,7 +1043,7 @@ export const vendorStatsService = async (vendorId) => {
             for (const item of vendorItems) {
                 const pid = item._id?.toString();
                 if (!productSalesMap[pid]) {
-                    productSalesMap[pid] = { name: item.name, image: item.image?.[0] || null, sold: 0, revenue: 0 };
+                    productSalesMap[pid] = { name: item.name, image: pickImageUrl(item.image) || null, sold: 0, revenue: 0 };
                 }
                 productSalesMap[pid].sold    += item.quantity;
                 productSalesMap[pid].revenue += item.price * item.quantity;
@@ -1070,7 +1097,7 @@ export const vendorStatsService = async (vendorId) => {
         .map((p) => {
             const pid = p._id?.toString();
             const fromOrders = pid ? productSalesMap[pid] : null;
-            const img = Array.isArray(p.image) ? p.image[0] : p.image;
+            const img = pickImageUrl(p.image);
             return {
                 _id: p._id,
                 name: p.name,
@@ -1091,7 +1118,7 @@ export const vendorStatsService = async (vendorId) => {
         .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0))
         .slice(0, 20)
         .map((p) => {
-            const img = Array.isArray(p.image) ? p.image[0] : p.image;
+            const img = pickImageUrl(p.image);
             return {
                 _id: p._id,
                 name: p.name,

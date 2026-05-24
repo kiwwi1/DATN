@@ -34,8 +34,8 @@ const ProductItem = ({
     <Link to={`/product/${id}`} onClick={handleClick} className={containerClass}>
       <div className='relative overflow-hidden aspect-square'>
         <img
-          className='w-full h-full object-cover hover:scale-110 transition-transform duration-300'
-          src={formatImageUrl(image)}
+          className='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
+          src={formatImageUrl(image, { variant: "thumb", width: 420, height: 420, fit: "cover", quality: 80, format: "webp" })}
           alt={displayName}
           referrerPolicy='no-referrer'
         />

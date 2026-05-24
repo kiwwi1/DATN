@@ -1,19 +1,36 @@
 /**
- * Chuẩn hoá field `image` từ backend (mảng URL, hoặc một chuỗi URL).
+ * Normalize product image payload from backend.
+ * Supports:
+ * - string URL/key
+ * - object { main, thumb, url, original }
+ * - array of above
  */
 export const asImageArray = (image) => {
   if (image == null) return [];
-  if (Array.isArray(image)) {
-    return image.filter((x) => x != null && String(x).trim() !== "");
-  }
-  if (typeof image === "string") {
-    const t = image.trim();
-    return t ? [t] : [];
-  }
-  return [];
+  const source = Array.isArray(image) ? image : [image];
+
+  return source
+    .map((item) => {
+      if (item == null) return null;
+      if (typeof item === "string") {
+        const value = item.trim();
+        return value ? value : null;
+      }
+      if (typeof item === "object") {
+        const hasCandidate =
+          typeof item.main === "string" ||
+          typeof item.thumb === "string" ||
+          typeof item.url === "string" ||
+          typeof item.original === "string" ||
+          typeof item.src === "string";
+        return hasCandidate ? item : null;
+      }
+      const text = String(item).trim();
+      return text ? text : null;
+    })
+    .filter(Boolean);
 };
 
-/** API backend để gọi /api/image-proxy (ưu tiên VITE_BACKEND_URL, fallback dev: cùng host + :4000) */
 function getBackendBaseUrl() {
   const fromEnv = import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, "");
   if (fromEnv) return fromEnv;
@@ -24,9 +41,6 @@ function getBackendBaseUrl() {
   return "";
 }
 
-/**
- * CDN hay chặn hotlink — đi qua backend proxy.
- */
 function shouldProxyExternalImageUrl(href) {
   try {
     const u = new URL(href);
@@ -76,27 +90,51 @@ function normalizeR2StorageUrl(raw) {
   }
 }
 
-/**
- * URL hiển thị: http(s), //..., key R2; ảnh Pexels/DummyJSON qua /api/image-proxy.
- */
-export const formatImageUrl = (input) => {
+const pickImageSource = (input, variant = "main") => {
   let raw = input;
-
-  if (raw == null || raw === "") return "";
-
   if (Array.isArray(raw)) {
-    raw = raw.find((x) => x != null && String(x).trim() !== "") ?? raw[0];
+    const normalized = asImageArray(raw);
+    raw = normalized[0];
   }
-
   if (raw == null || raw === "") return "";
 
-  if (typeof raw === "object" && raw !== null && typeof raw.url === "string") {
-    raw = raw.url;
-  } else if (typeof raw !== "string") {
-    raw = String(raw);
+  if (typeof raw === "object") {
+    const direct = typeof raw[variant] === "string" ? raw[variant].trim() : "";
+    if (direct) return direct;
+
+    const fallbackKeys = ["main", "url", "original", "thumb", "src"];
+    for (const key of fallbackKeys) {
+      const value = typeof raw[key] === "string" ? raw[key].trim() : "";
+      if (value) return value;
+    }
+    return "";
   }
 
-  raw = raw.trim();
+  if (typeof raw !== "string") return String(raw).trim();
+  return raw.trim();
+};
+
+const buildProxyUrl = (backend, rawUrl, options) => {
+  const url = new URL(`${backend}/api/image-proxy`);
+  url.searchParams.set("url", rawUrl);
+
+  if (options?.width) url.searchParams.set("w", String(options.width));
+  if (options?.height) url.searchParams.set("h", String(options.height));
+  if (options?.quality) url.searchParams.set("q", String(options.quality));
+  if (options?.fit) url.searchParams.set("fit", options.fit);
+  if (options?.format) url.searchParams.set("fm", options.format);
+
+  return url.toString();
+};
+
+/**
+ * Build display image URL with optional optimization params.
+ * @param {*} input image value from API/model
+ * @param {{variant?: "main"|"thumb", width?: number, height?: number, quality?: number, fit?: "cover"|"contain"|"inside", format?: "webp"|"avif"|"jpeg"|"png"}} options
+ */
+export const formatImageUrl = (input, options = {}) => {
+  const variant = options.variant || "main";
+  let raw = pickImageSource(input, variant);
   if (!raw) return "";
 
   if (raw.startsWith("//")) {
@@ -107,11 +145,19 @@ export const formatImageUrl = (input) => {
     return raw;
   }
 
+  const shouldTransform =
+    Boolean(options.width) ||
+    Boolean(options.height) ||
+    Boolean(options.quality) ||
+    Boolean(options.fit) ||
+    Boolean(options.format);
+
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     raw = normalizeR2StorageUrl(raw);
     const backend = getBackendBaseUrl();
-    if (backend && shouldProxyExternalImageUrl(raw)) {
-      return `${backend}/api/image-proxy?url=${encodeURIComponent(raw)}`;
+    const mustProxy = shouldProxyExternalImageUrl(raw) || shouldTransform;
+    if (backend && mustProxy) {
+      return buildProxyUrl(backend, raw, options);
     }
     return raw;
   }
@@ -123,11 +169,18 @@ export const formatImageUrl = (input) => {
     const base = publicBaseUrl.replace(/\/+$/, "");
     const key = raw.replace(/^\/+/, "");
 
+    let absoluteUrl = "";
     if (base.includes(".r2.cloudflarestorage.com") && bucketName) {
-      return `${base}/${bucketName}/${key}`;
+      absoluteUrl = `${base}/${bucketName}/${key}`;
+    } else {
+      absoluteUrl = `${base}/${key}`;
     }
 
-    return `${base}/${key}`;
+    const backend = getBackendBaseUrl();
+    if (backend && shouldTransform) {
+      return buildProxyUrl(backend, absoluteUrl, options);
+    }
+    return absoluteUrl;
   }
 
   return raw;

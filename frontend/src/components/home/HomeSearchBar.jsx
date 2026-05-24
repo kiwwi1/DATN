@@ -125,7 +125,7 @@ const HomeSearchBar = () => {
                                     {/* Product Image */}
                                     <div className='w-12 h-12 flex-shrink-0 bg-gray-100 rounded overflow-hidden'>
                                         <img
-                                            src={formatImageUrl(product.image)}
+                                            src={formatImageUrl(product.image, { variant: "thumb", width: 96, height: 96, fit: "cover", quality: 76, format: "webp" })}
                                             referrerPolicy="no-referrer"
                                             alt={product.name}
                                             className='w-full h-full object-cover'

@@ -1,28 +1,24 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { ATTRIBUTE_PRESETS } from '../utils/categoryHelper'
 
 const AttributesManager = ({ attributes, setAttributes }) => {
   const [newValue, setNewValue] = useState('')
   const [selectedAttributeIndex, setSelectedAttributeIndex] = useState(0)
 
-  // Add new attribute
   const addAttribute = () => {
     setAttributes([...attributes, { name: 'Phân loại', values: [] }])
   }
 
-  // Remove attribute
   const removeAttribute = (index) => {
-    setAttributes(attributes.filter((_, i) => i !== index))
+    setAttributes(attributes.filter((_, currentIndex) => currentIndex !== index))
   }
 
-  // Update attribute name
   const updateAttributeName = (index, newName) => {
     const updated = [...attributes]
     updated[index].name = newName
     setAttributes(updated)
   }
 
-  // Add value to attribute
   const addValue = (index, value) => {
     if (!value.trim()) return
     const updated = [...attributes]
@@ -32,173 +28,149 @@ const AttributesManager = ({ attributes, setAttributes }) => {
     }
   }
 
-  // Remove value from attribute
-  const removeValue = (attrIndex, valueIndex) => {
+  const removeValue = (attributeIndex, valueIndex) => {
     const updated = [...attributes]
-    updated[attrIndex].values = updated[attrIndex].values.filter((_, i) => i !== valueIndex)
+    updated[attributeIndex].values = updated[attributeIndex].values.filter(
+      (_, currentValueIndex) => currentValueIndex !== valueIndex
+    )
     setAttributes(updated)
   }
 
-  // Apply preset
   const applyPreset = (index, presetKey) => {
     const preset = ATTRIBUTE_PRESETS[presetKey]
-    if (preset) {
-      const updated = [...attributes]
-      updated[index].name = preset.name
-      updated[index].values = [...preset.suggestions]
-      setAttributes(updated)
-    }
+    if (!preset) return
+    const updated = [...attributes]
+    updated[index].name = preset.name
+    updated[index].values = [...preset.suggestions]
+    setAttributes(updated)
   }
 
   return (
-    <div className='w-full space-y-4'>
-      <div className='flex items-center justify-between'>
-        <p className='text-sm font-medium text-gray-700'>
-          Product Attributes <span className="text-red-500">*</span>
+    <section className="admin-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-800">
+          Thuộc tính sản phẩm <span className="text-rose-500">*</span>
         </p>
         <button
-          type='button'
+          type="button"
           onClick={addAttribute}
-          className='text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors'
+          className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
         >
-          + Add Attribute
+          + Thêm thuộc tính
         </button>
       </div>
 
       {attributes.length === 0 ? (
-        <div className='border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500'>
-          <p>No attributes yet. Click "Add Attribute" to create one.</p>
-          <p className='text-xs mt-2'>Ví dụ: Size (S, M, L), Màu sắc (Đen, Trắng), v.v.</p>
+        <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500">
+          <p>Chưa có thuộc tính nào. Hãy bấm "Thêm thuộc tính".</p>
+          <p className="mt-1 text-xs text-slate-400">Ví dụ: Kích cỡ (S, M, L), Màu sắc (Đen, Trắng)</p>
         </div>
       ) : (
-        attributes.map((attr, attrIndex) => (
-          <div key={attrIndex} className='border-2 border-gray-300 rounded-lg p-4 space-y-3'>
-            {/* Attribute Header */}
-            <div className='flex items-center justify-between gap-3'>
-              <div className='flex-1 flex items-center gap-3'>
+        <div className="space-y-3">
+          {attributes.map((attribute, attributeIndex) => (
+            <div key={attributeIndex} className="rounded-lg border border-slate-200 p-3">
+              <div className="mb-3 flex items-center gap-2">
                 <input
-                  type='text'
-                  value={attr.name}
-                  onChange={(e) => updateAttributeName(attrIndex, e.target.value)}
-                  placeholder='Attribute Name (e.g., Size, Color)'
-                  className='flex-1 border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
+                  type="text"
+                  value={attribute.name}
+                  onChange={(event) => updateAttributeName(attributeIndex, event.target.value)}
+                  placeholder="Tên thuộc tính (ví dụ: Màu sắc)"
+                  className="admin-input"
                 />
-                
-                {/* Preset Selector */}
+
                 <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      applyPreset(attrIndex, e.target.value)
-                      e.target.value = '' // Reset
-                    }
+                  onChange={(event) => {
+                    if (!event.target.value) return
+                    applyPreset(attributeIndex, event.target.value)
+                    event.target.value = ''
                   }}
-                  className='border-2 border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none'
+                  className="admin-select max-w-[170px]"
                 >
-                  <option value=''>Quick Add...</option>
+                  <option value="">Mẫu nhanh...</option>
                   {Object.keys(ATTRIBUTE_PRESETS).map((key) => (
                     <option key={key} value={key}>
                       {ATTRIBUTE_PRESETS[key].name}
                     </option>
                   ))}
                 </select>
+
+                <button
+                  type="button"
+                  onClick={() => removeAttribute(attributeIndex)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-base font-semibold text-rose-600 transition hover:bg-rose-100"
+                  aria-label="Xóa thuộc tính"
+                >
+                  ×
+                </button>
               </div>
 
-              <button
-                type='button'
-                onClick={() => removeAttribute(attrIndex)}
-                className='px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors'
-                title='Remove attribute'
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Add Value Input */}
-            <div className='flex gap-2'>
-              <input
-                type='text'
-                value={selectedAttributeIndex === attrIndex ? newValue : ''}
-                onChange={(e) => {
-                  setSelectedAttributeIndex(attrIndex)
-                  setNewValue(e.target.value)
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    addValue(attrIndex, newValue)
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={selectedAttributeIndex === attributeIndex ? newValue : ''}
+                  onChange={(event) => {
+                    setSelectedAttributeIndex(attributeIndex)
+                    setNewValue(event.target.value)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    addValue(attributeIndex, newValue)
                     setNewValue('')
-                  }
-                }}
-                placeholder={`Add ${attr.name} value (e.g., S, M, L)`}
-                className='flex-1 border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none'
-              />
-              <button
-                type='button'
-                onClick={() => {
-                  addValue(attrIndex, selectedAttributeIndex === attrIndex ? newValue : '')
-                  if (selectedAttributeIndex === attrIndex) setNewValue('')
-                }}
-                className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
-              >
-                Add
-              </button>
-            </div>
-
-            {/* Values Display */}
-            {attr.values.length > 0 ? (
-              <div className='flex gap-2 flex-wrap'>
-                {attr.values.map((value, valueIndex) => (
-                  <div
-                    key={valueIndex}
-                    className='flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg'
-                  >
-                    <span>{value}</span>
-                    <button
-                      type='button'
-                      onClick={() => removeValue(attrIndex, valueIndex)}
-                      className='text-blue-700 hover:text-red-600 font-bold'
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                  }}
+                  placeholder={`Thêm giá trị cho ${attribute.name}`}
+                  className="admin-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    addValue(attributeIndex, selectedAttributeIndex === attributeIndex ? newValue : '')
+                    if (selectedAttributeIndex === attributeIndex) setNewValue('')
+                  }}
+                  className="admin-btn-primary px-3"
+                >
+                  Thêm
+                </button>
               </div>
-            ) : (
-              <p className='text-xs text-gray-500 italic'>
-                No values yet. Add at least one value for this attribute.
-              </p>
-            )}
-          </div>
-        ))
+
+              {attribute.values.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {attribute.values.map((value, valueIndex) => (
+                    <div
+                      key={`${value}-${valueIndex}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700"
+                    >
+                      <span>{value}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeValue(attributeIndex, valueIndex)}
+                        className="font-bold text-sky-700 transition hover:text-rose-600"
+                        aria-label={`Xóa giá trị ${value}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs italic text-slate-500">Chưa có giá trị. Cần ít nhất một giá trị cho mỗi thuộc tính.</p>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* Info Box */}
-      <div className='bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700'>
-        <p className='font-medium text-blue-800 mb-1'>💡 Tips:</p>
-        <ul className='space-y-1 ml-4'>
-          <li>• Quần áo: Sử dụng "Size" (S, M, L, XL)</li>
-          <li>• Điện tử: Sử dụng "Màu sắc" hoặc "Dung lượng"</li>
-          <li>• Pad chuột: Sử dụng "Màu sắc" hoặc "Kích thước"</li>
-          <li>• Press Enter to quickly add values</li>
+      <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-slate-700">
+        <p className="mb-1 font-semibold text-sky-800">Gợi ý nhanh</p>
+        <ul className="space-y-1">
+          <li>Quần áo: Kích cỡ (S, M, L, XL)</li>
+          <li>Điện tử: Màu sắc, dung lượng</li>
+          <li>Phụ kiện: Kích thước, màu sắc</li>
+          <li>Nhấn Enter để thêm giá trị nhanh</li>
         </ul>
       </div>
-    </div>
+    </section>
   )
 }
 
 export default AttributesManager
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

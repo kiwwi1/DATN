@@ -8,6 +8,7 @@ import ProfileSidebar from '../../components/profile/ProfileSidebar';
 import { formatPrice } from '../../utils/priceFormat';
 import { formatImageUrl } from '../../utils/imageUtils';
 import { localizeProductName } from '../../utils/productNameUtils';
+import { isDefaultCartOptionKey } from '../../constants/cartOption';
 import {
   STATUS_TABS,
   STATUS_MAP,
@@ -173,7 +174,7 @@ const Orders = () => {
                           {item._id ? (
                             <Link to={`/product/${item._id}`}>
                               <img
-                                src={formatImageUrl(item.image)}
+                                src={formatImageUrl(item.image, { variant: "thumb", width: 128, height: 128, fit: "cover", quality: 78, format: "webp" })}
                                 className="w-16 h-16 object-cover rounded flex-shrink-0"
                                 alt={displayName}
                                 referrerPolicy="no-referrer"
@@ -181,7 +182,7 @@ const Orders = () => {
                             </Link>
                           ) : (
                             <img
-                              src={formatImageUrl(item.image)}
+                              src={formatImageUrl(item.image, { variant: "thumb", width: 128, height: 128, fit: "cover", quality: 78, format: "webp" })}
                               className="w-16 h-16 object-cover rounded flex-shrink-0"
                               alt={displayName}
                               referrerPolicy="no-referrer"
@@ -200,7 +201,7 @@ const Orders = () => {
                                 Phân loại hàng: {item.selectedAttributes.map(a => a.value).join(', ')}
                               </p>
                             )}
-                            {item.size && (
+                            {item.size && !isDefaultCartOptionKey(item.size) && (
                               <p className="text-xs text-gray-500 mt-1">Phân loại hàng: {item.size}</p>
                             )}
                             <p className="text-xs text-gray-400 mt-1">x{item.quantity}</p>

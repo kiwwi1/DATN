@@ -4,11 +4,19 @@ import ProductItem from '../product/ProductItem'
 import Title from '../ui/Title'
 
 const BEST_SELLER_LIMIT = 5
+const RECOMMENDATION_SCORE_WEIGHT = 250
 
 const toNumber = (value) => Number(value) || 0
 
-const sortByBestSellerScore = (a, b) => {
-  const soldDiff = toNumber(b?.sold) - toNumber(a?.sold)
+const getRecommendationBoost = (item, recommendationScoreMap) => {
+  if (!item?._id || !recommendationScoreMap) return 0
+  return toNumber(recommendationScoreMap.get(String(item._id)))
+}
+
+const sortByBestSellerScore = (a, b, recommendationScoreMap) => {
+  const aSoldScore = toNumber(a?.sold) + getRecommendationBoost(a, recommendationScoreMap)
+  const bSoldScore = toNumber(b?.sold) + getRecommendationBoost(b, recommendationScoreMap)
+  const soldDiff = bSoldScore - aSoldScore
   if (soldDiff !== 0) return soldDiff
 
   const ratingDiff = toNumber(b?.rating) - toNumber(a?.rating)
@@ -18,14 +26,20 @@ const sortByBestSellerScore = (a, b) => {
 }
 
 const BestSeller = () => {
-  const { products } = useContext(ShopContext)
+  const { products, recommendations } = useContext(ShopContext)
 
   const bestSellerProducts = useMemo(() => {
     const activeProducts = (products || []).filter((item) => item?.isActive !== false)
+    const recommendationScoreMap = new Map(
+      (recommendations || []).map((item, index) => [
+        String(item?._id),
+        Math.max(0, recommendations.length - index) * RECOMMENDATION_SCORE_WEIGHT / Math.max(recommendations.length, 1),
+      ])
+    )
 
     const pinnedBestSellers = activeProducts
       .filter((item) => item?.bestseller)
-      .sort(sortByBestSellerScore)
+      .sort((a, b) => sortByBestSellerScore(a, b, recommendationScoreMap))
 
     if (pinnedBestSellers.length >= BEST_SELLER_LIMIT) {
       return pinnedBestSellers.slice(0, BEST_SELLER_LIMIT)
@@ -34,10 +48,10 @@ const BestSeller = () => {
     const pinnedIds = new Set(pinnedBestSellers.map((item) => String(item._id)))
     const fallbackBySold = activeProducts
       .filter((item) => !pinnedIds.has(String(item._id)))
-      .sort(sortByBestSellerScore)
+      .sort((a, b) => sortByBestSellerScore(a, b, recommendationScoreMap))
 
     return [...pinnedBestSellers, ...fallbackBySold].slice(0, BEST_SELLER_LIMIT)
-  }, [products])
+  }, [products, recommendations])
 
   return (
     <div className='my-10'>

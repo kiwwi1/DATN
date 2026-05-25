@@ -491,49 +491,87 @@ const Product = () => {
               ? selectedVariant.stock === 0
               : !hasSkuVariants && productData.stock === 0;
 
+            // Logic chọn sản phẩm dùng chung cho cả "Thêm vào giỏ" và "Mua ngay".
+            // Trả về { ok, optionKey, message }; optionKey chính là "size" lưu trong giỏ/đơn.
+            const resolveSelection = () => {
+              if (hasSkuVariants && hasAttributes) {
+                if (!allAttrsSelected) {
+                  return { ok: false, message: `Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}` };
+                }
+                if (isOutOfStock) {
+                  return { ok: false, message: "Biến thể này đã hết hàng" };
+                }
+                const optionKey = Object.entries(selectedAttributes)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join(', ');
+                return { ok: true, optionKey };
+              }
+              if (hasLegacySizes && !size) {
+                return { ok: false, message: "Vui lòng chọn kích thước sản phẩm!" };
+              }
+              if (isOutOfStock) {
+                return { ok: false, message: "Sản phẩm đã hết hàng" };
+              }
+              return { ok: true, optionKey: size || normalizeCartOptionKey("") };
+            };
+
+            const handleAddToCart = () => {
+              if (!token) {
+                toast.info("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
+                navigate("/login");
+                return;
+              }
+              const sel = resolveSelection();
+              if (!sel.ok) {
+                toast.error(sel.message);
+                return;
+              }
+              addToCart(productData._id, sel.optionKey);
+            };
+
+            const handleBuyNow = () => {
+              if (!token) {
+                toast.info("Vui lòng đăng nhập để mua hàng.");
+                navigate("/login");
+                return;
+              }
+              const sel = resolveSelection();
+              if (!sel.ok) {
+                toast.error(sel.message);
+                return;
+              }
+              // Mua ngay: bỏ qua giỏ hàng, ghi đè selectedCartItems rồi sang trang thanh toán.
+              const buyNowItem = [{ _id: productData._id, size: sel.optionKey, quantity: 1 }];
+              sessionStorage.setItem("selectedCartItems", JSON.stringify(buyNowItem));
+              navigate("/place-order");
+            };
+
             return (
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => {
-                    if (!token) {
-                      toast.info("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
-                      navigate("/login");
-                      return;
-                    }
-                    if (hasSkuVariants && hasAttributes) {
-                      if (!allAttrsSelected) {
-                        toast.error(`Vui lòng chọn ${productData.attributes.map(a => a.name).join(', ')}`);
-                        return;
-                      }
-                      if (isOutOfStock) {
-                        toast.error("Biến thể này đã hết hàng");
-                        return;
-                      }
-                      const attributeString = Object.entries(selectedAttributes)
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join(', ');
-                      addToCart(productData._id, attributeString);
-                    } else {
-                      if (hasLegacySizes && !size) {
-                        toast.error("Vui long chon kich thuoc san pham!");
-                        return;
-                      }
-                      if (isOutOfStock) {
-                        toast.error("Sản phẩm đã hết hàng");
-                        return;
-                      }
-                      addToCart(productData._id, size || normalizeCartOptionKey(""));
-                    }
-                  }}
-                  disabled={isOutOfStock}
-                  className={`w-full sm:w-auto px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all shadow-lg ${
-                    isOutOfStock
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-orange-600 hover:bg-orange-700 text-white'
-                  }`}
-                >
-                  {isOutOfStock ? 'HẾT HÀNG' : 'THÊM VÀO GIỎ HÀNG'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={isOutOfStock}
+                    className={`w-full sm:flex-1 px-12 py-4 text-base font-semibold rounded-lg active:scale-95 transition-all shadow-lg ${
+                      isOutOfStock
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                  >
+                    {isOutOfStock ? 'HẾT HÀNG' : 'MUA NGAY'}
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isOutOfStock}
+                    className={`w-full sm:flex-1 px-12 py-4 text-base font-medium rounded-lg active:scale-95 transition-all border-2 ${
+                      isOutOfStock
+                        ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                        : 'border-orange-600 text-orange-600 hover:bg-orange-50'
+                    }`}
+                  >
+                    THÊM VÀO GIỎ HÀNG
+                  </button>
+                </div>
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"

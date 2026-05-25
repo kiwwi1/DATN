@@ -6,16 +6,16 @@ const trackInteraction = async (req, res) => {
     try {
         const { userId, productId, interactionType, value } = req.body;
         if (!productId || !interactionType) {
-            return res.json({ success: false, message: "productId and interactionType are required" });
+            return res.status(400).json({ success: false, message: "productId and interactionType are required" });
         }
         if (!VALID_INTERACTIONS.includes(interactionType)) {
-            return res.json({ success: false, message: "Invalid interaction type" });
+            return res.status(400).json({ success: false, message: "Invalid interaction type" });
         }
         await trackInteractionService(userId, productId, interactionType, value);
         res.json({ success: true });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -28,7 +28,7 @@ const getRecommendations = async (req, res) => {
         res.json({ success: true, products });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 

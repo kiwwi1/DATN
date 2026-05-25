@@ -9,12 +9,10 @@ import {
     loginWithGoogle,
     forgotPassword,
     resetPassword,
-    deleteUser,
     refreshAuth,
     logoutUser,
 } from '../controllers/userController.js';
 import authUser from '../middleware/auth.js';
-import adminAuth from '../middleware/adminAuth.js';
 import {
     loginRateLimit,
     verifyEmailRateLimit,
@@ -35,5 +33,4 @@ userRouter.post('/forgot-password', ...forgotPasswordRateLimit, forgotPassword);
 userRouter.post('/reset-password', ...resetPasswordRateLimit, resetPassword);
 userRouter.post('/refresh', ...refreshAuthRateLimit, refreshAuth);
 userRouter.post('/logout', logoutUser);
-userRouter.delete('/delete/:id', adminAuth, deleteUser);
 export default userRouter;

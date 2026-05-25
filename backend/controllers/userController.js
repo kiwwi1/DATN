@@ -38,7 +38,7 @@ const loginUser = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -49,7 +49,7 @@ const loginWithGoogle = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -59,7 +59,7 @@ const registerUser = async (req, res) => {
         const result = await registerUserService(name, email, password);
         res.json({ success: true, ...result });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -70,7 +70,7 @@ const verifyEmail = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -80,7 +80,7 @@ const registerVendor = async (req, res) => {
         await registerVendorService(userId, shopName, shopAddress, phone);
         res.json({ success: true, message: "Vendor registered successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -89,7 +89,7 @@ const getUserProfile = async (req, res) => {
         const user = await getUserProfileService(req.body.userId);
         res.json({ success: true, user });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -99,7 +99,7 @@ const updateUserProfile = async (req, res) => {
         await updateUserProfileService(req.body.userId, { name, email, phone });
         res.json({ success: true, message: "Profile updated successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -113,7 +113,7 @@ const forgotPassword = async (req, res) => {
                 "Nếu email đã đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.",
         });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -123,7 +123,7 @@ const resetPassword = async (req, res) => {
         await resetPasswordWithTokenService(token, password);
         res.json({ success: true, message: "Đặt lại mật khẩu thành công." });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 

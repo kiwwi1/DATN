@@ -7,9 +7,9 @@ const reviewRouter = express.Router();
 
 reviewRouter.post("/can-review/:productId", authUser, canReview);
 reviewRouter.post("/my-reviewed-products", authUser, getMyReviewedProducts);
-reviewRouter.post("/", upload.array("images", 5), authUser, createReview);
+reviewRouter.post("/", authUser, upload.array("images", 5), createReview);
 reviewRouter.get("/product/:productId", getReviewsByProduct);
-reviewRouter.put("/:id", upload.array("images", 5), authUser, updateReview);
+reviewRouter.put("/:id", authUser, upload.array("images", 5), updateReview);
 reviewRouter.delete("/:id", authUser, deleteReview);
 
 export default reviewRouter;

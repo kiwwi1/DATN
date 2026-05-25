@@ -21,7 +21,11 @@ const Chat = ({ token }) => {
 
   useEffect(() => {
     if (!token) return
-    const socket = io(backendUrl, { transports: ['websocket'] })
+    const socket = io(backendUrl, {
+      transports: ['websocket'],
+      auth: { token },
+      withCredentials: true,
+    })
     socketRef.current = socket
     return () => {
       socket.disconnect()

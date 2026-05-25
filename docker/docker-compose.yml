@@ -36,9 +36,7 @@ services:
       NODE_ENV: production
       PORT: "4000"
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
-      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_me}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       MAIL_USER: ${MAIL_USER:-}
       MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD:-}

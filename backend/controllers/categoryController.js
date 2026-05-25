@@ -15,7 +15,7 @@ const createCategory = async (req, res) => {
         res.json({ success: true, message: "Category created successfully", category });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -25,7 +25,7 @@ const getAllCategories = async (req, res) => {
         res.json({ success: true, categories });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -35,7 +35,7 @@ const getCategoryTree = async (req, res) => {
         res.json({ success: true, categoryTree });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -45,7 +45,7 @@ const getCategory = async (req, res) => {
         res.json({ success: true, category, subCategories });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -55,7 +55,7 @@ const updateCategory = async (req, res) => {
         res.json({ success: true, message: "Category updated successfully", category: updatedCategory });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -65,7 +65,7 @@ const deleteCategory = async (req, res) => {
         res.json({ success: true, message: "Category deleted successfully" });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -75,7 +75,7 @@ const getSubCategories = async (req, res) => {
         res.json({ success: true, subcategories });
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 

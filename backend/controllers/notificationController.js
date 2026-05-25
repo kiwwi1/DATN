@@ -55,7 +55,7 @@ export const getNotifications = async (req, res) => {
         const notifications = await getNotificationsService(req.body.userId);
         res.json({ success: true, notifications });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -65,7 +65,7 @@ export const markAllRead = async (req, res) => {
         await markAllReadService(req.body.userId);
         res.json({ success: true });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -75,7 +75,7 @@ export const markOneRead = async (req, res) => {
         const notification = await markOneReadService(req.params.id, req.body.userId);
         res.json({ success: true, notification });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -86,7 +86,7 @@ export const getPriceAlertStatus = async (req, res) => {
         const enabled = await getPriceAlertStatusService(req.body.userId, productId);
         res.json({ success: true, enabled });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -101,6 +101,6 @@ export const setPriceAlertSubscription = async (req, res) => {
         );
         res.json({ success: true, enabled: !!alert.enabled });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };

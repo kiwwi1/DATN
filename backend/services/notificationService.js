@@ -107,8 +107,8 @@ const pushSSE = (userId, payload) => {
  * @param {"order_placed"|"order_status"|"order_cancelled"|"price_drop"} type
  * @param {string} title
  * @param {string} message
- * @param {string|Object} [orderId] — id đơn hàng (ObjectId hoặc chuỗi hex hợp lệ)
- * @param {string|Object} [productId] — id sản phẩm
+ * @param {string|Object} [orderId] - id đơn hàng (ObjectId hoặc chuỗi hex hợp lệ)
+ * @param {string|Object} [productId] - id sản phẩm
  */
 export const createNotification = async (userId, type, title, message, orderId, productId) => {
     try {
@@ -138,7 +138,7 @@ export const createNotification = async (userId, type, title, message, orderId, 
         });
         return notification;
     } catch (err) {
-        console.error("⚠️ createNotification error:", err.message);
+        console.error("createNotification error:", err.message);
     }
 };
 

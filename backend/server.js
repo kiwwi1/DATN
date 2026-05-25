@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import 'dotenv/config';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import connectDB from './config/mongodb.js';
 import { initRedis } from './config/redis.js';
 import userRouter from './routes/userRoute.js';
@@ -22,15 +23,42 @@ import locationRouter from './routes/locationRoute.js';
 import { getImageProxy } from './controllers/imageProxyController.js';
 import { expirePendingReservationsService } from './services/orderService.js';
 import { stripeWebhook } from './controllers/orderController.js';
+import { conversationModel } from './models/chatModel.js';
 
+
+const parseAllowedOrigins = () => {
+    const localDefaults = ['http://localhost:5173', 'http://localhost:5174'];
+    const fromEnv = String(process.env.CORS_ORIGINS || '')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+    return Array.from(new Set(fromEnv.length > 0 ? fromEnv : localDefaults));
+};
+
+const allowedOrigins = parseAllowedOrigins();
+const allowCorsOrigin = (origin, callback) => {
+    if (!origin) {
+        callback(null, true);
+        return;
+    }
+    callback(null, allowedOrigins.includes(origin));
+};
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+        throw new Error('JWT_SECRET is required and must be at least 32 chars in production');
+    }
+}
 
 // App config
 const app = express();
 const port = process.env.PORT || 4000;
 const httpServer = http.createServer(app);
+app.set('trust proxy', 1);
 const io = new SocketIOServer(httpServer, {
     cors: {
-        origin: ['http://localhost:5173', 'http://localhost:5174'],
+        origin: allowedOrigins,
         credentials: true,
     },
 });
@@ -53,7 +81,7 @@ app.post('/api/order/stripe-webhook', express.raw({ type: 'application/json' }),
 
 // Middlewares
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: allowCorsOrigin,
     credentials: true
 }));
 app.use(express.json());
@@ -76,10 +104,42 @@ app.use('/api/chat', chatRouter);
 app.use('/api/address', addressRouter);
 app.use('/api/location', locationRouter);
 
+io.use((socket, next) => {
+    try {
+        const authToken = socket.handshake.auth?.token;
+        const token = authToken || '';
+        if (!token) {
+            return next(new Error('Unauthorized'));
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decoded?.id || (decoded?.type && decoded.type !== 'access')) {
+            return next(new Error('Unauthorized'));
+        }
+        socket.data.userId = String(decoded.id);
+        return next();
+    } catch {
+        return next(new Error('Unauthorized'));
+    }
+});
+
 io.on('connection', (socket) => {
-    socket.on('join_room', (conversationId) => {
-        if (!conversationId) return;
-        socket.join(conversationId);
+    socket.on('join_room', async (conversationId) => {
+        const cid = String(conversationId || '').trim();
+        if (!cid) return;
+        const userId = String(socket.data.userId || '');
+        if (!userId) return;
+
+        const conversation = await conversationModel
+            .findById(cid)
+            .select('buyerId vendorId')
+            .lean()
+            .catch(() => null);
+        if (!conversation) return;
+        const isMember =
+            String(conversation.buyerId) === userId ||
+            String(conversation.vendorId) === userId;
+        if (!isMember) return;
+        socket.join(cid);
     });
 });
 

@@ -30,16 +30,20 @@ const listProduct = async (req, res) => {
         const products = await listProductsService();
         res.json({ success: true, products });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const listProductsByCategory = async (req, res) => {
     try {
-        const products = await listProductsByCategoryService(req.body.category);
+        const categoryId = req.query.category || req.body?.category;
+        if (!categoryId) {
+            return res.status(400).json({ success: false, message: "category is required" });
+        }
+        const products = await listProductsByCategoryService(categoryId);
         res.json({ success: true, products });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -58,10 +62,14 @@ const removeProduct = async (req, res) => {
 
 const singleProduct = async (req, res) => {
     try {
-        const product = await singleProductService(req.body.productId);
+        const productId = req.query.productId || req.body?.productId;
+        if (!productId) {
+            return res.status(400).json({ success: false, message: "productId is required" });
+        }
+        const product = await singleProductService(productId);
         res.json({ success: true, product });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -93,7 +101,7 @@ const listVendorProducts = async (req, res) => {
         const products = await listVendorProductsService(req.vendorId);
         res.json({ success: true, products });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 

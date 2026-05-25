@@ -119,7 +119,7 @@ const allOrders = async (req, res) => {
         const orders = await allOrdersService();
         res.json({ success: true, orders });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -128,7 +128,7 @@ const userOrders = async (req, res) => {
         const orders = await userOrdersService(req.body.userId);
         res.json({ success: true, orders });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -147,7 +147,7 @@ const vendorOrders = async (req, res) => {
         const orders = await vendorOrdersService(req.vendorId);
         res.json({ success: true, orders });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 

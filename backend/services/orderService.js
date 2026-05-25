@@ -1,14 +1,21 @@
-﻿import orderModel from "../models/orderModel.js";
+import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import Stripe from "stripe";
 import { createNotification } from "./notificationService.js";
 import { trackInteractionService } from "./interactionService.js";
 import { buildVNPayUrl, verifyVNPaySignature } from "../utils/vnpay.js";
-import { ensureOrderDeletable } from "./deletionGuardService.js";
+import {
+    deleteOrderService,
+    updateOrderStatusService,
+    vendorOrdersService,
+    updateVendorOrderStatusService,
+} from "./order/orderStatusService.js";
+import { vendorStatsService } from "./order/orderAnalyticsService.js";
 
 const currency = "vnd";
 export const deliveryFee = 30000;
+const FREE_SHIPPING_THRESHOLD = Number(process.env.FREE_SHIPPING_THRESHOLD || 500000);
 
 // Lazy Stripe initialization
 let _stripe;
@@ -44,7 +51,7 @@ const pickImageUrl = (imageLike, variant = "main") => {
     return pickFromObject(imageLike);
 };
 
-// Parse "Size: M, MÃƒÂ u sÃ¡ÂºÂ¯c: Ã„ÂÃ¡Â»Â" Ã¢â€ â€™ { "Size": "M", "MÃƒÂ u sÃ¡ÂºÂ¯c": "Ã„ÂÃ¡Â»Â" }
+// Parse "Size: M, Màu sắc: Đỏ" -> { "Size": "M", "Màu sắc": "Đỏ" }
 const PAYMENT_RESERVATION_TTL_MIN = Number(process.env.PAYMENT_RESERVATION_TTL_MIN || 15);
 const PAYMENT_RESERVATION_TTL_MS = Math.max(1, PAYMENT_RESERVATION_TTL_MIN) * 60 * 1000;
 
@@ -98,7 +105,7 @@ const validateOrderItems = (items) => {
     }
 
     for (const item of items) {
-        if (!item?._id || !item?.name || !item?.price || !item?.quantity) {
+        if (!item?._id || !item?.quantity) {
             throw Object.assign(new Error('Invalid item data: Missing required fields'), { status: 400 });
         }
         if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0) {
@@ -138,6 +145,30 @@ const buildOutOfStockError = ({ itemName, productId, variantKey, requested, avai
     return error;
 };
 
+const toSelectedAttributes = (combination = {}) =>
+    Object.entries(combination || {})
+        .map(([name, value]) => ({ name: String(name || '').trim(), value: String(value || '').trim() }))
+        .filter((attr) => attr.name && attr.value);
+
+const toSafePrice = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.round(parsed);
+};
+
+const sanitizeOrderAmount = (items) => {
+    const itemsSubtotal = items.reduce(
+        (sum, item) => sum + toSafePrice(item.price) * Number(item.quantity || 0),
+        0
+    );
+    const shippingFee = itemsSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : deliveryFee;
+    return {
+        itemsSubtotal,
+        shippingFee,
+        totalAmount: itemsSubtotal + shippingFee,
+    };
+};
+
 const enrichItemsWithVariantKey = (items, productMap) => {
     return items.map((item) => {
         const productId = String(item._id);
@@ -147,19 +178,49 @@ const enrichItemsWithVariantKey = (items, productMap) => {
         }
 
         if (!Array.isArray(product.variants) || product.variants.length === 0) {
-            return { ...item, _id: productId, variantKey: '' };
+            return {
+                _id: productId,
+                name: product.name,
+                price: toSafePrice(product.price),
+                originalPrice: toSafePrice(product.originalPrice || product.price),
+                discount: Number(product.discount || 0),
+                quantity: Number(item.quantity),
+                image: product.image || [],
+                brand: product.brand || "",
+                selectedAttributes: [],
+                size: String(item.size || ""),
+                variantKey: '',
+                vendorId: product.vendorId,
+                vendorShopName: product.vendorShopName || "",
+            };
         }
 
         const explicitVariantKey = String(item.variantKey || '').trim();
+        const fallbackCombination = getItemCombination(item);
         if (explicitVariantKey) {
             const matched = product.variants.find((variant) => variant.variantKey === explicitVariantKey);
             if (!matched) {
                 throw Object.assign(new Error(`Invalid variant for product: ${item.name || productId}`), { status: 400 });
             }
-            return { ...item, _id: productId, variantKey: explicitVariantKey };
+            const selectedAttributes = toSelectedAttributes(matched.combination || fallbackCombination);
+            return {
+                _id: productId,
+                name: product.name,
+                price: toSafePrice(matched.price),
+                originalPrice: toSafePrice(product.originalPrice || matched.price),
+                discount: Number(product.discount || 0),
+                quantity: Number(item.quantity),
+                image: product.image || [],
+                brand: product.brand || "",
+                selectedAttributes,
+                size: String(item.size || explicitVariantKey),
+                variantKey: explicitVariantKey,
+                vendorId: product.vendorId,
+                vendorShopName: product.vendorShopName || "",
+            };
         }
 
-        const inferredVariantKey = buildVariantKey(getItemCombination(item));
+        const inferredVariantKey = buildVariantKey(fallbackCombination);
         if (!inferredVariantKey) {
             throw Object.assign(new Error(`Missing variant selection for product: ${item.name || productId}`), { status: 400 });
         }
@@ -169,7 +230,21 @@ const enrichItemsWithVariantKey = (items, productMap) => {
             throw Object.assign(new Error(`Variant not found for product: ${item.name || productId}`), { status: 409 });
         }
 
-        return { ...item, _id: productId, variantKey: inferredVariantKey };
+        return {
+            _id: productId,
+            name: product.name,
+            price: toSafePrice(matched.price),
+            originalPrice: toSafePrice(product.originalPrice || matched.price),
+            discount: Number(product.discount || 0),
+            quantity: Number(item.quantity),
+            image: product.image || [],
+            brand: product.brand || "",
+            selectedAttributes: toSelectedAttributes(matched.combination || fallbackCombination),
+            size: String(item.size || inferredVariantKey),
+            variantKey: inferredVariantKey,
+            vendorId: product.vendorId,
+            vendorShopName: product.vendorShopName || "",
+        };
     });
 };
 
@@ -303,7 +378,7 @@ const prepareItemsAndReserveStock = async (rawItems) => {
 
     const productIds = [...new Set(rawItems.map((item) => String(item._id)))];
     const products = await productModel.find({ _id: { $in: productIds } })
-        .select('_id name isActive stock variants')
+        .select('_id name isActive stock variants price originalPrice discount image brand vendorId vendorShopName')
         .lean();
 
     await ensureProductVariantKeys(products);
@@ -370,7 +445,7 @@ const clearOrderedItemsFromCart = async (userId, items) => {
         }
     });
     await userModel.findByIdAndUpdate(userId, { cartData: updatedCart });
-    console.log("Ã°Å¸â€ºâ€™ Cart updated: removed ordered items");
+    console.log("ðŸ›’ Cart updated: removed ordered items");
 };
 
 const sanitizeIdempotencyKey = (raw) => {
@@ -383,9 +458,9 @@ const findOrderByIdempotency = async (userId, idempotencyKey) => {
     return orderModel.findOne({ userId, idempotencyKey }).lean();
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Place Order (COD) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Place Order (COD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const placeOrderService = async ({ userId, items, amount, address, idempotencyKey }) => {
+export const placeOrderService = async ({ userId, items, amount: _clientAmount, address, idempotencyKey }) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
     const normalizedIdempotencyKey = sanitizeIdempotencyKey(idempotencyKey);
@@ -393,6 +468,7 @@ export const placeOrderService = async ({ userId, items, amount, address, idempo
     if (existed) return existed;
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
+    const { totalAmount } = sanitizeOrderAmount(normalizedItems);
 
     const now = Date.now();
     const vendors = buildVendorsMap(normalizedItems);
@@ -402,7 +478,7 @@ export const placeOrderService = async ({ userId, items, amount, address, idempo
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount,
+            amount: totalAmount,
             address,
             paymentMethod: 'COD',
             payment: false,
@@ -448,14 +524,14 @@ export const placeOrderService = async ({ userId, items, amount, address, idempo
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Place Order (Stripe) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Place Order (Stripe) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const placeOrderStripeService = async ({ userId, items, amount, address, origin, idempotencyKey }) => {
+export const placeOrderStripeService = async ({ userId, items, amount: _clientAmount, address, origin, idempotencyKey }) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
-    const STRIPE_VND_LIMIT = 99_999_999;
-    if (currency === 'vnd' && amount > STRIPE_VND_LIMIT) {
-        throw new Error('Tá»•ng Ä‘Æ¡n hÃ ng vÆ°á»£t quÃ¡ giá»›i háº¡n thanh toÃ¡n Stripe (â‚«99,999,999). Vui lÃ²ng thanh toÃ¡n báº±ng COD hoáº·c chia nhá» Ä‘Æ¡n hÃ ng.');
+    const safeOrigin = String(origin || process.env.FRONTEND_URL || '').trim();
+    if (!safeOrigin) {
+        throw Object.assign(new Error('Missing frontend origin'), { status: 400 });
     }
 
     const normalizedIdempotencyKey = sanitizeIdempotencyKey(idempotencyKey);
@@ -465,6 +541,12 @@ export const placeOrderStripeService = async ({ userId, items, amount, address, 
     }
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
+    const { totalAmount, shippingFee } = sanitizeOrderAmount(normalizedItems);
+
+    const STRIPE_VND_LIMIT = 99_999_999;
+    if (currency === 'vnd' && totalAmount > STRIPE_VND_LIMIT) {
+        throw new Error('Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫99,999,999). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng.');
+    }
     const now = Date.now();
     const vendors = buildVendorsMap(normalizedItems);
 
@@ -473,7 +555,7 @@ export const placeOrderStripeService = async ({ userId, items, amount, address, 
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount,
+            amount: totalAmount,
             address,
             paymentMethod: 'Stripe',
             payment: false,
@@ -508,20 +590,22 @@ export const placeOrderStripeService = async ({ userId, items, amount, address, 
             quantity: item.quantity,
         }));
 
-        line_items.push({
-            price_data: {
-                currency,
-                product_data: { name: 'Shipping fee' },
-                unit_amount: Math.round(deliveryFee),
-            },
-            quantity: 1,
-        });
+        if (shippingFee > 0) {
+            line_items.push({
+                price_data: {
+                    currency,
+                    product_data: { name: 'Shipping fee' },
+                    unit_amount: Math.round(shippingFee),
+                },
+                quantity: 1,
+            });
+        }
 
         const session = await getStripe().checkout.sessions.create({
             line_items,
             mode: 'payment',
-            success_url: `${origin}/verify?success=true&orderId=${newOrder._id}`,
-            cancel_url: `${origin}/verify?success=false&orderId=${newOrder._id}`,
+            success_url: `${safeOrigin}/verify?success=true&orderId=${newOrder._id}`,
+            cancel_url: `${safeOrigin}/verify?success=false&orderId=${newOrder._id}`,
             metadata: { orderId: String(newOrder._id) },
         });
 
@@ -542,7 +626,7 @@ export const placeOrderStripeService = async ({ userId, items, amount, address, 
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Verify Stripe Payment Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Verify Stripe Payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const markStripeOrderPaid = async (order) => {
     if (order.payment) return false;
@@ -640,11 +724,11 @@ export const processStripeWebhookService = async ({ rawBody, signature }) => {
     return { processed: true, paid: true, changed };
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Cancel Order Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Cancel Order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CANCELLABLE_STATUSES = ["Order Placed", "Packing"];
 
-/** HoÃƒÂ n lÃ¡ÂºÂ¡i tÃ¡Â»â€œn kho vÃƒÂ  sÃ¡Â»â€˜ lÃ†Â°Ã¡Â»Â£ng Ã„â€˜ÃƒÂ£ bÃƒÂ¡n khi hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n. */
+/** Hoàn lại tồn kho và số lượng đã bán khi hủy đơn. */
 const restoreStockAndSold = async (items, { restoreSold = true } = {}) => {
     await releaseStockByItems(items);
     if (restoreSold) {
@@ -654,27 +738,26 @@ const restoreStockAndSold = async (items, { restoreSold = true } = {}) => {
 
 export const cancelOrderService = async ({ orderId, userId, cancelReason, cancelledBy = "user" }) => {
     const order = await orderModel.findById(orderId);
-    if (!order) throw Object.assign(new Error("Ã„ÂÃ†Â¡n hÃƒÂ ng khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i"), { status: 404 });
+    if (!order) throw Object.assign(new Error("Đơn hàng không tồn tại"), { status: 404 });
 
-    // ChÃ¡Â»â€° user sÃ¡Â»Å¸ hÃ¡Â»Â¯u Ã„â€˜Ã†Â¡n mÃ¡Â»â€ºi Ã„â€˜Ã†Â°Ã¡Â»Â£c hÃ¡Â»Â§y (trÃ¡Â»Â« admin)
+    // Chỉ user sở hữu đơn mới được hủy (trừ admin).
     if (cancelledBy === "user" && order.userId.toString() !== userId.toString()) {
-        throw Object.assign(new Error("BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n hÃƒÂ ng nÃƒÂ y"), { status: 403 });
+        throw Object.assign(new Error("Bạn không có quyền hủy đơn hàng này"), { status: 403 });
     }
 
     if (!CANCELLABLE_STATUSES.includes(order.status)) {
         throw Object.assign(
-            new Error(`KhÃƒÂ´ng thÃ¡Â»Æ’ hÃ¡Â»Â§y Ã„â€˜Ã†Â¡n Ã¡Â»Å¸ trÃ¡ÂºÂ¡ng thÃƒÂ¡i "${order.status}". ChÃ¡Â»â€° hÃ¡Â»Â§y Ã„â€˜Ã†Â°Ã¡Â»Â£c khi Ã„â€˜Ã†Â¡n Ã„â€˜ang "ChÃ¡Â»Â xÃƒÂ¡c nhÃ¡ÂºÂ­n" hoÃ¡ÂºÂ·c "Ã„Âang Ã„â€˜ÃƒÂ³ng gÃƒÂ³i".`),
+            new Error(`Không thể hủy đơn ở trạng thái "${order.status}". Chỉ hủy được khi đơn đang "Chờ xác nhận" hoặc "Đang đóng gói".`),
             { status: 400 }
         );
     }
 
-    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trÃ¡ÂºÂ¡ng thÃƒÂ¡i Ã„â€˜Ã†Â¡n hÃƒÂ ng
     order.status = "Cancelled";
     order.cancelReason = cancelReason || "";
     order.cancelledBy = cancelledBy;
     order.cancelledAt = Date.now();
 
-    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t vendorStatus cho tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ vendor trong Ã„â€˜Ã†Â¡n
+    // Cập nhật vendorStatus cho tất cả vendor trong đơn.
     if (order.vendors?.length) {
         order.vendors.forEach((v) => { v.vendorStatus = "cancelled"; });
         order.markModified("vendors");
@@ -691,9 +774,7 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
         await order.save();
     }
 
-    // ThÃƒÂ´ng bÃƒÂ¡o
     if (cancelledBy === "user") {
-        // User hÃ¡Â»Â§y Ã¢â€ â€™ thÃƒÂ´ng bÃƒÂ¡o vendor(s)
         const vendorMap = buildVendorsMap(order.items);
         for (const vendor of vendorMap) {
             await createNotification(
@@ -705,7 +786,6 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
             );
         }
     } else {
-        // Admin/vendor hÃ¡Â»Â§y Ã¢â€ â€™ thÃƒÂ´ng bÃƒÂ¡o user
         await createNotification(
             order.userId,
             "order_cancelled",
@@ -715,7 +795,6 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
         );
     }
 
-    // Stripe refund nÃ¡ÂºÂ¿u Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n
     if (order.paymentMethod === "Stripe" && order.payment === true) {
         try {
             const stripe = getStripe();
@@ -724,117 +803,25 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
                 : null;
             if (session?.payment_intent) {
                 await stripe.refunds.create({ payment_intent: session.payment_intent });
-                console.log(`Ã°Å¸â€™Â° Stripe refund created for order ${orderId}`);
+                console.log(`Stripe refund created for order ${orderId}`);
             }
         } catch (err) {
-            console.warn("Ã¢Å¡Â Ã¯Â¸Â Stripe refund failed:", err.message);
+            console.warn("Stripe refund failed:", err.message);
         }
     }
 
     return order;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Queries Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const allOrdersService = async () => orderModel.find({}).sort({ date: -1 });
 
 export const userOrdersService = async (userId) => orderModel.find({ userId }).sort({ date: -1 });
 
-export const deleteOrderService = async (orderId) => {
-    const order = await orderModel.findById(orderId);
-    await ensureOrderDeletable(order);
-    await orderModel.findByIdAndDelete(orderId);
-};
+// â”€â”€â”€ Place Order (VNPay) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const STATUS_LABEL = {
-    "Packing": "Đang đóng gói",
-    "Shipped": "Đang vận chuyển",
-    "Out for delivery": "Đang giao hàng",
-    "Delivered": "Đã giao thành công",
-    "Cancelled": "Đã hủy",
-};
-
-const TRACKING_REQUIRED_STATUSES = new Set(["Shipped", "Out for delivery", "Delivered"]);
-
-const normalizeTrackingNumber = (trackingNumber) => {
-    if (trackingNumber === undefined || trackingNumber === null) return undefined;
-    return String(trackingNumber).trim();
-};
-
-export const updateOrderStatusService = async (orderId, status, trackingNumber) => {
-    const order = await orderModel.findById(orderId);
-    if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
-
-    const normalizedTracking = normalizeTrackingNumber(trackingNumber);
-    if (TRACKING_REQUIRED_STATUSES.has(status) && !normalizedTracking && !order.trackingNumber) {
-        throw Object.assign(new Error("Tracking number is required for shipped/delivery statuses"), { status: 400 });
-    }
-    if (normalizedTracking !== undefined) {
-        order.trackingNumber = normalizedTracking;
-        order.trackingUpdatedAt = Date.now();
-    }
-
-    order.status = status;
-    await order.save();
-
-    const label = STATUS_LABEL[status] || status;
-    await createNotification(
-        order.userId,
-        "order_status",
-        "Cập nhật đơn hàng",
-        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-        order._id
-    );
-
-    return order;
-};
-
-export const vendorOrdersService = async (vendorId) => {
-    const allOrders = await orderModel.find({}).sort({ date: -1 });
-    return allOrders
-        .filter((order) => order.items.some((item) => item.vendorId?.toString() === vendorId.toString()))
-        .map((order) => {
-            const vendorItems = order.items.filter((item) => item.vendorId?.toString() === vendorId.toString());
-            const vendorAmount = vendorItems.reduce((total, item) => total + item.price * item.quantity, 0);
-            return { ...order.toObject(), items: vendorItems, vendorAmount };
-        });
-};
-
-export const updateVendorOrderStatusService = async (orderId, status, vendorId, trackingNumber) => {
-    const order = await orderModel.findById(orderId);
-    if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
-    const hasVendorProducts = order.items.some((item) => item.vendorId?.toString() === vendorId.toString());
-    if (!hasVendorProducts) {
-        throw Object.assign(new Error("Unauthorized - This order does not contain your products"), { status: 403 });
-    }
-
-    const normalizedTracking = normalizeTrackingNumber(trackingNumber);
-    if (TRACKING_REQUIRED_STATUSES.has(status) && !normalizedTracking && !order.trackingNumber) {
-        throw Object.assign(new Error("Please provide tracking number before marking order as shipped"), { status: 400 });
-    }
-    if (normalizedTracking !== undefined) {
-        order.trackingNumber = normalizedTracking;
-        order.trackingUpdatedAt = Date.now();
-    }
-
-    order.status = status;
-    await order.save();
-
-    const label = STATUS_LABEL[status] || status;
-    await createNotification(
-        order.userId,
-        "order_status",
-        "Cập nhật đơn hàng",
-        `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-        order._id
-    );
-
-    return order;
-};
-
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Place Order (VNPay) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-
-export const placeOrderVNPayService = async ({ userId, items, amount, address, ipAddr, idempotencyKey }) => {
+export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmount, address, ipAddr, idempotencyKey }) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
     const normalizedIdempotencyKey = sanitizeIdempotencyKey(idempotencyKey);
@@ -844,6 +831,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount, address, i
     }
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
+    const { totalAmount } = sanitizeOrderAmount(normalizedItems);
     const now = Date.now();
     const vendors = buildVendorsMap(normalizedItems);
 
@@ -852,7 +840,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount, address, i
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount,
+            amount: totalAmount,
             address,
             paymentMethod: 'VNPay',
             payment: false,
@@ -875,7 +863,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount, address, i
 
     try {
         const { paymentUrl, txnRef } = buildVNPayUrl({
-            amount,
+            amount: totalAmount,
             orderId: newOrder._id.toString(),
             ipAddr,
             orderInfo: `Thanh toan don hang ${newOrder._id}`,
@@ -898,21 +886,21 @@ export const placeOrderVNPayService = async ({ userId, items, amount, address, i
     }
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Verify VNPay Return Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// â”€â”€â”€ Verify VNPay Return â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const verifyVNPayReturnService = async (query) => {
     const isValid = verifyVNPaySignature(query);
-    if (!isValid) throw new Error('Chá»¯ kÃ½ khÃ´ng há»£p lá»‡');
+    if (!isValid) throw new Error('Chữ ký không hợp lệ');
 
     const txnRef = query.vnp_TxnRef;
     const responseCode = query.vnp_ResponseCode;
     const transactionNo = query.vnp_TransactionNo;
 
     const orderId = txnRef?.split('_')[0];
-    if (!orderId) throw new Error('KhÃ´ng tÃ¬m tháº¥y mÃ£ Ä‘Æ¡n hÃ ng trong TxnRef');
+    if (!orderId) throw new Error('Không tìm thấy mã đơn hàng trong TxnRef');
 
     const order = await orderModel.findById(orderId);
-    if (!order) throw new Error('ÄÆ¡n hÃ ng khÃ´ng tá»“n táº¡i');
+    if (!order) throw new Error('Đơn hàng không tồn tại');
 
     if (responseCode !== '00') {
         return { success: false, orderId };
@@ -981,174 +969,10 @@ export const expirePendingReservationsService = async () => {
     return expiredCount;
 };
 
-export const vendorStatsService = async (vendorId) => {
-    const MONTH_NAMES = ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"];
-
-    // --- Time boundaries ---
-    const now = new Date();
-    const startOfToday   = new Date(now); startOfToday.setHours(0, 0, 0, 0);
-    const startOfWeek    = new Date(now); startOfWeek.setDate(now.getDate() - 6);   startOfWeek.setHours(0, 0, 0, 0);
-    const startOfMonth   = new Date(now); startOfMonth.setDate(1);                  startOfMonth.setHours(0, 0, 0, 0);
-    const thirtyDaysAgo  = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 29); thirtyDaysAgo.setHours(0, 0, 0, 0);
-    const twelveMonthsAgo = new Date(now); twelveMonthsAgo.setMonth(now.getMonth() - 11); twelveMonthsAgo.setDate(1); twelveMonthsAgo.setHours(0, 0, 0, 0);
-
-    // --- Fetch all orders & vendor products in parallel ---
-    const [allOrders, products] = await Promise.all([
-        orderModel.find({ "items.vendorId": vendorId }).sort({ date: -1 }).lean(),
-        productModel
-            .find({ vendorId })
-            .select("stock name category image sold isActive")
-            .populate("category", "name")
-            .lean(),
-    ]);
-
-    let totalRevenue = 0, todayRevenue = 0, weekRevenue = 0, monthRevenue = 0;
-    const ordersByStatus   = {};
-    const revenueByDay     = {};   // last 30 days
-    const ordersByMonth    = {};   // last 12 months  { "2025-01": { orders, revenue } }
-    const productSalesMap  = {};
-
-    for (const order of allOrders) {
-        const isCancelled = order.status === "Cancelled";
-        const vendorItems = order.items.filter(
-            (item) => item.vendorId?.toString() === vendorId.toString()
-        );
-        const vendorRevenue = vendorItems.reduce((s, i) => s + i.price * i.quantity, 0);
-        const orderDate = new Date(order.date);
-
-        // Status counts (all orders)
-        ordersByStatus[order.status] = (ordersByStatus[order.status] || 0) + 1;
-
-        // Monthly bar chart (last 12 months, all non-cancelled)
-        if (!isCancelled && orderDate >= twelveMonthsAgo) {
-            const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, "0")}`;
-            if (!ordersByMonth[monthKey]) ordersByMonth[monthKey] = { orders: 0, revenue: 0 };
-            ordersByMonth[monthKey].orders  += 1;
-            ordersByMonth[monthKey].revenue += vendorRevenue;
-        }
-
-        if (!isCancelled) {
-            totalRevenue += vendorRevenue;
-            if (orderDate >= startOfToday) todayRevenue += vendorRevenue;
-            if (orderDate >= startOfWeek)  weekRevenue  += vendorRevenue;
-            if (orderDate >= startOfMonth) monthRevenue += vendorRevenue;
-
-            // Daily revenue (last 30 days)
-            if (orderDate >= thirtyDaysAgo) {
-                const key = orderDate.toISOString().split("T")[0];
-                revenueByDay[key] = (revenueByDay[key] || 0) + vendorRevenue;
-            }
-
-            // Product sales
-            for (const item of vendorItems) {
-                const pid = item._id?.toString();
-                if (!productSalesMap[pid]) {
-                    productSalesMap[pid] = { name: item.name, image: pickImageUrl(item.image) || null, sold: 0, revenue: 0 };
-                }
-                productSalesMap[pid].sold    += item.quantity;
-                productSalesMap[pid].revenue += item.price * item.quantity;
-            }
-        }
-    }
-
-    // Build 30-day line chart
-    const revenueChart = [];
-    for (let i = 29; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i);
-        const key = d.toISOString().split("T")[0];
-        revenueChart.push({ date: key, revenue: revenueByDay[key] || 0 });
-    }
-
-    // Build 12-month bar chart
-    const ordersChart = [];
-    for (let i = 11; i >= 0; i--) {
-        const d = new Date(now);
-        d.setMonth(now.getMonth() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        ordersChart.push({
-            month:   MONTH_NAMES[d.getMonth()],
-            orders:  ordersByMonth[key]?.orders  || 0,
-            revenue: ordersByMonth[key]?.revenue || 0,
-        });
-    }
-
-    // Build category pie chart data from vendor's product list
-    const categoryCount = {};
-    for (const p of products) {
-        const catName = p.category?.name || "KhÃƒÂ¡c";
-        categoryCount[catName] = (categoryCount[catName] || 0) + 1;
-    }
-    const categoryChart = Object.entries(categoryCount)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-    const topSelling = Object.values(productSalesMap).sort((a, b) => b.sold - a.sold).slice(0, 5);
-
-    const slowSelling = products
-        .filter((p) => p.isActive !== false)
-        .sort((a, b) => {
-            const sa = a.sold ?? 0;
-            const sb = b.sold ?? 0;
-            if (sa !== sb) return sa - sb;
-            return (b.stock ?? 0) - (a.stock ?? 0);
-        })
-        .slice(0, 5)
-        .map((p) => {
-            const pid = p._id?.toString();
-            const fromOrders = pid ? productSalesMap[pid] : null;
-            const img = pickImageUrl(p.image);
-            return {
-                _id: p._id,
-                name: p.name,
-                image: img || null,
-                sold: fromOrders?.sold ?? p.sold ?? 0,
-                revenue: fromOrders?.revenue ?? 0,
-                stock: p.stock ?? 0,
-            };
-        });
-
-    const LOW_STOCK_THRESHOLD = 5;
-
-    const totalProducts = products.length;
-    const totalStock    = products.reduce((s, p) => s + (p.stock || 0), 0);
-    const lowStock      = products.filter((p) => (p.stock ?? 0) <= LOW_STOCK_THRESHOLD).length;
-    const lowStockItems = products
-        .filter((p) => (p.stock ?? 0) <= LOW_STOCK_THRESHOLD)
-        .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0))
-        .slice(0, 20)
-        .map((p) => {
-            const img = pickImageUrl(p.image);
-            return {
-                _id: p._id,
-                name: p.name,
-                image: img || null,
-                stock: p.stock ?? 0,
-                isActive: p.isActive !== false,
-            };
-        });
-
-    const recentOrders = allOrders.slice(0, 10).map((o) => ({
-        _id:      o._id,
-        date:     o.date,
-        status:   o.status,
-        amount:   o.items.filter((i) => i.vendorId?.toString() === vendorId.toString()).reduce((s, i) => s + i.price * i.quantity, 0),
-        itemCount: o.items.filter((i) => i.vendorId?.toString() === vendorId.toString()).length,
-    }));
-
-    return {
-        revenue:  { total: totalRevenue, today: todayRevenue, week: weekRevenue, month: monthRevenue, chart: revenueChart },
-        orders:   { total: allOrders.length, byStatus: ordersByStatus, monthlyChart: ordersChart, recent: recentOrders },
-        products: { total: totalProducts, totalStock, lowStock, lowStockItems, topSelling, slowSelling, categoryChart },
-    };
+export {
+    deleteOrderService,
+    updateOrderStatusService,
+    vendorOrdersService,
+    updateVendorOrderStatusService,
+    vendorStatsService,
 };
-
-
-
-
-
-
-
-
-
-

@@ -5,11 +5,14 @@ import { ShopContext } from "../../context/ShopContext";
 import { useState } from "react";
 import axios from "axios";
 import RelatedProducts from "../../components/product/RelatedProducts";
+import ProductReviewsSection from "../../components/product/ProductReviewsSection";
 import { formatPrice } from "../../utils/priceFormat";
 import { toast } from "react-toastify";
 import { formatImageUrl, asImageArray } from "../../utils/imageUtils";
 import { localizeProductName } from "../../utils/productNameUtils";
 import { normalizeCartOptionKey } from "../../constants/cartOption";
+import { useProductReviews } from "../../hooks/product/useProductReviews";
+import { useProductEngagement } from "../../hooks/product/useProductEngagement";
 
 const unwrapProxyImageUrl = (value) => {
   if (!value || typeof value !== "string") return value;
@@ -66,24 +69,10 @@ const Product = () => {
   const orderIdFromUrl = urlParams.get("orderId") || null;
 
   // Review state — mở tab reviews nếu URL có ?tab=reviews
-  const [reviews, setReviews] = useState([]);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(location.search);
     return params.get("tab") === "reviews" ? "reviews" : "description";
   });
-  const [loadingReviews, setLoadingReviews] = useState(false);
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [formRating, setFormRating] = useState(5);
-  const [formComment, setFormComment] = useState("");
-  const [editingReviewId, setEditingReviewId] = useState(null);
-  const [hasPurchased, setHasPurchased] = useState(false);
-  const [filterStar, setFilterStar] = useState(0); // 0 = tất cả
-  const [reviewPage, setReviewPage] = useState(1);
-  const [reviewTotalPages, setReviewTotalPages] = useState(1);
-  const [reviewTotal, setReviewTotal] = useState(0);
-  const [vendorFollowerCount, setVendorFollowerCount] = useState(null);
-  const [priceAlertEnabled, setPriceAlertEnabled] = useState(false);
-  const [priceAlertLoading, setPriceAlertLoading] = useState(false);
   const productImages = useMemo(
     () => normalizeFirstImageLikeSecond(productData?.image),
     [productData?.image]
@@ -138,104 +127,11 @@ const Product = () => {
     return { productCount, sold };
   }, [productData, products]);
 
-  useEffect(() => {
-    const loadFollowerCount = async () => {
-      if (!productData?.vendorId) {
-        setVendorFollowerCount(null);
-        return;
-      }
-      try {
-        const res = await axios.get(
-          `${backendUrl}/api/shop-follow/count/${productData.vendorId}`
-        );
-        if (res.data.success) {
-          setVendorFollowerCount(res.data.followerCount ?? null);
-        }
-      } catch {
-        setVendorFollowerCount(null);
-      }
-    };
-    loadFollowerCount();
-  }, [backendUrl, productData?.vendorId]);
-  const [starCounts, setStarCounts] = useState({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
-  const REVIEWS_PER_PAGE = 5;
   const isInCart = useMemo(() => {
     const row = cartItems?.[productId];
     if (!row || typeof row !== "object") return false;
     return Object.values(row).some((qty) => Number(qty) > 0);
   }, [cartItems, productId]);
-  // Ảnh đính kèm
-  const [newImages, setNewImages] = useState([]);       // File[] chờ upload
-  const [previewUrls, setPreviewUrls] = useState([]);   // blob URL để preview
-  const [keepImages, setKeepImages] = useState([]);     // URL ảnh cũ giữ lại khi edit
-
-  const handleStartChat = async () => {
-    if (!token) {
-      toast.info("Vui lòng đăng nhập để nhắn tin với shop.");
-      navigate("/login");
-      return;
-    }
-    const vendorId = productData?.vendorId;
-    if (!vendorId) {
-      toast.error("Không tìm thấy thông tin shop.");
-      return;
-    }
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/chat/init`,
-        { vendorId },
-        { headers: { token } }
-      );
-      if (!res.data.success) {
-        throw new Error(res.data.message || "Không thể tạo cuộc hội thoại");
-      }
-      const conversationId = res.data.conversation?._id;
-      if (!conversationId) throw new Error("Không lấy được cuộc hội thoại");
-      const quickOptions = [
-        "Sản phẩm này còn hàng không shop?",
-        "Mình có thể được tư vấn phiên bản phù hợp không?",
-        "Shop hỗ trợ freeship/giảm giá cho sản phẩm này không?",
-        "Sản phẩm này có bảo hành/đổi trả như thế nào?",
-      ];
-      window.dispatchEvent(
-        new CustomEvent("open-chat-conversation", {
-          detail: {
-            conversationId,
-            productContext: {
-              id: productData._id,
-              name: localizeProductName(productData.name),
-              price: productData.price,
-              image: asImageArray(productData.image)[0] || "",
-              vendorId: productData.vendorId,
-            },
-            quickOptions,
-          },
-        })
-      );
-    } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
-    }
-  };
-
-  // Track viewed khi mở trang; track tổng timeSpent khi rời trang
-  useEffect(() => {
-    if (!productId || !token) return;
-    trackInteraction(productId, 'viewed');
-    const startTime = Date.now();
-
-    return () => {
-      const seconds = Math.round((Date.now() - startTime) / 1000);
-      if (seconds < 3) return; // bỏ qua nếu chỉ thoáng qua
-      // fetch keepalive đảm bảo request hoàn thành kể cả khi unmount/đóng tab
-      fetch(`${backendUrl}/api/interaction/track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', token },
-        body: JSON.stringify({ productId, interactionType: 'timeSpent', value: seconds }),
-        keepalive: true,
-      }).catch(() => {});
-    };
-  }, [productId, token, trackInteraction, backendUrl]);
-
   const fetchProductData = useCallback(() => {
     products.map((item) => {
       if (item._id == productId) {
@@ -257,251 +153,75 @@ const Product = () => {
     });
   }, [productId, products]);
 
-  const fetchReviews = useCallback(async (page = 1, star = 0) => {
-    if (!productId) return;
-    setLoadingReviews(true);
-    try {
-      const res = await axios.get(
-        `${backendUrl}/api/review/product/${productId}?page=${page}&limit=${REVIEWS_PER_PAGE}&star=${star}`
-      );
-      if (res.data.success) {
-        setReviews(res.data.reviews || []);
-        setReviewPage(res.data.page || 1);
-        setReviewTotalPages(res.data.totalPages || 1);
-        setReviewTotal(res.data.total || 0);
-      }
-    } catch (err) {
-      console.error("fetchReviews:", err);
-      setReviews([]);
-    } finally {
-      setLoadingReviews(false);
-    }
-  }, [productId, backendUrl, REVIEWS_PER_PAGE]);
-
-  // Lấy phân bố sao (chạy 1 lần khi mở product)
-  const fetchStarDistribution = useCallback(async () => {
-    if (!productId) return;
-    try {
-      const res = await axios.get(
-        `${backendUrl}/api/review/product/${productId}?page=1&limit=200&star=0`
-      );
-      if (res.data.success) {
-        const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        (res.data.reviews || []).forEach(r => {
-          if (r.rating >= 1 && r.rating <= 5) counts[r.rating]++;
-        });
-        setStarCounts(counts);
-      }
-    } catch (err) {
-      console.error("fetchStarDistribution:", err);
-    }
-  }, [productId, backendUrl]);
-
   const refetchProduct = useCallback(async () => {
     if (!productId) return;
     try {
-      const res = await axios.post(backendUrl + "/api/product/single", { productId });
-      if (res.data.success && res.data.product) setProductData(res.data.product);
-    } catch (err) {
-      console.error("refetchProduct:", err);
+      const response = await axios.get(`${backendUrl}/api/product/single`, { params: { productId } });
+      if (response.data.success && response.data.product) {
+        setProductData(response.data.product);
+      }
+    } catch (error) {
+      console.error("refetchProduct:", error);
     }
-  }, [productId, backendUrl]);
+  }, [backendUrl, productId]);
 
   useEffect(() => {
     fetchProductData();
   }, [fetchProductData]);
 
-  useEffect(() => {
-    const fetchPriceAlertStatus = async () => {
-      if (!token || !productId || !isInCart) {
-        setPriceAlertEnabled(false);
-        return;
-      }
-      try {
-        const res = await axios.get(
-          `${backendUrl}/api/notification/price-alert/status?productId=${productId}`,
-          { headers: { token } }
-        );
-        if (res.data.success) {
-          setPriceAlertEnabled(!!res.data.enabled);
-        }
-      } catch {
-        setPriceAlertEnabled(false);
-      }
-    };
-    fetchPriceAlertStatus();
-  }, [backendUrl, token, productId, isInCart]);
+  const {
+    reviews,
+    loadingReviews,
+    submittingReview,
+    formRating,
+    setFormRating,
+    formComment,
+    setFormComment,
+    editingReviewId,
+    hasPurchased,
+    filterStar,
+    setFilterStar,
+    reviewPage,
+    setReviewPage,
+    reviewTotalPages,
+    reviewTotal,
+    starCounts,
+    fetchReviews,
+    myReview,
+    newImages,
+    previewUrls,
+    keepImages,
+    handleSubmitReview,
+    handleImageChange,
+    removeNewImage,
+    removeKeepImage,
+    handleEditReview,
+    handleCancelEdit,
+    handleDeleteReview,
+  } = useProductReviews({
+    backendUrl,
+    productId,
+    token,
+    userId,
+    orderIdFromUrl,
+    onProductRefresh: refetchProduct,
+  });
 
-  const handleTogglePriceAlert = async (enabled) => {
-    if (!token) {
-      toast.info("Vui lòng đăng nhập để bật thông báo giảm giá.");
-      return;
-    }
-    if (!isInCart) {
-      toast.info("Hãy thêm sản phẩm vào giỏ hàng trước khi bật thông báo.");
-      return;
-    }
-    setPriceAlertLoading(true);
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/notification/price-alert/subscribe`,
-        { productId, enabled },
-        { headers: { token } }
-      );
-      if (res.data.success) {
-        setPriceAlertEnabled(!!res.data.enabled);
-        toast.success(enabled ? "Đã bật thông báo giảm giá." : "Đã tắt thông báo giảm giá.");
-      } else {
-        toast.error(res.data.message || "Không thể cập nhật thông báo.");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Không thể cập nhật thông báo.");
-    } finally {
-      setPriceAlertLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (productId) {
-      fetchReviews(1);
-      fetchStarDistribution();
-    }
-  }, [productId, fetchReviews, fetchStarDistribution]);
-
-  useEffect(() => {
-    const checkPurchase = async () => {
-      if (!token || !productId || !orderIdFromUrl) { setHasPurchased(false); return; }
-      try {
-        const res = await axios.post(
-          `${backendUrl}/api/review/can-review/${productId}`,
-          { orderId: orderIdFromUrl },
-          { headers: { token } }
-        );
-        setHasPurchased(res.data.canReview === true);
-      } catch {
-        setHasPurchased(false);
-      }
-    };
-    checkPurchase();
-  }, [token, productId, orderIdFromUrl, backendUrl]);
-
-  // Review của user cho đơn hàng hiện tại (nếu có orderId trên URL)
-  const myReview = orderIdFromUrl
-    ? reviews.find((r) => r.user && (r.user._id === userId || r.user === userId) && r.orderId === orderIdFromUrl)
-    : null;
-
-  const handleSubmitReview = async (e) => {
-    e.preventDefault();
-    if (!token) {
-      toast.info("Vui lòng đăng nhập để đánh giá.");
-      return;
-    }
-    setSubmittingReview(true);
-    try {
-      if (editingReviewId) {
-        const fd = new FormData();
-        fd.append("rating", formRating);
-        fd.append("comment", formComment);
-        keepImages.forEach((url) => fd.append("keepImages", url));
-        newImages.forEach((file) => fd.append("images", file));
-
-        const res = await axios.put(
-          `${backendUrl}/api/review/${editingReviewId}`,
-          fd,
-          { headers: { token } }
-        );
-        if (res.data.success) {
-          toast.success("Đã cập nhật đánh giá.");
-          handleCancelEdit();
-          await fetchReviews(reviewPage);
-          await refetchProduct();
-        } else toast.error(res.data.message || "Có lỗi.");
-      } else {
-        const fd = new FormData();
-        fd.append("productId", productId);
-        fd.append("orderId", orderIdFromUrl || "");
-        fd.append("rating", formRating);
-        fd.append("comment", formComment);
-        newImages.forEach((file) => fd.append("images", file));
-
-        const res = await axios.post(
-          `${backendUrl}/api/review`,
-          fd,
-          { headers: { token } }
-        );
-        if (res.data.success) {
-          toast.success("Đã gửi đánh giá.");
-          handleCancelEdit();
-          await fetchReviews(1);
-          await refetchProduct();
-        } else toast.error(res.data.message || "Có lỗi.");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Có lỗi khi gửi đánh giá.");
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    const totalAfter = keepImages.length + newImages.length + files.length;
-    if (totalAfter > 5) {
-      toast.error("Tối đa 5 ảnh mỗi đánh giá");
-      return;
-    }
-    setNewImages((prev) => [...prev, ...files]);
-    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    e.target.value = "";
-  };
-
-  const removeNewImage = (index) => {
-    URL.revokeObjectURL(previewUrls[index]);
-    setNewImages((prev) => prev.filter((_, i) => i !== index));
-    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeKeepImage = (url) => {
-    setKeepImages((prev) => prev.filter((u) => u !== url));
-  };
-
-  const handleEditReview = (review) => {
-    setEditingReviewId(review._id);
-    setFormRating(review.rating);
-    setFormComment(review.comment || "");
-    setKeepImages(review.images || []);
-    setNewImages([]);
-    setPreviewUrls([]);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingReviewId(null);
-    setFormRating(5);
-    setFormComment("");
-    setKeepImages([]);
-    setNewImages([]);
-    setPreviewUrls([]);
-  };
-
-  const handleDeleteReview = async (reviewId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa đánh giá?")) return;
-    try {
-      const res = await axios.delete(`${backendUrl}/api/review/${reviewId}`, {
-        headers: { token },
-      });
-      if (res.data.success) {
-        toast.success("Đã xóa đánh giá.");
-        setEditingReviewId(null);
-        setFormRating(5);
-        setFormComment("");
-        await fetchReviews(1);
-        await refetchProduct();
-      } else toast.error(res.data.message || "Có lỗi.");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Có lỗi khi xóa.");
-    }
-  };
-
+  const {
+    vendorFollowerCount,
+    priceAlertEnabled,
+    priceAlertLoading,
+    handleTogglePriceAlert,
+    handleStartChat,
+  } = useProductEngagement({
+    backendUrl,
+    token,
+    productId,
+    productData,
+    navigate,
+    trackInteraction,
+    isInCart,
+  });
   return productData ? (
     // neu productData ton tai thi render ra
     <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
@@ -992,336 +712,40 @@ const Product = () => {
           )}
 
           {activeTab === "reviews" && (
-            <div className="space-y-6">
-              {/* Tóm tắt đánh giá + bộ lọc sao */}
-              <div className="pb-4 border-b">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-center">
-                    <span className="text-4xl font-bold text-orange-600">
-                      {productData.rating?.toFixed(1) || "0"}
-                    </span>
-                    <div className="flex justify-center text-xl mt-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className={star <= Math.round(productData.rating || 0) ? "text-yellow-400" : "text-gray-300"}>★</span>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{productData.reviewCount ?? 0} đánh giá</p>
-                  </div>
-                  {/* Thanh phân bố sao */}
-                  <div className="flex-1 space-y-1">
-                    {[5, 4, 3, 2, 1].map((s) => {
-                      const count = starCounts[s] || 0;
-                      const total = Object.values(starCounts).reduce((a, b) => a + b, 0);
-                      const pct = total > 0 ? (count / total) * 100 : 0;
-                      return (
-                        <div key={s} className="flex items-center gap-2 text-xs">
-                          <span className="w-4 text-right text-gray-600">{s}</span>
-                          <span className="text-yellow-400">★</span>
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-yellow-400 h-2 rounded-full transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="w-6 text-gray-500">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Nút lọc theo sao */}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => { setFilterStar(0); fetchReviews(1, 0); }}
-                    className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                      filterStar === 0
-                        ? "bg-orange-500 text-white border-orange-500"
-                        : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
-                    }`}
-                  >
-                    Tất cả ({productData.reviewCount ?? 0})
-                  </button>
-                  {[5, 4, 3, 2, 1].map((s) => {
-                    const count = starCounts[s] || 0;
-                    if (count === 0) return null;
-                    return (
-                      <button
-                        key={s}
-                        onClick={() => { setFilterStar(s); fetchReviews(1, s); }}
-                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                          filterStar === s
-                            ? "bg-orange-500 text-white border-orange-500"
-                            : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
-                        }`}
-                      >
-                        {s} ★ ({count})
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Form gửi / sửa đánh giá */}
-              {!token && (
-                <p className="text-gray-500 text-sm">Đăng nhập để viết đánh giá.</p>
-              )}
-              {token && !hasPurchased && !myReview && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-                  <span className="text-yellow-500 text-lg">🛍️</span>
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800">Chỉ có thể đánh giá sau khi nhận hàng</p>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      {orderIdFromUrl
-                        ? "Đơn hàng này chưa được giao hoặc bạn đã đánh giá sản phẩm này cho đơn hàng đó rồi."
-                        : "Vào trang Đơn mua và bấm \"Đánh Giá\" sau khi đơn hàng được giao thành công."}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {/* Đã có review nhưng không đang chỉnh sửa → hiện thông báo */}
-              {token && myReview && !editingReviewId && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-600 text-lg">✓</span>
-                    <p className="text-sm font-medium text-green-800">Bạn đã đánh giá sản phẩm này</p>
-                  </div>
-                  <button
-                    onClick={() => handleEditReview(myReview)}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Chỉnh sửa
-                  </button>
-                </div>
-              )}
-              {/* Form viết mới hoặc chỉnh sửa */}
-              {token && (hasPurchased || myReview) && (!myReview || editingReviewId) && (
-                <div className="bg-white p-4 rounded-lg border">
-                  <p className="font-medium text-gray-800 mb-3">
-                    {editingReviewId ? "Chỉnh sửa đánh giá" : "Viết đánh giá"}
-                  </p>
-                  <form onSubmit={handleSubmitReview} className="space-y-3">
-                    {/* Sao */}
-                    <div>
-                      <span className="text-sm text-gray-600 mr-2">Điểm:</span>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFormRating(star)}
-                          className="text-2xl focus:outline-none"
-                        >
-                          <span className={formRating >= star ? "text-yellow-400" : "text-gray-300"}>★</span>
-                        </button>
-                      ))}
-                      <span className="ml-2 text-sm font-medium">{formRating}/5</span>
-                    </div>
-                    {/* Nội dung */}
-                    <div>
-                      <textarea
-                        value={formComment}
-                        onChange={(e) => setFormComment(e.target.value)}
-                        placeholder="Chia sẻ trải nghiệm của bạn (tùy chọn)"
-                        className="w-full border rounded-lg p-3 text-sm min-h-[80px]"
-                        maxLength={500}
-                      />
-                    </div>
-                    {/* Upload ảnh */}
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">Ảnh đánh giá (tối đa 5):</p>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {/* Ảnh cũ giữ lại (khi edit) */}
-                        {keepImages.map((url) => (
-                          <div key={url} className="relative w-20 h-20">
-                            <img src={url} className="w-full h-full object-cover rounded-lg border" alt="review" />
-                            <button
-                              type="button"
-                              onClick={() => removeKeepImage(url)}
-                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
-                            >×</button>
-                          </div>
-                        ))}
-                        {/* Ảnh mới preview */}
-                        {previewUrls.map((url, i) => (
-                          <div key={url} className="relative w-20 h-20">
-                            <img src={url} className="w-full h-full object-cover rounded-lg border" alt="preview" />
-                            <button
-                              type="button"
-                              onClick={() => removeNewImage(i)}
-                              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
-                            >×</button>
-                          </div>
-                        ))}
-                        {/* Nút thêm ảnh */}
-                        {keepImages.length + newImages.length < 5 && (
-                          <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 transition-colors">
-                            <span className="text-2xl text-gray-400">+</span>
-                            <span className="text-xs text-gray-400">Thêm ảnh</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              className="hidden"
-                              onChange={handleImageChange}
-                            />
-                          </label>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-400">Đã chọn: {keepImages.length + newImages.length}/5 ảnh</p>
-                    </div>
-                    {/* Nút gửi */}
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={submittingReview}
-                        className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                      >
-                        {submittingReview ? "Đang gửi..." : editingReviewId ? "Cập nhật" : "Gửi đánh giá"}
-                      </button>
-                      {editingReviewId && (
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="border border-gray-300 px-4 py-2 rounded-lg text-sm"
-                        >
-                          Hủy
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {/* Danh sách đánh giá */}
-              <div>
-                <p className="font-medium text-gray-800 mb-3">
-                  {filterStar === 0
-                    ? `Tất cả đánh giá (${reviewTotal})`
-                    : `Đánh giá ${filterStar} sao (${reviewTotal})`}
-                </p>
-                {loadingReviews ? (
-                  <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    Đang tải...
-                  </div>
-                ) : reviews.length === 0 ? (
-                  <p className="text-gray-500 py-4">
-                    {filterStar === 0 ? "Chưa có đánh giá nào." : `Không có đánh giá ${filterStar} sao nào.`}
-                  </p>
-                ) : (
-                  <>
-                  <ul className="space-y-4">
-                    {reviews.map((review) => (
-                      <li key={review._id} className="border-b pb-4 last:border-0">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-800">
-                              {review.user?.name ?? "Ẩn danh"}
-                            </span>
-                            <span className="flex text-yellow-400 text-sm">
-                              {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
-                            </span>
-                            <span className="text-gray-400 text-xs">
-                              {review.createdAt
-                                ? new Date(review.createdAt).toLocaleDateString("vi-VN")
-                                : ""}
-                            </span>
-                          </div>
-                          {review.user && (review.user._id === userId || review.user === userId) && (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleEditReview(review)}
-                                className="text-sm text-blue-600 hover:underline"
-                              >
-                                Sửa
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteReview(review._id)}
-                                className="text-sm text-red-600 hover:underline"
-                              >
-                                Xóa
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {review.comment && (
-                          <p className="text-gray-700 text-sm mt-1">{review.comment}</p>
-                        )}
-                        {review.images && review.images.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {review.images.map((url, i) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                <img
-                                  src={url}
-                                  alt={`review-img-${i}`}
-                                  className="w-16 h-16 object-cover rounded-lg border hover:opacity-90 transition-opacity"
-                                />
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Phân trang */}
-                  {reviewTotalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-6">
-                      <button
-                        onClick={() => { const p = reviewPage - 1; setReviewPage(p); fetchReviews(p, filterStar); }}
-                        disabled={reviewPage <= 1}
-                        className="px-3 py-1.5 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                      >
-                        ← Trước
-                      </button>
-
-                      {/* Số trang */}
-                      {Array.from({ length: reviewTotalPages }, (_, i) => i + 1)
-                        .filter(p => p === 1 || p === reviewTotalPages || Math.abs(p - reviewPage) <= 2)
-                        .reduce((acc, p, idx, arr) => {
-                          if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
-                          acc.push(p);
-                          return acc;
-                        }, [])
-                        .map((item, idx) =>
-                          item === '...' ? (
-                            <span key={`dots-${idx}`} className="px-2 text-gray-400 text-sm">…</span>
-                          ) : (
-                            <button
-                              key={item}
-                              onClick={() => { setReviewPage(item); fetchReviews(item, filterStar); }}
-                              className={`w-8 h-8 rounded text-sm transition-colors ${
-                                reviewPage === item
-                                  ? 'bg-orange-500 text-white font-medium'
-                                  : 'border hover:bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              {item}
-                            </button>
-                          )
-                        )
-                      }
-
-                      <button
-                        onClick={() => { const p = reviewPage + 1; setReviewPage(p); fetchReviews(p, filterStar); }}
-                        disabled={reviewPage >= reviewTotalPages}
-                        className="px-3 py-1.5 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-                      >
-                        Sau →
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-center text-xs text-gray-400 mt-2">
-                    Trang {reviewPage} / {reviewTotalPages}
-                  </p>
-                  </>
-                )}
-              </div>
-            </div>
+            <ProductReviewsSection
+              productData={productData}
+              starCounts={starCounts}
+              filterStar={filterStar}
+              setFilterStar={setFilterStar}
+              fetchReviews={fetchReviews}
+              token={token}
+              hasPurchased={hasPurchased}
+              myReview={myReview}
+              editingReviewId={editingReviewId}
+              handleEditReview={handleEditReview}
+              orderIdFromUrl={orderIdFromUrl}
+              handleSubmitReview={handleSubmitReview}
+              formRating={formRating}
+              setFormRating={setFormRating}
+              formComment={formComment}
+              setFormComment={setFormComment}
+              keepImages={keepImages}
+              newImages={newImages}
+              previewUrls={previewUrls}
+              removeKeepImage={removeKeepImage}
+              removeNewImage={removeNewImage}
+              handleImageChange={handleImageChange}
+              submittingReview={submittingReview}
+              handleCancelEdit={handleCancelEdit}
+              reviewTotal={reviewTotal}
+              loadingReviews={loadingReviews}
+              reviews={reviews}
+              userId={userId}
+              handleDeleteReview={handleDeleteReview}
+              reviewTotalPages={reviewTotalPages}
+              reviewPage={reviewPage}
+              setReviewPage={setReviewPage}
+            />
           )}
         </div>
       </div>
@@ -1337,3 +761,4 @@ const Product = () => {
 };
 
 export default Product;
+

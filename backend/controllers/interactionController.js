@@ -1,6 +1,18 @@
 import { trackInteractionService, getRecommendationsService } from "../services/interactionService.js";
 
-const VALID_INTERACTIONS = ["viewed", "clicked", "searched", "timeSpent"];
+const VALID_INTERACTIONS = [
+    "purchased",
+    "rated",
+    "reviewed",
+    "addedToCart",
+    "wishlisted",
+    "viewed",
+    "clicked",
+    "searched",
+    "timeSpent",
+];
+const DEFAULT_RECOMMENDATION_LIMIT = 40;
+const MAX_RECOMMENDATION_LIMIT = 100;
 
 const trackInteraction = async (req, res) => {
     try {
@@ -23,7 +35,9 @@ const getRecommendations = async (req, res) => {
     try {
         const { userId } = req.body;
         const parsedLimit = Number.parseInt(req.query.limit, 10);
-        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+            ? Math.min(parsedLimit, MAX_RECOMMENDATION_LIMIT)
+            : DEFAULT_RECOMMENDATION_LIMIT;
         const products = await getRecommendationsService(userId, limit);
         res.json({ success: true, products });
     } catch (error) {

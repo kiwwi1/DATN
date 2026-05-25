@@ -1,17 +1,51 @@
 import userInteractionModel from "../models/userInteractionModel.js";
 import productModel from "../models/productModel.js";
 
+const ALLOWED_INTERACTIONS = new Set([
+    "purchased",
+    "rated",
+    "reviewed",
+    "addedToCart",
+    "wishlisted",
+    "viewed",
+    "clicked",
+    "searched",
+    "timeSpent",
+]);
+const BOOLEAN_INTERACTIONS = new Set(["reviewed", "wishlisted"]);
+
 const normalizeLimit = (limit) => {
     return Number.isFinite(limit) && limit > 0 ? limit : null;
 };
 
+const normalizeNumericValue = (value) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) return 1;
+    return Math.max(0, parsedValue);
+};
+
+const buildInteractionUpdate = (interactionType, value) => {
+    if (BOOLEAN_INTERACTIONS.has(interactionType)) {
+        return {
+            $set: {
+                [`interactions.${interactionType}`]: true,
+                lastInteraction: new Date(),
+            },
+        };
+    }
+
+    return {
+        $inc: { [`interactions.${interactionType}`]: normalizeNumericValue(value) },
+        $set: { lastInteraction: new Date() },
+    };
+};
+
 const incrementInteraction = async (userId, productId, interactionType, value, useUpsert) => {
+    const update = buildInteractionUpdate(interactionType, value);
+
     return userInteractionModel.findOneAndUpdate(
         { userId, productId },
-        {
-            $inc: { [`interactions.${interactionType}`]: value },
-            $set: { lastInteraction: new Date() }
-        },
+        update,
         { upsert: useUpsert, new: true }
     );
 };
@@ -114,6 +148,13 @@ const getItemBasedRecs = async (userId, limit) => {
 };
 
 export const trackInteractionService = async (userId, productId, interactionType, value = 1) => {
+    if (!userId || !productId) {
+        throw Object.assign(new Error("userId and productId are required"), { status: 400 });
+    }
+    if (!ALLOWED_INTERACTIONS.has(interactionType)) {
+        throw Object.assign(new Error("Invalid interaction type"), { status: 400 });
+    }
+
     let updated;
     try {
         updated = await incrementInteraction(userId, productId, interactionType, value, true);

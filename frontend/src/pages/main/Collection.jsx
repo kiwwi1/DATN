@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useContext } from 'react';
 import { ShopContext } from '../../context/ShopContext';
 import ProductItem from '../../components/product/ProductItem';
@@ -16,9 +16,8 @@ const SORT_OPTIONS = [
 const ITEMS_PER_PAGE = 30;
 
 const Collection = () => {
-  const { products, homepageCategories, trackInteraction, token } = useContext(ShopContext);
+  const { products, homepageCategories } = useContext(ShopContext);
   const [searchParams] = useSearchParams();
-  const trackedSearchTermRef = useRef('');
 
   const [filterProducts, setFilterProducts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -119,24 +118,7 @@ const Collection = () => {
     }
     setFilterProducts(copy);
     setCurrentPage(1);
-
-    // Track searched signal cho top 5 sản phẩm khi user đang tìm kiếm
   }, [selectedCategories, products, sortType, searchParams, appliedMin, appliedMax, getAllChildrenCategoryIds]);
-
-  useEffect(() => {
-    const searchTerm = searchParams.get('search') || '';
-    const normalizedSearchTerm = normalizeSearchText(searchTerm);
-
-    if (!normalizedSearchTerm) {
-      trackedSearchTermRef.current = '';
-      return;
-    }
-    if (!token || filterProducts.length === 0) return;
-    if (trackedSearchTermRef.current === normalizedSearchTerm) return;
-
-    trackedSearchTermRef.current = normalizedSearchTerm;
-    filterProducts.slice(0, 5).forEach((p) => trackInteraction(p._id, 'searched'));
-  }, [searchParams, token, filterProducts, trackInteraction]);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [currentPage]);
 
@@ -497,3 +479,5 @@ const Collection = () => {
 };
 
 export default Collection;
+
+

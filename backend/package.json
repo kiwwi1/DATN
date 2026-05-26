@@ -21,6 +21,7 @@
     "fix-primary-product-image": "node scripts/fixPrimaryProductImage.js",
     "generate-unique-products": "node scripts/generateUniqueProducts.js",
     "generate-marketplace-products": "node scripts/generateMarketplaceProducts.js",
+    "seed-vouchers": "node scripts/seedVouchers.js",
     "sync-locations": "node scripts/syncVietnamLocations.js",
     "migrate-refs": "node scripts/migrate-order-notification-refs.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"

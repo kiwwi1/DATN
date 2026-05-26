@@ -5,6 +5,7 @@ import {
     placeOrderStripe,
     verifyStripePayment,
     placeOrderVNPay,
+    previewOrder,
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,
@@ -24,6 +25,7 @@ orderRouter.get('/vendor-stats', vendorAuth, vendorStats);
 //Payment Features
 orderRouter.post('/place-order',authUser, placeOrder);
 orderRouter.post('/place-order-stripe',authUser, placeOrderStripe);
+orderRouter.post('/preview', authUser, previewOrder);
 
 // User Features
 orderRouter.post('/user-orders',authUser, userOrders);

@@ -31,6 +31,14 @@ const PlaceOrder = () => {
     onChangeHandler,
     onProvinceChange,
     onSubmitHandler,
+    voucherInput,
+    setVoucherInput,
+    voucherCodes,
+    applyVoucherInput,
+    removeVoucherCode,
+    pricingSummary,
+    rejectedVouchers,
+    previewLoading,
   } = usePlaceOrderCheckout({
     navigate,
     cartItems,
@@ -74,7 +82,46 @@ const PlaceOrder = () => {
 
       <div className="mt-8">
         <div className="mt-8 min-w-80">
-          <CartTotal selectedTotal={selectedTotal > 0 ? selectedTotal : undefined} />
+          <CartTotal
+            selectedTotal={selectedTotal > 0 ? selectedTotal : undefined}
+            pricing={pricingSummary}
+          />
+          <div className="mt-4 rounded border border-gray-200 p-3">
+            <p className="mb-2 text-sm font-medium text-gray-700">Voucher</p>
+            <div className="flex gap-2">
+              <input
+                value={voucherInput}
+                onChange={(event) => setVoucherInput(event.target.value)}
+                placeholder="Nhap ma voucher"
+                className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={applyVoucherInput}
+                className="rounded bg-black px-3 py-2 text-xs text-white"
+              >
+                Ap dung
+              </button>
+            </div>
+            {voucherCodes.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {voucherCodes.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => removeVoucherCode(code)}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600"
+                  >
+                    {code} x
+                  </button>
+                ))}
+              </div>
+            )}
+            {rejectedVouchers.length > 0 && (
+              <p className="mt-2 text-xs text-red-500">{rejectedVouchers[0]?.reason}</p>
+            )}
+            {previewLoading && <p className="mt-2 text-xs text-gray-500">Dang cap nhat gia...</p>}
+          </div>
         </div>
 
         <div className="mt-12">

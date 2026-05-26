@@ -1,0 +1,55 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\begin{center}
+    \Large{\textbf{CHƯƠNG 1. GIỚI THIỆU}}\\
+\end{center}
+\vspace{1cm}
+
+Chương 1 đặt nền móng cho toàn bộ nghiên cứu của đồ án bằng cách giới thiệu bối cảnh bài toán, đặt vấn đề khoa học và thực tiễn, từ đó xác lập mục tiêu, phạm vi nghiên cứu cùng định hướng giải pháp kỹ thuật cụ thể. Nội dung chương sẽ lần lượt trình bày về: đặt vấn đề về sự bùng nổ của mô hình thương mại điện tử đa nhà bán hàng cùng các thách thức lớn về tải và bảo mật trong phần \ref{section:1.1}; mục tiêu và phạm vi cụ thể của đề tài trong phần \ref{section:1.2}; định hướng giải pháp kỹ thuật lựa chọn bao gồm MERN Stack, Redis và Socket.IO trong phần \ref{section:1.3}; và sau cùng là bố cục chi tiết của quyển báo cáo đồ án tốt nghiệp trong phần \ref{section:1.4}.
+
+\section{Đặt vấn đề}
+\label{section:1.1}
+Trong kỷ nguyên số hóa mạnh mẽ và sự chuyển dịch kinh tế toàn cầu, thương mại điện tử (E-commerce) đã trở thành một phần tất yếu trong đời sống xã hội và là động lực phát triển kinh tế quan trọng. Đặc biệt, mô hình sàn giao dịch thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace) – nơi nhiều thương nhân cùng đăng ký mở gian hàng độc lập và tương tác với đông đảo người mua – đang chiếm ưu thế vượt trội nhờ khả năng tối ưu hóa chi phí vận hành và đa dạng hóa nguồn hàng. Tuy nhiên, sự phát triển bùng nổ này cũng đi kèm với những thách thức công nghệ vô cùng phức tạp mà các nền tảng thương mại điện tử thế hệ cũ chưa thể giải quyết triệt để.
+
+Thách thức lớn nhất đến từ sự tranh chấp tài nguyên trong môi trường đồng thời tải cao (High Concurrency). Vào các khung giờ cao điểm hoặc chiến dịch Flash Sale lớn, hàng chục nghìn lượt truy cập đồng thời đổ dồn về một số mặt hàng hot, dẫn đến hiện tượng tranh chấp tài nguyên ở tầng dữ liệu. Các kiến trúc thông thường sử dụng cơ chế đọc-sửa-ghi (Read-Modify-Write) rất dễ dẫn đến lỗi bán quá số lượng thực tế trong kho (overselling), gây thiệt hại nghiêm trọng đến uy tín của nhà bán hàng và làm gián đoạn trải nghiệm người tiêu dùng. Bên cạnh đó, an toàn thông tin và bảo mật phiên đăng nhập cũng là vấn đề nan giải. Việc tách biệt hệ thống đăng nhập quản trị (Admin) và người dùng cuối thường tạo ra bề mặt tấn công rộng lớn, dễ bị rò rỉ mã khóa token qua URL query hoặc các cuộc tấn công Brute-force/spam OTP gây lãng phí tài nguyên máy chủ. Ngoài ra, việc thiếu đi các mô hình cá nhân hóa trải nghiệm khách hàng thông minh khiến nền tảng giảm tỷ lệ chuyển đổi, trong khi các thuật toán khuyến nghị sản phẩm truyền thống thường chịu hạn chế về tính cập nhật và gặp lỗi khởi đầu lạnh (Cold Start). Xuất phát từ thực tế đó, đề tài tập trung nghiên cứu, thiết kế và phát triển một hệ thống sàn thương mại điện tử đa nhà bán hàng hiệu năng cao, tích hợp các cơ chế giữ kho nguyên tử, bảo mật đa lớp bằng bộ nhớ đệm và động cơ khuyến nghị lai tự động để giải quyết trọn vẹn ba nút thắt kỹ thuật lớn nêu trên.
+
+\section{Mục tiêu và phạm vi đề tài}
+\label{section:1.2}
+Hiện nay, đa số các nghiên cứu và sản phẩm thương mại điện tử hiện có trên thị trường thường tập trung vào việc làm phong phú thêm giao diện người dùng mà bỏ qua việc tối ưu hóa tầng xử lý giao dịch đồng thời và an toàn dữ liệu ở tầng backend. Các sàn giao dịch hiện tại thường gánh chịu độ trễ lớn khi thực hiện tính toán các khuyến mãi phức tạp, hoặc phải sử dụng các giải pháp phần cứng đắt đỏ để che giấu các lỗ hổng kiến trúc phần mềm. 
+
+Dựa trên các phân tích và đánh giá trên, đồ án hướng tới mục tiêu xây dựng một nền tảng sàn thương mại điện tử đa nhà bán hàng toàn diện, an toàn, có khả năng chịu tải tốt và cá nhân hóa trải nghiệm người dùng tối đa. Về mặt phạm vi, đề tài tập trung giải quyết các nhiệm vụ cốt lõi sau:
+(i) Thiết kế và phát triển hệ thống backend chịu tải cao sử dụng cơ chế giữ kho nguyên tử ở tầng cơ sở dữ liệu kết hợp khóa chống trùng đơn (idempotency key) để triệt tiêu hoàn toàn lỗi oversell;
+(ii) Củng cố bảo mật hệ thống thông qua mô hình tài khoản hợp nhất (Unified User/Vendor) hoạt động trên giao thức HTTPS bảo vệ bởi Redis rate-limit và cơ chế xoay vòng Refresh Token Rotation (RTR);
+(iii) Hiện thực hóa công cụ tính giảm giá 4 lớp an toàn tuyệt đối xử lý 100\% tại backend;
+(iv) Xây dựng động cơ khuyến nghị sản phẩm lai (Hybrid Recommendation Engine) dựa trên điểm tương tác người dùng (Interaction Score) có áp dụng hệ số suy hao thời gian thực tế; và
+(v) Thiết kế giao diện React đồng bộ bao gồm trang mua sắm cho người dùng cuối và bảng điều khiển phân tích số liệu trực quan cho đối tác bán hàng.
+
+\section{Định hướng giải pháp}
+\label{section:1.3}
+Để đạt được các mục tiêu đặt ra, đồ án lựa chọn bộ giải pháp công nghệ hiện đại và đồng bộ sau:
+\begin{itemize}
+\item \textbf{Kiến trúc MERN Stack (MongoDB, Express, React, Node.js):} Sử dụng Node.js và Express ở backend cung cấp cơ chế non-blocking I/O hiệu năng cao để xử lý hàng nghìn kết nối đồng thời. Cơ sở dữ liệu MongoDB hỗ trợ mô hình tài liệu linh hoạt (document-based), rất phù hợp với cấu trúc phân cấp đa dạng của sản phẩm và đơn hàng đa nhà bán hàng. React mang lại giao diện người dùng mượt mà kiểu Single Page Application (SPA).
+\item \textbf{Bộ nhớ đệm tốc độ cao Redis:} Đóng vai trò là lớp bảo mật xác thực (Rate-limiter) và lưu giữ danh sách đen (Deny-list) của các token đã bị thu hồi hiệu lực trước thời hạn, giúp giảm tải tối đa cho cơ sở dữ liệu chính MongoDB.
+\item \textbf{Kênh truyền thời gian thực Socket.IO:} Thiết lập kênh truyền dữ liệu hai chiều thời gian thực (duy trì bằng JWT auth), phục vụ cho hệ thống chat trực tuyến tức thời giữa người mua và người bán.
+\item \textbf{Tích hợp thanh toán trực tuyến qua cổng Stripe và VNPay:} Bảo đảm luồng giao dịch tài chính diễn ra an toàn, minh bạch và hoàn toàn tự động qua webhook phản hồi gọi ngược (Webhook HTTP callback).
+\end{itemize}
+
+\section{Bố cục đồ án}
+\label{section:1.4}
+Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ chức như sau.
+
+Chương 2 trình bày về phân tích thiết kế hệ thống bao gồm khảo sát hiện trạng thực tế, mô tả tổng quan chức năng qua biểu đồ ca sử dụng (Use Case) tổng quát và phân rã các phân hệ, vẽ quy trình nghiệp vụ mua bán giữ kho và đặc tả chi tiết các ca sử dụng then chốt cùng các yêu cầu phi chức năng.
+
+Trong Chương 3, tôi giới thiệu về kiến trúc chi tiết và thiết kế cơ sở dữ liệu bao gồm sơ đồ tuần tự (Sequence Diagram) tương tác của hệ thống, thiết kế cấu trúc các bảng dữ liệu MongoDB và lược đồ thực thể (Entity Schemas) chi tiết.
+
+Chương 4 thảo luận sâu sắc về thuật toán then chốt và giải pháp công nghệ của đồ án bao gồm thuật toán giữ kho nguyên tử ở tầng cơ sở dữ liệu chống lỗi oversell, hệ khuyến nghị sản phẩm lai Hybrid (Collaborative + Content-based) có suy hao thời gian thực tế và cơ chế rate limit đa cửa sổ của Redis.
+
+Trong Chương 5, tôi trình bày hiện thực hóa hệ thống, giao diện ứng dụng thực tế trên React (màn hình mua sắm và trang phân tích số liệu Recharts của Merchant), cùng đánh giá thực nghiệm kịch bản giả lập đồng thời lớn.
+
+Chương 6 đưa ra kết luận quan trọng, đánh giá mức độ hoàn thành và định hướng phát triển mở rộng của đề tài trong tương lai.
+
+\section*{Kết chương}
+Chương 1 đã phác thảo toàn bộ bức tranh tổng quan của đồ án từ bối cảnh bùng nổ của mô hình sàn thương mại điện tử đa nhà bán hàng cho đến những vấn đề cốt lõi về tranh chấp tồn kho đồng thời và an toàn bảo mật hệ thống. Từ các mục tiêu cụ thể, đồ án đã đề xuất định hướng giải pháp toàn diện bằng sự kết hợp giữa kiến trúc MERN Stack, bộ đệm Redis và kênh thời gian thực Socket.IO. Những cơ sở lý thuyết và công nghệ chi tiết làm nền tảng cho việc thiết kế, cài đặt hệ thống này sẽ được thảo luận kỹ lưỡng trong chương tiếp theo – Chương 2.
+
+\end{document}

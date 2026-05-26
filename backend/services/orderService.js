@@ -6,6 +6,12 @@ import { createNotification } from "./notificationService.js";
 import { trackInteractionService } from "./interactionService.js";
 import { buildVNPayUrl, verifyVNPaySignature } from "../utils/vnpay.js";
 import {
+    claimVoucherUsage,
+    computeOrderPricing,
+    loadAndValidateVouchers,
+    releaseVoucherUsage,
+} from "./voucherService.js";
+import {
     deleteOrderService,
     updateOrderStatusService,
     vendorOrdersService,
@@ -166,6 +172,63 @@ const sanitizeOrderAmount = (items) => {
         itemsSubtotal,
         shippingFee,
         totalAmount: itemsSubtotal + shippingFee,
+    };
+};
+
+const buildVoucherError = (rejectedVouchers = []) => {
+    const firstRejected = rejectedVouchers[0];
+    const message = firstRejected?.reason || "Voucher khong hop le";
+    const error = Object.assign(new Error(message), { status: 400 });
+    error.code = "INVALID_VOUCHER";
+    error.items = rejectedVouchers;
+    return error;
+};
+
+const extractOrderVendorIds = (items = []) =>
+    Array.from(new Set(items.map((item) => String(item.vendorId || "")).filter(Boolean)));
+
+const buildOrderPricingWithVouchers = async ({
+    items,
+    voucherCodes = [],
+    strict = true,
+}) => {
+    const { shippingFee } = sanitizeOrderAmount(items);
+    const { vouchers, rejectedVouchers: rejectedOnLoad, normalizedCodes } = await loadAndValidateVouchers({
+        voucherCodes,
+        vendorIds: extractOrderVendorIds(items),
+    });
+
+    const pricingResult = computeOrderPricing({
+        items,
+        vouchers,
+        shippingFee,
+    });
+
+    const rejectedMap = new Map();
+    for (const rejected of [...rejectedOnLoad, ...pricingResult.rejectedVouchers]) {
+        const code = String(rejected.code || "").trim().toUpperCase();
+        if (!code || rejectedMap.has(code)) continue;
+        rejectedMap.set(code, rejected);
+    }
+    const rejectedVouchers = Array.from(rejectedMap.values());
+
+    if (strict && rejectedVouchers.length > 0) {
+        throw buildVoucherError(rejectedVouchers);
+    }
+
+    return {
+        pricing: {
+            subtotal: pricingResult.subtotal,
+            shopDiscount: pricingResult.shopDiscount,
+            platformDiscount: pricingResult.platformDiscount,
+            shippingFee: pricingResult.shippingFee,
+            shippingDiscount: pricingResult.shippingDiscount,
+            finalTotal: pricingResult.finalTotal,
+        },
+        appliedVouchers: pricingResult.appliedVouchers,
+        rejectedVouchers,
+        normalizedCodes,
+        shopDiscountByVendor: pricingResult.shopDiscountByVendor,
     };
 };
 
@@ -373,7 +436,7 @@ const reserveStockByUnits = async (reservationUnits) => {
     }
 };
 
-const prepareItemsAndReserveStock = async (rawItems) => {
+const normalizeOrderItems = async (rawItems) => {
     validateOrderItems(rawItems);
 
     const productIds = [...new Set(rawItems.map((item) => String(item._id)))];
@@ -383,8 +446,11 @@ const prepareItemsAndReserveStock = async (rawItems) => {
 
     await ensureProductVariantKeys(products);
     const productMap = new Map(products.map((product) => [String(product._id), product]));
+    return enrichItemsWithVariantKey(rawItems, productMap);
+};
 
-    const normalizedItems = enrichItemsWithVariantKey(rawItems, productMap);
+const prepareItemsAndReserveStock = async (rawItems) => {
+    const normalizedItems = await normalizeOrderItems(rawItems);
     const reservationUnits = buildReservationUnits(normalizedItems);
     await reserveStockByUnits(reservationUnits);
 
@@ -404,13 +470,19 @@ const releaseStockByItems = async (items) => {
     await releaseStockByUnits(reservationUnits);
 };
 
-const buildVendorsMap = (items) => {
+const buildVendorsMap = (items, shopDiscountByVendor = new Map()) => {
     const vendorsMap = new Map();
     items.forEach((item) => {
         if (!item.vendorId) return;
         const key = item.vendorId.toString();
         if (!vendorsMap.has(key)) {
-            vendorsMap.set(key, { vendorId: item.vendorId, vendorShopName: item.vendorShopName || "", items: [], subtotal: 0 });
+            vendorsMap.set(key, {
+                vendorId: item.vendorId,
+                vendorShopName: item.vendorShopName || "",
+                items: [],
+                subtotal: 0,
+                voucherDiscount: 0,
+            });
         }
         const vendor = vendorsMap.get(key);
         vendor.items.push({
@@ -428,6 +500,12 @@ const buildVendorsMap = (items) => {
         });
         vendor.subtotal += item.price * item.quantity;
     });
+    for (const [vendorId, discount] of shopDiscountByVendor.entries()) {
+        const foundVendor = vendorsMap.get(String(vendorId));
+        if (foundVendor) {
+            foundVendor.voucherDiscount = Math.round(Number(discount || 0));
+        }
+    }
     return Array.from(vendorsMap.values());
 };
 
@@ -458,9 +536,31 @@ const findOrderByIdempotency = async (userId, idempotencyKey) => {
     return orderModel.findOne({ userId, idempotencyKey }).lean();
 };
 
+export const previewOrderPricingService = async ({ items, voucherCodes = [] }) => {
+    const normalizedItems = await normalizeOrderItems(items);
+    const pricingResult = await buildOrderPricingWithVouchers({
+        items: normalizedItems,
+        voucherCodes,
+        strict: false,
+    });
+
+    return {
+        pricing: pricingResult.pricing,
+        appliedVouchers: pricingResult.appliedVouchers,
+        rejectedVouchers: pricingResult.rejectedVouchers,
+    };
+};
+
 // â”€â”€â”€ Place Order (COD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const placeOrderService = async ({ userId, items, amount: _clientAmount, address, idempotencyKey }) => {
+export const placeOrderService = async ({
+    userId,
+    items,
+    amount: _clientAmount,
+    address,
+    voucherCodes = [],
+    idempotencyKey,
+}) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
     const normalizedIdempotencyKey = sanitizeIdempotencyKey(idempotencyKey);
@@ -468,17 +568,36 @@ export const placeOrderService = async ({ userId, items, amount: _clientAmount, 
     if (existed) return existed;
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
-    const { totalAmount } = sanitizeOrderAmount(normalizedItems);
+    let pricingResult;
+    try {
+        pricingResult = await buildOrderPricingWithVouchers({
+            items: normalizedItems,
+            voucherCodes,
+            strict: true,
+        });
+    } catch (error) {
+        await releaseStockByItems(normalizedItems).catch(() => {});
+        throw error;
+    }
+
+    try {
+        await claimVoucherUsage(pricingResult.appliedVouchers);
+    } catch (error) {
+        await releaseStockByItems(normalizedItems).catch(() => {});
+        throw error;
+    }
 
     const now = Date.now();
-    const vendors = buildVendorsMap(normalizedItems);
+    const vendors = buildVendorsMap(normalizedItems, pricingResult.shopDiscountByVendor);
 
     let newOrder;
     try {
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount: totalAmount,
+            amount: pricingResult.pricing.finalTotal,
+            pricing: pricingResult.pricing,
+            appliedVouchers: pricingResult.appliedVouchers,
             address,
             paymentMethod: 'COD',
             payment: false,
@@ -490,6 +609,7 @@ export const placeOrderService = async ({ userId, items, amount: _clientAmount, 
         });
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         if (error?.code === 11000 && normalizedIdempotencyKey) {
             const duplicate = await findOrderByIdempotency(userId, normalizedIdempotencyKey);
             if (duplicate) return duplicate;
@@ -519,6 +639,7 @@ export const placeOrderService = async ({ userId, items, amount: _clientAmount, 
         return newOrder;
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         await updateProductSold(normalizedItems, -1).catch(() => {});
         throw error;
     }
@@ -526,7 +647,15 @@ export const placeOrderService = async ({ userId, items, amount: _clientAmount, 
 
 // â”€â”€â”€ Place Order (Stripe) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const placeOrderStripeService = async ({ userId, items, amount: _clientAmount, address, origin, idempotencyKey }) => {
+export const placeOrderStripeService = async ({
+    userId,
+    items,
+    amount: _clientAmount,
+    address,
+    origin,
+    voucherCodes = [],
+    idempotencyKey,
+}) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
     const safeOrigin = String(origin || process.env.FRONTEND_URL || '').trim();
@@ -541,21 +670,37 @@ export const placeOrderStripeService = async ({ userId, items, amount: _clientAm
     }
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
-    const { totalAmount, shippingFee } = sanitizeOrderAmount(normalizedItems);
+    let pricingResult;
+    try {
+        pricingResult = await buildOrderPricingWithVouchers({
+            items: normalizedItems,
+            voucherCodes,
+            strict: true,
+        });
+        await claimVoucherUsage(pricingResult.appliedVouchers);
+    } catch (error) {
+        await releaseStockByItems(normalizedItems).catch(() => {});
+        throw error;
+    }
+    const { finalTotal } = pricingResult.pricing;
 
     const STRIPE_VND_LIMIT = 99_999_999;
-    if (currency === 'vnd' && totalAmount > STRIPE_VND_LIMIT) {
+    if (currency === 'vnd' && finalTotal > STRIPE_VND_LIMIT) {
+        await releaseStockByItems(normalizedItems).catch(() => {});
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         throw new Error('Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫99,999,999). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng.');
     }
     const now = Date.now();
-    const vendors = buildVendorsMap(normalizedItems);
+    const vendors = buildVendorsMap(normalizedItems, pricingResult.shopDiscountByVendor);
 
     let newOrder;
     try {
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount: totalAmount,
+            amount: finalTotal,
+            pricing: pricingResult.pricing,
+            appliedVouchers: pricingResult.appliedVouchers,
             address,
             paymentMethod: 'Stripe',
             payment: false,
@@ -567,6 +712,7 @@ export const placeOrderStripeService = async ({ userId, items, amount: _clientAm
         });
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         if (error?.code === 11000 && normalizedIdempotencyKey) {
             const duplicate = await findOrderByIdempotency(userId, normalizedIdempotencyKey);
             if (duplicate?.stripeSessionUrl) {
@@ -577,29 +723,19 @@ export const placeOrderStripeService = async ({ userId, items, amount: _clientAm
     }
 
     try {
-        const line_items = normalizedItems.map((item) => ({
-            price_data: {
-                currency,
-                product_data: {
-                    name: item.name,
-                    description: item.brand ? `Brand: ${item.brand}` : undefined,
-                    images: pickImageUrl(item.image) ? [pickImageUrl(item.image)] : undefined,
-                },
-                unit_amount: Math.round(item.price),
-            },
-            quantity: item.quantity,
-        }));
-
-        if (shippingFee > 0) {
-            line_items.push({
+        const line_items = [
+            {
                 price_data: {
                     currency,
-                    product_data: { name: 'Shipping fee' },
-                    unit_amount: Math.round(shippingFee),
+                    product_data: {
+                        name: `Order #${String(newOrder._id).slice(-6).toUpperCase()}`,
+                        description: `${normalizedItems.length} items`,
+                    },
+                    unit_amount: Math.round(finalTotal),
                 },
                 quantity: 1,
-            });
-        }
+            },
+        ];
 
         const session = await getStripe().checkout.sessions.create({
             line_items,
@@ -622,6 +758,7 @@ export const placeOrderStripeService = async ({ userId, items, amount: _clientAm
         return { orderId: newOrder._id, sessionUrl: session.url };
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         throw error;
     }
 };
@@ -774,6 +911,16 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
         await order.save();
     }
 
+    const shouldReleaseVoucherUsage =
+        Array.isArray(order.appliedVouchers) &&
+        order.appliedVouchers.length > 0 &&
+        !order.voucherUsageReleasedAt;
+    if (shouldReleaseVoucherUsage) {
+        await releaseVoucherUsage(order.appliedVouchers);
+        order.voucherUsageReleasedAt = Date.now();
+        await order.save();
+    }
+
     if (cancelledBy === "user") {
         const vendorMap = buildVendorsMap(order.items);
         for (const vendor of vendorMap) {
@@ -821,7 +968,15 @@ export const userOrdersService = async (userId) => orderModel.find({ userId }).s
 
 // â”€â”€â”€ Place Order (VNPay) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmount, address, ipAddr, idempotencyKey }) => {
+export const placeOrderVNPayService = async ({
+    userId,
+    items,
+    amount: _clientAmount,
+    address,
+    ipAddr,
+    voucherCodes = [],
+    idempotencyKey,
+}) => {
     if (!userId) throw Object.assign(new Error('Missing userId'), { status: 400 });
 
     const normalizedIdempotencyKey = sanitizeIdempotencyKey(idempotencyKey);
@@ -831,16 +986,30 @@ export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmo
     }
 
     const { normalizedItems } = await prepareItemsAndReserveStock(items);
-    const { totalAmount } = sanitizeOrderAmount(normalizedItems);
+    let pricingResult;
+    try {
+        pricingResult = await buildOrderPricingWithVouchers({
+            items: normalizedItems,
+            voucherCodes,
+            strict: true,
+        });
+        await claimVoucherUsage(pricingResult.appliedVouchers);
+    } catch (error) {
+        await releaseStockByItems(normalizedItems).catch(() => {});
+        throw error;
+    }
+    const { finalTotal } = pricingResult.pricing;
     const now = Date.now();
-    const vendors = buildVendorsMap(normalizedItems);
+    const vendors = buildVendorsMap(normalizedItems, pricingResult.shopDiscountByVendor);
 
     let newOrder;
     try {
         newOrder = await orderModel.create({
             userId,
             items: normalizedItems,
-            amount: totalAmount,
+            amount: finalTotal,
+            pricing: pricingResult.pricing,
+            appliedVouchers: pricingResult.appliedVouchers,
             address,
             paymentMethod: 'VNPay',
             payment: false,
@@ -852,6 +1021,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmo
         });
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         if (error?.code === 11000 && normalizedIdempotencyKey) {
             const duplicate = await findOrderByIdempotency(userId, normalizedIdempotencyKey);
             if (duplicate?.vnpPaymentUrl) {
@@ -863,7 +1033,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmo
 
     try {
         const { paymentUrl, txnRef } = buildVNPayUrl({
-            amount: totalAmount,
+            amount: finalTotal,
             orderId: newOrder._id.toString(),
             ipAddr,
             orderInfo: `Thanh toan don hang ${newOrder._id}`,
@@ -882,6 +1052,7 @@ export const placeOrderVNPayService = async ({ userId, items, amount: _clientAmo
         return { orderId: newOrder._id, paymentUrl };
     } catch (error) {
         await releaseStockByItems(normalizedItems);
+        await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
         throw error;
     }
 };
@@ -943,7 +1114,7 @@ export const expirePendingReservationsService = async () => {
         stockReleasedAt: { $exists: false },
         reservationExpiresAt: { $lte: now },
         paymentMethod: { $in: ["Stripe", "VNPay"] },
-    }).select("_id items");
+    }).select("_id items appliedVouchers");
 
     if (!candidates.length) return 0;
 
@@ -963,6 +1134,13 @@ export const expirePendingReservationsService = async () => {
         );
         if (mark.modifiedCount !== 1) continue;
         await restoreStockAndSold(order.items, { restoreSold: false });
+        if (Array.isArray(order.appliedVouchers) && order.appliedVouchers.length > 0) {
+            await releaseVoucherUsage(order.appliedVouchers).catch(() => {});
+            await orderModel.updateOne(
+                { _id: order._id, voucherUsageReleasedAt: { $exists: false } },
+                { $set: { voucherUsageReleasedAt: now } }
+            );
+        }
         expiredCount += 1;
     }
 

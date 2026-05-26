@@ -1,0 +1,39 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[utf8]{vietnam} % Hỗ trợ tiếng Việt hoàn chỉnh
+\usepackage[left=3.5cm, right=2.0cm, top=3.0cm, bottom=3.0cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{subfiles} % Gói hỗ trợ chia nhỏ và biên dịch tệp con độc lập
+\usepackage{longtable} % Gói hỗ trợ bảng dài nhiều trang (dành cho danh mục viết tắt)
+\usepackage{outline}   % Gói hỗ trợ liệt kê dạng outline phân cấp
+\usepackage{url}       % Gói hỗ trợ hiển thị liên kết URL đẹp mắt
+\usepackage{tikz}      % Gói hỗ trợ vẽ biểu đồ vector chất lượng cao trực tiếp bằng LaTeX
+
+\title{ĐỒ ÁN TỐT NGHIỆP: XÂY DỰNG SÀN THƯƠNG MẠI ĐIỆN TỬ ĐA NHÀ BÁN HÀNG HIỆU NĂNG CAO}
+\author{Sinh viên thực hiện: Đặng Quang Huy}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% Nhập danh mục từ viết tắt
+\subfile{chapters/viettat}
+
+% Nhập danh mục thuật ngữ
+\subfile{chapters/thuatngu}
+
+% Nhập tệp tóm tắt nội dung (Tiếng Việt)
+\subfile{chapters/tomtat}
+
+% Nhập tệp tóm tắt nội dung (Tiếng Anh)
+\subfile{chapters/abstract}
+
+% Nhập Chương 1: Giới thiệu
+\subfile{chapters/chuong1}
+
+% Nhập Chương 2: Phân tích thiết kế hệ thống
+\subfile{chapters/chuong2}
+
+\end{document}

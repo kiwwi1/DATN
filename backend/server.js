@@ -20,6 +20,7 @@ import shopFollowRouter from './routes/shopFollowRoute.js';
 import chatRouter from './routes/chatRoute.js';
 import addressRouter from './routes/addressRoute.js';
 import locationRouter from './routes/locationRoute.js';
+import voucherRouter from './routes/voucherRoute.js';
 import { getImageProxy } from './controllers/imageProxyController.js';
 import { expirePendingReservationsService } from './services/orderService.js';
 import { stripeWebhook } from './controllers/orderController.js';
@@ -103,6 +104,7 @@ app.use('/api/shop-follow', shopFollowRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/address', addressRouter);
 app.use('/api/location', locationRouter);
+app.use('/api/voucher', voucherRouter);
 
 io.use((socket, next) => {
     try {
@@ -162,4 +164,3 @@ const reservationSweepTimer = setInterval(async () => {
 if (typeof reservationSweepTimer.unref === "function") {
     reservationSweepTimer.unref();
 }
-

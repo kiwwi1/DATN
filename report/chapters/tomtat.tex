@@ -1,0 +1,17 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\begin{center}
+    \Large{\textbf{TÓM TẮT NỘI DUNG ĐỒ ÁN}}\\
+\end{center}
+\vspace{1cm}
+
+Đồ án tốt nghiệp tập trung nghiên cứu và phát triển giải pháp toàn diện cho sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace) hiệu năng cao, nhằm giải quyết triệt để các hạn chế của hệ thống truyền thống về tranh chấp tồn kho dưới tải cao (lỗi oversell), bảo mật phiên làm việc và cá nhân hóa trải nghiệm khách hàng. Đồ án lựa chọn hướng tiếp cận xây dựng hệ thống trên nền tảng kiến trúc MERN Stack (MongoDB, Express, React, Node.js) kết hợp bộ đệm Redis và kênh thời gian thực Socket.IO. Điểm cốt lõi kỹ thuật của đồ án bao gồm: thiết kế cơ chế giữ kho nguyên tử (atomic reservation) ở tầng cơ sở dữ liệu tích hợp khóa trùng lặp (idempotency key) nhằm triệt tiêu hoàn toàn lỗi mua trùng và bán quá mức tồn kho thực tế; củng cố bảo mật xác thực với mô hình tài khoản hợp nhất (User/Vendor) bảo vệ bởi cơ chế giới hạn tần suất (rate-limit) bằng Redis và xoay vòng mã khóa phiên (refresh token rotation) qua danh sách đen thời gian thực; cùng bộ tính toán mã giảm giá 4 lớp xử lý an toàn tại backend. Đặc biệt, đồ án đã hiện thực hóa hệ thống khuyến nghị sản phẩm lai (Hybrid Recommendation Engine) kết hợp lọc cộng tác (collaborative filtering) và lọc theo nội dung (content-based) dựa trên điểm tương tác người dùng (Interaction Score) có áp dụng hệ số suy hao thời gian (time decay) thực tế. Kết quả đạt được là một hệ sinh thái thương mại điện tử đồng bộ, giao dịch an toàn qua Stripe/VNPay, tích hợp bảng điều khiển phân tích số liệu Recharts trực quan cho đối tác bán hàng và hệ thống chat trực tuyến thời gian thực mượt mà.
+
+\begin{flushright}
+Sinh viên thực hiện\\
+\vspace{1.5cm}
+\textbf{Đặng Quang Huy}
+\end{flushright}
+
+\end{document}

@@ -46,10 +46,30 @@ const vendorItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const appliedVoucherSchema = new mongoose.Schema(
+  {
+    voucherId: { type: mongoose.Schema.Types.ObjectId, ref: "voucher" },
+    code: { type: String },
+    type: { type: String, enum: ["SHOP", "PLATFORM", "SHIPPING"] },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    discount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
   items: [orderItemSchema],
   amount: { type: Number, required: true },
+  pricing: {
+    subtotal: { type: Number, default: 0 },
+    shopDiscount: { type: Number, default: 0 },
+    platformDiscount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
+    shippingDiscount: { type: Number, default: 0 },
+    finalTotal: { type: Number, default: 0 },
+  },
+  appliedVouchers: [appliedVoucherSchema],
   address: { type: Object, required: true },
   status: { type: String, default: "Order Placed" },
   trackingNumber: { type: String, default: "" },
@@ -63,6 +83,7 @@ const orderSchema = new mongoose.Schema({
   reservationExpiresAt: { type: Number },
   stockReservedAt: { type: Number },
   stockReleasedAt: { type: Number },
+  voucherUsageReleasedAt: { type: Number },
 
   // Gateway metadata
   stripeSessionId: { type: String },
@@ -88,6 +109,7 @@ const orderSchema = new mongoose.Schema({
         enum: ["pending", "confirmed", "preparing", "shipped", "delivered", "cancelled"],
         default: "pending",
       },
+      voucherDiscount: { type: Number, default: 0 },
       commission: { type: Number, default: 10 },
     },
   ],

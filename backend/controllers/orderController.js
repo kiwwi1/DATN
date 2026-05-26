@@ -5,6 +5,7 @@ import {
     processStripeWebhookService,
     placeOrderVNPayService,
     verifyVNPayReturnService,
+    previewOrderPricingService,
     allOrdersService,
     userOrdersService,
     updateOrderStatusService,
@@ -27,12 +28,12 @@ const buildOrderErrorResponse = (res, error, fallbackMessage) => {
 
 const placeOrder = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId } = req.body;
+        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
         const idempotencyKey = req.headers["x-idempotency-key"] || req.body?.idempotencyKey;
-        const newOrder = await placeOrderService({ userId, items, amount, address, idempotencyKey });
+        const newOrder = await placeOrderService({ userId, items, amount, address, voucherCodes, idempotencyKey });
         res.json({ success: true, message: "Order placed successfully", orderId: newOrder._id });
     } catch (error) {
         console.error("Error placing order:", error);
@@ -42,13 +43,13 @@ const placeOrder = async (req, res) => {
 
 const placeOrderStripe = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId } = req.body;
+        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
         const { origin } = req.headers;
         const idempotencyKey = req.headers["x-idempotency-key"] || req.body?.idempotencyKey;
-        const result = await placeOrderStripeService({ userId, items, amount, address, origin, idempotencyKey });
+        const result = await placeOrderStripeService({ userId, items, amount, address, origin, voucherCodes, idempotencyKey });
         res.json({ success: true, message: "Order placed successfully", ...result });
     } catch (error) {
         console.error("Error placing Stripe order:", error);
@@ -85,7 +86,7 @@ const stripeWebhook = async (req, res) => {
 
 const placeOrderVNPay = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId } = req.body;
+        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
@@ -94,7 +95,7 @@ const placeOrderVNPay = async (req, res) => {
             req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
             req.socket?.remoteAddress ||
             "127.0.0.1";
-        const result = await placeOrderVNPayService({ userId, items, amount, address, ipAddr, idempotencyKey });
+        const result = await placeOrderVNPayService({ userId, items, amount, address, ipAddr, voucherCodes, idempotencyKey });
         res.json({ success: true, ...result });
     } catch (error) {
         console.error("Error placing VNPay order:", error);
@@ -111,6 +112,16 @@ const verifyVNPayReturn = async (req, res) => {
     } catch (error) {
         console.error("VNPay return error:", error.message);
         return res.redirect(`${frontendUrl}/verify?vnpay=1&success=false`);
+    }
+};
+
+const previewOrder = async (req, res) => {
+    try {
+        const { items, voucherCodes } = req.body;
+        const result = await previewOrderPricingService({ items, voucherCodes });
+        res.json({ success: true, ...result });
+    } catch (error) {
+        return buildOrderErrorResponse(res, error, "Failed to preview order pricing");
     }
 };
 
@@ -210,6 +221,7 @@ export {
     placeOrderStripe,
     verifyStripePayment,
     placeOrderVNPay,
+    previewOrder,
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,

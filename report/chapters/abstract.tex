@@ -1,0 +1,17 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\begin{center}
+    \Large{\textbf{ABSTRACT}}\\
+\end{center}
+\vspace{1cm}
+
+This graduation thesis focuses on the research and development of a comprehensive solution for a high-performance multi-vendor e-commerce marketplace, aimed at thoroughly resolving the inherent limitations of conventional systems regarding inventory concurrency under high load (overselling), session security, and personalized user experience. The proposed approach constructs the entire platform based on the MERN stack (MongoDB, Express, React, Node.js) integrated with Redis caching and Socket.IO real-time channels. The technical core of this thesis includes: the design of a database-level atomic stock reservation mechanism incorporated with unique idempotency keys to completely eliminate duplicate purchases and overselling of physical stock; the reinforcement of authentication security using a unified user-vendor account model protected by Redis-based rate-limiting and Refresh Token Rotation (RTR) via a real-time JTI deny-list; and a secure four-tiered discount calculation engine processed entirely on the server side. Remarkably, the thesis implements a personalized Hybrid Recommendation Engine that combines content-based filtering and item-based collaborative filtering based on user-product Interaction Scores adjusted by an exponential time-decay half-life factor. The final deliverable is a highly secure, reliable, and synchronized e-commerce ecosystem, featuring seamless transactions via Stripe and VNPay, an interactive merchant statistics dashboard using Recharts, and a smooth real-time instant messaging system.
+
+\begin{flushright}
+Student\\
+\vspace{1.5cm}
+\textbf{Dang Quang Huy}
+\end{flushright}
+
+\end{document}

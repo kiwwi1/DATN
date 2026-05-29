@@ -73,6 +73,9 @@ productSchema.index({ vendorId: 1 });
 productSchema.index({ bestseller: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ sold: -1 });
+// Text index — chuẩn bị cho server-side search (MongoDB $text / Atlas Search)
+productSchema.index({ name: 'text', brand: 'text', tags: 'text' }, { weights: { name: 10, brand: 5, tags: 3 }, name: 'product_text_idx' });
+
 
 const productModel = mongoose.models.product || mongoose.model("product", productSchema);
 export default productModel;

@@ -30,6 +30,16 @@ const readSelectedCartItems = () => {
 
 const normalizeVoucherCode = (value) => String(value || "").trim().toUpperCase();
 
+const uniqueVoucherCodes = (codes = []) => {
+  const seen = new Set();
+  return (codes || []).filter((code) => {
+    const normalized = normalizeVoucherCode(code);
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+};
+
 const computeFallbackPricing = (orderItems, deliveryFee) => {
   const subtotal = orderItems.reduce((total, item) => total + item.price * item.quantity, 0);
   const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : deliveryFee;
@@ -73,8 +83,10 @@ export const usePlaceOrderCheckout = ({
   });
   const [selectedTotal, setSelectedTotal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [voucherInput, setVoucherInput] = useState("");
-  const [voucherCodes, setVoucherCodes] = useState([]);
+  const [shopVoucherInput, setShopVoucherInput] = useState("");
+  const [platformVoucherInput, setPlatformVoucherInput] = useState("");
+  const [shopVoucherCodes, setShopVoucherCodes] = useState([]);
+  const [platformVoucherCodes, setPlatformVoucherCodes] = useState([]);
   const [appliedVouchers, setAppliedVouchers] = useState([]);
   const [rejectedVouchers, setRejectedVouchers] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -108,6 +120,35 @@ export const usePlaceOrderCheckout = ({
 
   const hasAddressBook = addresses.length > 0;
 
+  const voucherCodes = useMemo(
+    () =>
+      uniqueVoucherCodes([
+        ...shopVoucherCodes,
+        ...platformVoucherCodes,
+      ]),
+    [shopVoucherCodes, platformVoucherCodes]
+  );
+
+  const appliedShopVouchers = useMemo(
+    () => appliedVouchers.filter((voucher) => voucher.type === "SHOP"),
+    [appliedVouchers]
+  );
+
+  const appliedPlatformVouchers = useMemo(
+    () => appliedVouchers.filter((voucher) => voucher.type === "PLATFORM" || voucher.type === "SHIPPING"),
+    [appliedVouchers]
+  );
+
+  const rejectedShopVouchers = useMemo(() => {
+    const shopCodeSet = new Set(shopVoucherCodes.map(normalizeVoucherCode));
+    return rejectedVouchers.filter((voucher) => shopCodeSet.has(normalizeVoucherCode(voucher.code)));
+  }, [rejectedVouchers, shopVoucherCodes]);
+
+  const rejectedPlatformVouchers = useMemo(() => {
+    const platformCodeSet = new Set(platformVoucherCodes.map(normalizeVoucherCode));
+    return rejectedVouchers.filter((voucher) => platformCodeSet.has(normalizeVoucherCode(voucher.code)));
+  }, [rejectedVouchers, platformVoucherCodes]);
+
   const fetchPricingPreview = useCallback(
     async ({ orderItems, codes, showErrors = false }) => {
       const normalizedCodes = (codes || []).map(normalizeVoucherCode).filter(Boolean);
@@ -139,7 +180,7 @@ export const usePlaceOrderCheckout = ({
         setRejectedVouchers(rejected);
 
         if (showErrors && rejected.length > 0) {
-          toast.error(rejected[0].reason || "Voucher khong hop le");
+          toast.error(rejected[0].reason || "Voucher không hợp lệ");
         }
 
         return { pricing, appliedVouchers: applied, rejectedVouchers: rejected };
@@ -256,29 +297,48 @@ export const usePlaceOrderCheckout = ({
   const validateAddressBeforeSubmit = () => {
     if (selectedAddress) return true;
     if (!formData.firstName || !formData.lastName || !formData.street || !formData.city || !formData.state || !formData.phone) {
-      toast.error("Vui long nhap day du thong tin giao hang.");
+      toast.error("Vui lòng nhập đầy đủ thông tin giao hàng.");
       return false;
     }
     return true;
   };
 
-  const applyVoucherInput = () => {
-    const code = normalizeVoucherCode(voucherInput);
+  const applyShopVoucherInput = () => {
+    const code = normalizeVoucherCode(shopVoucherInput);
     if (!code) {
-      toast.error("Nhap ma voucher truoc khi ap dung");
+      toast.error("Nhập mã voucher shop trước khi áp dụng");
       return;
     }
     if (voucherCodes.includes(code)) {
-      toast.info("Ma voucher da duoc them");
+      toast.info("Mã voucher đã được thêm");
       return;
     }
-    setVoucherCodes((prev) => [...prev, code]);
-    setVoucherInput("");
+    setShopVoucherCodes((prev) => [...prev, code]);
+    setShopVoucherInput("");
   };
 
-  const removeVoucherCode = (code) => {
+  const applyPlatformVoucherInput = () => {
+    const code = normalizeVoucherCode(platformVoucherInput);
+    if (!code) {
+      toast.error("Nhập mã voucher sàn trước khi áp dụng");
+      return;
+    }
+    if (voucherCodes.includes(code)) {
+      toast.info("Mã voucher đã được thêm");
+      return;
+    }
+    setPlatformVoucherCodes((prev) => [...prev, code]);
+    setPlatformVoucherInput("");
+  };
+
+  const removeShopVoucherCode = (code) => {
     const normalized = normalizeVoucherCode(code);
-    setVoucherCodes((prev) => prev.filter((item) => item !== normalized));
+    setShopVoucherCodes((prev) => prev.filter((item) => item !== normalized));
+  };
+
+  const removePlatformVoucherCode = (code) => {
+    const normalized = normalizeVoucherCode(code);
+    setPlatformVoucherCodes((prev) => prev.filter((item) => item !== normalized));
   };
 
   const submitOrderByMethod = async ({ orderData, requestConfig }) => {
@@ -301,7 +361,7 @@ export const usePlaceOrderCheckout = ({
         console.error("Error fetching cart:", error);
       }
 
-      toast.success("Dat hang thanh cong!");
+      toast.success("Đặt hàng thành công!");
       navigate("/orders");
       return;
     }
@@ -333,7 +393,7 @@ export const usePlaceOrderCheckout = ({
     if (inFlightRef.current) return;
 
     if (!token) {
-      toast.error("Vui long dang nhap de dat hang.");
+      toast.error("Vui lòng đăng nhập để đặt hàng.");
       navigate("/login");
       return;
     }
@@ -345,7 +405,7 @@ export const usePlaceOrderCheckout = ({
 
     try {
       if (!currentOrderItems.length) {
-        toast.error("Khong co san pham de dat hang");
+        toast.error("Không có sản phẩm để đặt hàng");
         return;
       }
 
@@ -361,11 +421,11 @@ export const usePlaceOrderCheckout = ({
 
       const totalAmount = Number(latestPreview.pricing?.finalTotal || 0);
       if (method === "stripe" && totalAmount > STRIPE_VND_LIMIT) {
-        toast.error("Tong don hang vuot gioi han Stripe. Vui long chon COD.");
+        toast.error("Tổng đơn hàng vượt giới hạn Stripe. Vui lòng chọn COD.");
         return;
       }
       if (method === "vnpay" && totalAmount > VNPAY_LIMIT) {
-        toast.error("Tong don hang vuot gioi han VNPay.");
+        toast.error("Tổng đơn hàng vượt giới hạn VNPay.");
         return;
       }
 
@@ -419,14 +479,24 @@ export const usePlaceOrderCheckout = ({
     onChangeHandler,
     onProvinceChange,
     onSubmitHandler,
-    voucherInput,
-    setVoucherInput,
+    shopVoucherInput,
+    setShopVoucherInput,
+    platformVoucherInput,
+    setPlatformVoucherInput,
+    shopVoucherCodes,
+    platformVoucherCodes,
     voucherCodes,
-    applyVoucherInput,
-    removeVoucherCode,
+    applyShopVoucherInput,
+    applyPlatformVoucherInput,
+    removeShopVoucherCode,
+    removePlatformVoucherCode,
     pricingSummary,
     appliedVouchers,
+    appliedShopVouchers,
+    appliedPlatformVouchers,
     rejectedVouchers,
+    rejectedShopVouchers,
+    rejectedPlatformVouchers,
     previewLoading,
   };
 };

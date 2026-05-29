@@ -69,7 +69,6 @@ export const listVouchersService = async ({ userId, filters = {} }) => {
 export const createVoucherService = async ({ userId, payload }) => {
   const requester = await loadRequester(userId);
   const data = normalizeVoucherPayload(payload);
-  assertVoucherPayload(data);
 
   if (requester.role === "vendor") {
     if (data.type !== "SHOP") {
@@ -84,6 +83,9 @@ export const createVoucherService = async ({ userId, payload }) => {
   } else {
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   }
+
+  // Validate only after role-based defaults/constraints are applied.
+  assertVoucherPayload(data);
 
   try {
     return await voucherModel.create(data);

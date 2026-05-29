@@ -12,10 +12,28 @@ import {
     refreshAccessTokenService,
 } from "../services/userService.js";
 
+const toBoolean = (value, fallback = false) => {
+    if (value === undefined || value === null || value === "") return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+    return fallback;
+};
+
+const resolveSameSite = () => {
+    const raw = String(process.env.COOKIE_SAME_SITE || "lax").trim().toLowerCase();
+    if (raw === "strict" || raw === "lax" || raw === "none") return raw;
+    return "lax";
+};
+
+const sameSite = resolveSameSite();
+const secureByEnv = toBoolean(process.env.COOKIE_SECURE, process.env.NODE_ENV === "production");
+const secure = sameSite === "none" ? true : secureByEnv;
+
 const COOKIE_OPTIONS = {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite,
+    secure,
 };
 
 const clearAuthCookies = (res) => {

@@ -10,85 +10,82 @@ const ProfileSidebar = () => {
   const menuItems = [
     {
       id: 'notifications',
-      label: 'Thông Báo',
+      label: 'Thông báo',
       icon: '🔔',
       path: '/profile/notifications'
     },
     {
       id: 'account',
-      label: 'Tài Khoản Của Tôi',
+      label: 'Tài khoản của tôi',
       icon: '👤',
       path: null,
     },
     {
       id: 'profile',
-      label: 'Hồ Sơ',
+      label: 'Hồ sơ',
       icon: null,
       path: '/my-profile'
     },
     {
       id: 'bank',
-      label: 'Ngân Hàng',
+      label: 'Ngân hàng',
       icon: null,
       path: '/profile/bank'
     },
     {
       id: 'address',
-      label: 'Địa Chỉ',
+      label: 'Địa chỉ',
       icon: null,
       path: '/profile/address'
     },
     {
       id: 'change-password',
-      label: 'Đổi Mật Khẩu',
+      label: 'Đổi mật khẩu',
       icon: null,
       path: '/profile/change-password'
     },
     {
       id: 'notification-settings',
-      label: 'Cài Đặt Thông Báo',
+      label: 'Cài đặt thông báo',
       icon: null,
       path: '/profile/notification-settings'
     },
     {
       id: 'privacy-settings',
-      label: 'Những Thiết Lập Riêng Tư',
+      label: 'Thiết lập riêng tư',
       icon: null,
       path: '/profile/privacy-settings'
     },
     {
       id: 'personal-info',
-      label: 'Thông Tin Cá Nhân',
+      label: 'Thông tin cá nhân',
       icon: null,
       path: '/profile/personal-info'
     },
     {
       id: 'orders',
-      label: 'Đơn Mua',
+      label: 'Đơn mua',
       icon: '📋',
       path: '/orders'
     },
     {
       id: 'vouchers',
-      label: 'Kho Voucher',
+      label: 'Kho mã giảm giá',
       icon: '🎫',
       path: '/profile/vouchers'
     },
     {
       id: 'coins',
-      label: 'Shopee Xu',
+      label: 'Xu tích lũy',
       icon: '🪙',
       path: '/profile/coins'
     }
   ];
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+  const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="w-64 bg-gray-50 min-h-screen p-4 shadow-lg border-r border-gray-200">
-      {/* User Profile Section */}
+    <div className="w-full md:w-64 min-h-0 md:min-h-screen bg-gray-50 p-4 shadow-lg border-b md:border-b-0 md:border-r border-gray-200">
       <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
         <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3 shadow-md">
           <span className="text-white text-lg font-bold">
@@ -97,19 +94,18 @@ const ProfileSidebar = () => {
         </div>
         <div>
           <div className="font-semibold text-gray-800 text-sm">
-            {userProfile?.name || 'User'}
+            {userProfile?.name || 'Người dùng'}
           </div>
-          <button 
+          <button
             onClick={() => navigate('/my-profile')}
             className="text-xs text-gray-500 hover:text-gray-700 flex items-center transition-colors"
           >
             <span className="mr-1">✏️</span>
-            Sửa Hồ Sơ
+            Sửa hồ sơ
           </button>
         </div>
       </div>
 
-      {/* Navigation Menu */}
       <nav className="space-y-1">
         {menuItems.map((item, index) => (
           <div key={item.id}>
@@ -126,8 +122,7 @@ const ProfileSidebar = () => {
               )}
               <span>{item.label}</span>
             </button>
-            
-            {/* Add spacing between groups */}
+
             {index === 8 && <div className="my-4 border-t border-gray-200"></div>}
           </div>
         ))}

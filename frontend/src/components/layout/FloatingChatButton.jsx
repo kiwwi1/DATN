@@ -110,7 +110,7 @@ const FloatingChatButton = () => {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 right-5 z-50 h-[620px] w-[680px] max-w-[calc(100vw-20px)] overflow-hidden rounded-sm border border-gray-200 bg-white shadow-2xl">
+        <div className="fixed inset-x-2 bottom-2 top-16 z-50 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-20 sm:right-5 sm:top-auto sm:h-[620px] sm:w-[680px] sm:max-w-[calc(100vw-20px)]">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
             <p className="text-3xl font-medium text-orange-500">Chat</p>
             <button
@@ -121,23 +121,23 @@ const FloatingChatButton = () => {
               x
             </button>
           </div>
-          <div className="grid h-[calc(620px-56px)] grid-cols-[240px_1fr]">
-            <div className="border-r border-gray-200 overflow-y-auto">
+          <div className="grid h-[calc(100%-56px)] grid-cols-1 sm:grid-cols-[240px_1fr]">
+            <div className="max-h-44 overflow-y-auto border-b border-gray-200 sm:max-h-none sm:border-b-0 sm:border-r">
               <div className="flex items-center gap-2 border-b border-gray-100 p-3">
                 <input
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-orange-400"
-                  placeholder="Tim theo ten"
+                  placeholder="Tìm theo tên"
                 />
                 <button type="button" className="whitespace-nowrap text-sm text-gray-600 hover:text-gray-800">
-                  Tat ca
+                  Tất cả
                 </button>
               </div>
               {loading ? (
-                <p className="p-3 text-xs text-gray-500">Dang tai...</p>
+                <p className="p-3 text-xs text-gray-500">Đang tải...</p>
               ) : filteredConversations.length === 0 ? (
-                <p className="p-3 text-xs text-gray-500">Chua co hoi thoai</p>
+                <p className="p-3 text-xs text-gray-500">Chưa có hội thoại</p>
               ) : (
                 filteredConversations.map((conversation) => (
                   <button
@@ -174,7 +174,7 @@ const FloatingChatButton = () => {
             <div className="flex flex-col">
               <div className="border-b border-gray-100 px-4 py-3">
                 <p className="truncate text-sm font-medium text-gray-700">
-                  {activeConversation?.partner?.name || "Chon hoi thoai"}
+                  {activeConversation?.partner?.name || "Chọn hội thoại"}
                 </p>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto bg-gray-100 p-3">
@@ -182,7 +182,7 @@ const FloatingChatButton = () => {
                   <>
                     {activeProductContext && (
                       <div className="rounded-md border border-gray-200 bg-white p-2">
-                        <p className="mb-2 text-xs text-gray-500">Ban dang trao doi voi Nguoi ban ve san pham nay</p>
+                        <p className="mb-2 text-xs text-gray-500">Bạn đang trao đổi với Người bán về sản phẩm này</p>
                         <div className="flex items-center gap-2 rounded border border-gray-100 bg-gray-50 p-2">
                           <img
                             src={formatImageUrl(activeProductContext.image, {
@@ -237,8 +237,8 @@ const FloatingChatButton = () => {
                   </>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center text-center text-gray-500">
-                    <p className="text-2xl font-semibold text-gray-700">Chao mung ban den voi Shop Chat</p>
-                    <p className="mt-1 text-sm text-gray-400">Bat dau tro chuyen voi shop ngay bay gio</p>
+                    <p className="text-2xl font-semibold text-gray-700">Chào mừng bạn đến với Shop Chat</p>
+                    <p className="mt-1 text-sm text-gray-400">Bắt đầu trò chuyện với shop ngay bây giờ</p>
                   </div>
                 )}
                 <div ref={bottomRef} />
@@ -250,7 +250,7 @@ const FloatingChatButton = () => {
                   onKeyDown={(event) => event.key === "Enter" && onSend()}
                   disabled={!activeId || sending}
                   className="flex-1 rounded border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-orange-400 disabled:bg-gray-100"
-                  placeholder={activeId ? "Nhap tin nhan..." : "Chon hoi thoai"}
+                  placeholder={activeId ? "Nhập tin nhắn..." : "Chọn hội thoại"}
                 />
                 <button
                   type="button"
@@ -258,7 +258,7 @@ const FloatingChatButton = () => {
                   disabled={!activeId || sending || !text.trim()}
                   className="rounded bg-orange-500 px-2.5 py-1.5 text-xs text-white disabled:opacity-50"
                 >
-                  Gui
+                  Gửi
                 </button>
               </div>
             </div>
@@ -269,7 +269,7 @@ const FloatingChatButton = () => {
         type="button"
         onClick={onOpenChat}
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-md border border-gray-100 bg-white px-4 py-2 text-orange-500 shadow-lg transition-colors hover:bg-orange-50"
-        aria-label="Mo chat"
+        aria-label="Mở chat"
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path

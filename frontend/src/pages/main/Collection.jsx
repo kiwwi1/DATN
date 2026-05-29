@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { ShopContext } from '../../context/ShopContext';
 import ProductItem from '../../components/product/ProductItem';
 import { useSearchParams } from 'react-router-dom';
-import { normalizeSearchText } from '../../utils/searchUtils';
+import { matchesSearchTerm } from '../../utils/searchUtils';
 
 const SORT_OPTIONS = [
   { key: 'relevant', label: 'Liên Quan' },
@@ -36,6 +36,7 @@ const Collection = () => {
   const [maxPrice, setMaxPrice] = useState('');
   const [appliedMin, setAppliedMin] = useState(null);
   const [appliedMax, setAppliedMax] = useState(null);
+  const [priceError, setPriceError] = useState('');
 
   const getAllChildrenCategoryIds = useCallback((categoryId) => {
     if (!homepageCategories?.categories) return [categoryId];
@@ -85,13 +86,8 @@ const Collection = () => {
   useEffect(() => {
     let copy = products.slice();
     const searchTerm = searchParams.get('search') || '';
-    const normalizedSearchTerm = normalizeSearchText(searchTerm);
-    if (normalizedSearchTerm) {
-      copy = copy.filter(p =>
-        normalizeSearchText(p.name).includes(normalizedSearchTerm) ||
-        normalizeSearchText(p.brand).includes(normalizedSearchTerm) ||
-        normalizeSearchText(p.vendorShopName).includes(normalizedSearchTerm)
-      );
+    if (searchTerm) {
+      copy = copy.filter(p => matchesSearchTerm(p, searchTerm));
     }
     const categoryFromUrl = searchParams.get('category');
     if (selectedCategories.length > 0) {
@@ -130,15 +126,24 @@ const Collection = () => {
   const searchTerm = searchParams.get('search');
 
   const applyPrice = () => {
+    setPriceError('');
     const min = minPrice.trim() === '' ? null : Number(minPrice);
     const max = maxPrice.trim() === '' ? null : Number(maxPrice);
 
-    setAppliedMin(min === null || Number.isNaN(min) ? null : min * 1000);
-    setAppliedMax(max === null || Number.isNaN(max) ? null : max * 1000);
+    if (min !== null && isNaN(min)) { setPriceError('Giá tối thiểu không hợp lệ'); return; }
+    if (max !== null && isNaN(max)) { setPriceError('Giá tối đa không hợp lệ'); return; }
+    if (min !== null && max !== null && min > max) {
+      setPriceError('Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa');
+      return;
+    }
+
+    setAppliedMin(min === null ? null : min * 1000);
+    setAppliedMax(max === null ? null : max * 1000);
   };
   const resetPrice = () => {
     setMinPrice(''); setMaxPrice('');
     setAppliedMin(null); setAppliedMax(null);
+    setPriceError('');
   };
 
   // ── Sidebar JSX (không phải component — tránh remount mỗi re-render) ──────
@@ -229,7 +234,10 @@ const Collection = () => {
               className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-orange-400"
             />
           </div>
-          <div className="flex gap-2">
+          {priceError && (
+            <p className="text-xs text-red-500 mt-1">{priceError}</p>
+          )}
+          <div className="flex gap-2 mt-3">
             <button
               onClick={applyPrice}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs py-1.5 rounded transition-colors"

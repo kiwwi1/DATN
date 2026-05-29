@@ -11,18 +11,18 @@ const AddressBookSection = ({
 }) => (
   <div className="rounded border border-gray-200 p-4">
     <div className="mb-3 flex items-center justify-between">
-      <p className="text-sm font-semibold text-gray-700">Dia chi giao hang</p>
+      <p className="text-sm font-semibold text-gray-700">Địa chỉ giao hàng</p>
       <button
         type="button"
         onClick={() => navigate("/profile/address")}
         className="text-xs text-orange-600 hover:underline"
       >
-        Quan ly dia chi
+        Quản lý địa chỉ
       </button>
     </div>
 
     {addressesLoading ? (
-      <p className="text-sm text-gray-500">Dang tai dia chi...</p>
+      <p className="text-sm text-gray-500">Đang tải địa chỉ...</p>
     ) : hasAddressBook ? (
       <div className="space-y-3">
         <select
@@ -32,7 +32,7 @@ const AddressBookSection = ({
         >
           {addresses.map((address) => (
             <option key={address._id} value={address._id}>
-              {address.isDefault ? "[Mac dinh] " : ""}
+              {address.isDefault ? "[Mặc định] " : ""}
               {address.receiverName} - {address.fullAddress}
             </option>
           ))}
@@ -45,18 +45,18 @@ const AddressBookSection = ({
             </p>
             <p className="mt-1">{selectedAddress.fullAddress}</p>
             <p className="mt-1 text-xs text-gray-500">
-              Loai: {selectedAddress.addressType === "office" ? "Van phong" : "Nha rieng"}
+              Loại: {selectedAddress.addressType === "office" ? "Văn phòng" : "Nhà riêng"}
             </p>
           </div>
         )}
 
         <p className="text-xs text-gray-500">
-          He thong tu dong dung dia chi mac dinh. Ban co the doi truoc khi dat don.
+          Hệ thống tự động dùng địa chỉ mặc định. Bạn có thể đổi trước khi đặt đơn.
         </p>
       </div>
     ) : (
       <p className="text-sm text-gray-500">
-        Ban chua co dia chi luu san. Hay nhap tay ben duoi hoac them trong trang So dia chi.
+        Bạn chưa có địa chỉ lưu sẵn. Hãy nhập tay bên dưới hoặc thêm trong trang Sổ địa chỉ.
       </p>
     )}
   </div>

@@ -3,6 +3,7 @@ import { ShopContext } from '../../context/ShopContext'
 import { useNavigate } from 'react-router-dom'
 import { formatPrice } from '../../utils/priceFormat'
 import { formatImageUrl } from '../../utils/imageUtils'
+import { matchesSearchTerm } from '../../utils/searchUtils'
 
 const HomeSearchBar = () => {
     const { products } = useContext(ShopContext)
@@ -16,16 +17,10 @@ const HomeSearchBar = () => {
         const value = e.target.value
         setSearchTerm(value)
 
-        if (value.trim().length > 0) {
-            // Filter products based on name, brand, or shop name
-            const filtered = products.filter(product => {
-                const searchLower = value.toLowerCase()
-                const nameMatch = product.name?.toLowerCase().includes(searchLower)
-                const brandMatch = product.brand?.toLowerCase().includes(searchLower)
-                const shopMatch = product.vendorShopName?.toLowerCase().includes(searchLower)
-                
-                return nameMatch || brandMatch || shopMatch
-            }).slice(0, 8) // Limit to 8 suggestions
+    if (value.trim().length > 0) {
+            const filtered = products
+              .filter(product => matchesSearchTerm(product, value))
+              .slice(0, 8)
 
             setSuggestions(filtered)
             setShowSuggestions(true)

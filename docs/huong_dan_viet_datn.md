@@ -123,3 +123,55 @@ Chương 1 có độ dài tiêu chuẩn từ **3 đến 6 trang** và cấu trú
 *   **Thống nhất Style cho Bullet**: Trong trường hợp bắt buộc phải sử dụng các gạch đầu dòng liệt kê, sinh viên phải bảo đảm **thống nhất tuyệt đối** style bullet trên toàn báo cáo:
     *   Nếu bullet cấp 1 sử dụng hình tròn đen (`\bullet`), toàn bộ báo cáo từ Chương 1 đến Phụ lục đều phải sử dụng hình tròn đen cho cấp 1.
     *   Nên sử dụng môi trường `itemize` chuẩn của $\text{\LaTeX}$ để tự động hóa căn lề thụt dòng đều đặn, không tự ý gõ dấu gạch ngang `-` hoặc dấu sao `*` thô ở đầu dòng văn bản.
+
+---
+
+## 6. BẢN ĐỒ TỔNG QUAN CÁC CHƯƠNG & MỤC ĐÍCH CỦA QUYỂN ĐỒ ÁN
+
+Bảng phân tích dưới đây khái quát hóa mục tiêu kỹ thuật, vai trò học thuật và liên kết logic của từng chương trong toàn bộ quyển ĐATN giúp sinh viên nắm vững lộ trình triển khai:
+
+```mermaid
+graph TD
+    C1[Chương 1: Giới thiệu đề tài] -->|Đặt bài toán| C2[Chương 2: Phân tích thiết kế hệ thống]
+    C2 -->|Đặc tả chức năng & Tải cao| C3[Chương 3: Nền tảng công nghệ sử dụng]
+    C3 -->|Kiến trúc & Thuật toán| C4[Chương 4: Thiết kế chi tiết & Triển khai]
+    C4 -->|Rút ra 2-3 lõi tinh túy nhất| C5[Chương 5: Đóng góp & Giải pháp nổi bật]
+    C5 -->|Đối chiếu so sánh thực tiễn| C6[Chương 6: Kết luận & Hướng phát triển]
+    C7[Chương 7: Lưu ý tài liệu tham khảo] -.->|Chuẩn hóa trích dẫn chéo| C3 & C5
+    PLB[Phụ lục B: Đặc tả Use Case phụ] -.->|Giảm tải dung lượng| C2
+```
+
+### 📑 Chi tiết mục đích và nhiệm vụ của từng chương
+
+#### 1. Chương 1: Giới thiệu đề tài (Mở đầu)
+*   **Mục đích**: Thiết lập bối cảnh thực tiễn và tính cấp thiết khoa học của đề tài. Nhấn mạnh vào ba thách thức cốt lõi: tranh chấp kho tải cao (Overselling), bảo mật xác thực (Refresh Token Rotation), và cá nhân hóa trải nghiệm khách hàng.
+*   **Nhiệm vụ cốt lõi**: Đặt vấn đề thực tế (không đưa giải pháp), nêu rõ mục tiêu và phạm vi giới hạn của đề tài, phác thảo định hướng công nghệ tổng quan và bố cục mạch lạc của báo cáo.
+
+#### 2. Chương 2: Phân tích và Thiết kế hệ thống (Ranh giới chức năng)
+*   **Mục đích**: Đặc tả chi tiết các tác nhân (Khách hàng, Vendor, Platform Admin) cùng các biểu đồ ca sử dụng (Use Case) để phân rã chức năng.
+*   **Nhiệm vụ cốt lõi**: Khảo sát hiện trạng (so sánh với Shopify, Woocommerce); xây dựng quy trình nghiệp vụ mua bán giữ kho kết hợp thanh toán đồng thời (Activity Diagram & Sequence Diagram); đặc tả chi tiết 4 Use Case cốt lõi (Auth, Place Order, Apply Vouchers, Merchant Stats); thiết lập yêu cầu phi chức năng (tốc độ API < 200ms, độ lệch tồn kho 0%, rate-limit).
+
+#### 3. Chương 3: Nền tảng lý thuyết và Công nghệ sử dụng (Cơ sở khoa học)
+*   **Mục đích**: Giải thích, phân tích và chứng minh lý do lựa chọn bộ công nghệ (MERN Stack, Redis cache, Socket.IO, Stripe/VNPay, Hybrid Recommendation Engine) để giải quyết các yêu cầu đặt ra ở Chương 2.
+*   **Nhiệm vụ cốt lõi**: Với mỗi công nghệ/lý thuyết được trình bày, sinh viên phải so sánh đối chiếu chi tiết với **giải pháp thay thế tương đương** và chứng minh sự vượt trội của lựa chọn hiện tại dựa trên các chỉ số khoa học thực tế.
+
+#### 4. Chương 4: Phân tích thiết kế, Triển khai và Đánh giá hệ thống (Thiết kế chi tiết)
+*   **Mục đích**: Hiện thực hóa kiến trúc phần mềm từ mức khái niệm sang mức thiết kế cấu trúc chi tiết và vật lý của hệ thống.
+*   **Nhiệm vụ cốt lõi**: Vẽ biểu đồ thiết kế gói UML (UML Package Diagram) phân lớp rõ ràng; thiết kế sơ đồ lớp chi tiết và luồng truyền thông điệp; thiết kế sơ đồ thực thể liên kết (E-R Diagram) / lược đồ MongoDB tài liệu lồng nhau; liệt kê thư viện, công cụ lập trình kèm phiên bản cụ thể; thiết kế kịch bản kiểm thử (Test Cases) và triển khai server/thiết bị thực tế.
+
+#### 5. Chương 5: Các giải pháp và đóng góp nổi bật (Trọng tâm học thuật)
+*   **Mục đích**: Là nơi sinh viên thể hiện sự tâm đắc, sáng tạo và lập luận khoa học để giải quyết các bài toán khó nhất của đồ án. Đây là cơ sở then chốt để thầy cô đánh giá điểm số.
+*   **Nhiệm vụ cốt lõi**: Trình bày độc lập từ 2 đến 3 đóng góp lớn nhất (ví dụ: *Thuật toán giữ kho nguyên tử ngăn chặn oversell dưới tải cao*, *Động cơ tính giảm giá bảo mật 4 lớp*, hoặc *Lớp đệm bảo mật rate-limit bằng Redis*). Mỗi đóng góp phải viết đủ 3 phần con: (i) dẫn dắt bài toán khó, (ii) giải pháp chi tiết của bản thân, và (iii) kết quả thực nghiệm đạt được.
+
+#### 6. Chương 6: Kết luận và Hướng phát triển (Tổng kết và Mở rộng)
+*   **Mục đích**: Tổng kết và đánh giá công bằng kết quả đạt được sau toàn bộ quá trình nghiên cứu, thực hiện đồ án.
+*   **Nhiệm vụ cốt lõi**: So sánh sản phẩm/kết quả thực tế của mình với các sản phẩm tương tự trên thị trường; phân tích rõ những gì đã làm được và những gì còn hạn chế; đúc kết bài học kinh nghiệm; đề ra định hướng công việc và hướng đi mới trong tương lai để nâng cấp/cải thiện sản phẩm.
+
+#### 7. Chương 7: Một số lưu ý về tài liệu tham khảo (Quy chuẩn trích dẫn)
+*   **Mục đích**: Hướng dẫn và chuẩn hóa cách thức liệt kê thông tin tài liệu tham khảo.
+*   **Nhiệm vụ cốt lõi**: Phân loại và khai báo chuẩn hóa 5 nguồn tài liệu chính (Bài báo tạp chí khoa học, Sách, Tập san báo cáo hội nghị, Đồ án/luận văn tốt nghiệp, Tài liệu Internet chính thống). **Tuyệt đối cấm** đưa bài giảng/slide, Wikipedia hoặc các blog cá nhân trôi nổi làm tài liệu tham khảo.
+
+#### 8. Các Phụ lục (Supplementary Information)
+*   **Phụ lục A (Hướng dẫn viết ĐATN)**: Chứa các quy định chi tiết về cách định dạng tài liệu, cài đặt công cụ.
+*   **Phụ lục B (Đặc tả Use Case bổ sung)**: Chứa thông tin đặc tả chi tiết của các Use Case phụ nhằm giảm dung lượng, giúp nội dung Chương 2 tập trung sâu sắc vào các Use Case cốt lõi nhạy cảm của hệ thống.
+

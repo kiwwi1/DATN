@@ -204,9 +204,16 @@ export const requestPasswordResetService = async (email) => {
     user.passwordResetExpires = new Date(Date.now() + RESET_EXPIRE_MS);
     await user.save();
 
-    const base =
-        process.env.FRONTEND_URL?.replace(/\/$/, "") ||
-        "http://localhost:5173";
+    const rawBase = process.env.FRONTEND_URL?.replace(/\/$/, "") || "http://localhost:5173";
+    try {
+        const parsed = new URL(rawBase);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            throw new Error("invalid protocol");
+        }
+    } catch {
+        throw new Error("FRONTEND_URL không hợp lệ");
+    }
+    const base = rawBase;
     const resetUrl = `${base}/reset-password?token=${token}`;
 
     try {

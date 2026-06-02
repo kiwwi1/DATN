@@ -50,7 +50,10 @@ const PlaceOrder = () => {
   });
 
   return (
-    <form onSubmit={onSubmitHandler} className="flex min-h-[80vh] flex-col justify-between gap-4 border-t pt-5 sm:flex-row sm:pt-14">
+    <form onSubmit={onSubmitHandler} className="relative flex min-h-[80vh] flex-col justify-between gap-4 border-t pt-5 sm:flex-row sm:pt-14">
+      {isSubmitting && (
+        <div className="absolute inset-0 z-20 cursor-wait rounded bg-white/60" />
+      )}
       <div className="flex w-full flex-col gap-4 sm:max-w-[520px]">
         <div className="my-3 text-xl sm:text-2xl">
           <Title text1={"THÔNG TIN "} text2={"GIAO HÀNG"} />
@@ -93,12 +96,14 @@ const PlaceOrder = () => {
                 value={voucherInput}
                 onChange={(event) => setVoucherInput(event.target.value)}
                 placeholder="Nhap ma voucher"
-                className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none"
+                disabled={isSubmitting}
+                className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={applyVoucherInput}
-                className="rounded bg-black px-3 py-2 text-xs text-white"
+                disabled={isSubmitting}
+                className="rounded bg-black px-3 py-2 text-xs text-white disabled:opacity-50"
               >
                 Ap dung
               </button>
@@ -110,7 +115,8 @@ const PlaceOrder = () => {
                     key={code}
                     type="button"
                     onClick={() => removeVoucherCode(code)}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600"
+                    disabled={isSubmitting}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 disabled:opacity-50"
                   >
                     {code} x
                   </button>

@@ -14,10 +14,10 @@ import {
 /**
  * GET /api/notification/stream
  * SSE endpoint — client kết nối một lần, server push events liên tục.
- * Ưu tiên đọc token từ HttpOnly cookie, fallback query param để tương thích cũ.
+ * Token chỉ được đọc từ HttpOnly cookie (EventSource gửi withCredentials: true).
  */
 export const sseStream = (req, res) => {
-    const token = req.cookies?.accessToken || req.query.token;
+    const token = req.cookies?.accessToken;
     if (!token) {
         return res.status(401).json({ success: false, message: "Unauthorized" });
     }

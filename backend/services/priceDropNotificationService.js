@@ -89,19 +89,21 @@ export const notifyPriceDrop = async ({ productBefore, productAfter }) => {
   }).select("_id telegramChatId cartData").lean();
 
   const discountPct = calculateDiscountPct(oldPrice, newPrice);
-  const title = `Sản phẩm giảm giá ${discountPct > 0 ? `-${discountPct}%` : ""}`.trim();
+  const title = `Sản phẩm giảm giá${discountPct > 0 ? ` -${discountPct}%` : ""}`;
   const message = `${productAfter.name} vừa giảm từ ${formatCurrency(oldPrice)} xuống ${formatCurrency(newPrice)}.`;
 
   for (const u of users) {
     if (!hasProductInCartData(u.cartData, productId)) continue;
     if (await alreadyNotifiedRecently(u._id, productId)) continue;
 
-    await createNotification(u._id, "price_drop", title, message, null, productId);
+    await createNotification(u._id, "price_drop", title, message, null, productId, {
+      audience: "user",
+    });
     if (u.telegramChatId) {
       const telegramText =
-        `Gia giam!\n${productAfter.name}\n` +
+        `Giá giảm!\n${productAfter.name}\n` +
         `${formatCurrency(oldPrice)} -> ${formatCurrency(newPrice)}\n` +
-        (discountPct > 0 ? `Giam ${discountPct}%` : "");
+        (discountPct > 0 ? `Giảm ${discountPct}%` : "");
       sendTelegramMessage(u.telegramChatId, telegramText).catch(() => {});
     }
   }

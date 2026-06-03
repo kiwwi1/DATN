@@ -6,6 +6,7 @@ import {
     placeOrderVNPayService,
     verifyVNPayReturnService,
     previewOrderPricingService,
+    listCheckoutVoucherSuggestionsService,
     allOrdersService,
     userOrdersService,
     updateOrderStatusService,
@@ -125,6 +126,16 @@ const previewOrder = async (req, res) => {
     }
 };
 
+const listCheckoutVoucherSuggestions = async (req, res) => {
+    try {
+        const { items } = req.body;
+        const result = await listCheckoutVoucherSuggestionsService({ items });
+        res.json({ success: true, ...result });
+    } catch (error) {
+        return buildOrderErrorResponse(res, error, "Failed to list voucher suggestions");
+    }
+};
+
 const allOrders = async (req, res) => {
     try {
         const orders = await allOrdersService();
@@ -183,18 +194,6 @@ const cancelOrder = async (req, res) => {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
-
-const cancelOrderAdmin = async (req, res) => {
-    try {
-        const { orderId, cancelReason } = req.body;
-        if (!orderId) return res.status(400).json({ success: false, message: "Order ID is required" });
-        const order = await cancelOrderService({ orderId, cancelReason, cancelledBy: "admin" });
-        res.json({ success: true, message: "Đơn hàng đã được hủy", order });
-    } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
-    }
-};
-
 const vendorStats = async (req, res) => {
     try {
         const stats = await vendorStatsService(req.vendorId);
@@ -222,12 +221,13 @@ export {
     verifyStripePayment,
     placeOrderVNPay,
     previewOrder,
+    listCheckoutVoucherSuggestions,
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,
     cancelOrder,
-    cancelOrderAdmin,
     vendorStats,
     deleteOrder,
     stripeWebhook,
 };
+

@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { useSearchParams } from 'react-router-dom'
 import { backendUrl } from '../App.jsx'
 import { assets } from '../assets/assets.js'
 import { formatPrice } from '../utils/priceFormat'
 
 const SHIPPING_STATUSES = new Set(['Shipped', 'Out for delivery', 'Delivered'])
+const INITIAL_VISIBLE_ORDERS = 8
+const LOAD_MORE_STEP = 6
 
 const getOrderAddressMeta = (address = {}) => {
   const receiverName = address.receiverName || `${address.firstName || ''} ${address.lastName || ''}`.trim()
@@ -27,9 +30,57 @@ const STATUS_LABELS = {
 }
 
 const Orders = ({ token }) => {
+  const [searchParams] = useSearchParams()
+  const focusOrderId = searchParams.get('orderId') || ''
   const [orders, setOrders] = useState([])
   const [trackingInputs, setTrackingInputs] = useState({})
   const [loading, setLoading] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ORDERS)
+  const sentinelRef = useRef(null)
+
+  const visibleOrders = useMemo(
+    () => orders.slice(0, Math.min(visibleCount, orders.length)),
+    [orders, visibleCount]
+  )
+  const hasMoreOrders = visibleCount < orders.length
+
+  useEffect(() => {
+    if (!focusOrderId || orders.length === 0) {
+      setVisibleCount(INITIAL_VISIBLE_ORDERS)
+      return
+    }
+    const targetIndex = orders.findIndex((order) => String(order._id) === String(focusOrderId))
+    if (targetIndex === -1) {
+      setVisibleCount(INITIAL_VISIBLE_ORDERS)
+      return
+    }
+    setVisibleCount(Math.max(INITIAL_VISIBLE_ORDERS, targetIndex + 1))
+  }, [orders, focusOrderId])
+
+  useEffect(() => {
+    if (!focusOrderId || visibleOrders.length === 0) return
+    const id = `vendor-order-${focusOrderId}`
+    const target = document.getElementById(id)
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [focusOrderId, visibleOrders])
+
+  useEffect(() => {
+    if (loading || !hasMoreOrders || !sentinelRef.current) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting) return
+        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, orders.length))
+      },
+      { root: null, rootMargin: '220px 0px', threshold: 0.01 }
+    )
+
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [loading, hasMoreOrders, orders.length])
 
   const fetchAllOrders = async () => {
     if (!token) return
@@ -44,6 +95,7 @@ const Orders = ({ token }) => {
           nextTrackingInputs[order._id] = order.trackingNumber || ''
         })
         setTrackingInputs(nextTrackingInputs)
+        setVisibleCount(INITIAL_VISIBLE_ORDERS)
       } else {
         toast.error(response.data.message)
       }
@@ -137,10 +189,16 @@ const Orders = ({ token }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order, index) => {
+          {visibleOrders.map((order, index) => {
             const addressMeta = getOrderAddressMeta(order.address)
             return (
-              <article key={order._id || index} className="admin-card p-4">
+              <article
+                id={`vendor-order-${order._id}`}
+                key={order._id || index}
+                className={`admin-card p-4 ${
+                  String(order._id) === String(focusOrderId) ? 'ring-2 ring-pink-400' : ''
+                }`}
+              >
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="flex items-start gap-3">
                     <img src={assets.parcel_icon} alt="parcel" className="mt-0.5 h-10 w-10 flex-shrink-0" />
@@ -248,6 +306,12 @@ const Orders = ({ token }) => {
               </article>
             )
           })}
+
+          {hasMoreOrders && (
+            <div ref={sentinelRef} className="admin-card flex items-center justify-center py-3 text-xs text-slate-500">
+              Kéo xuống để tải thêm đơn hàng...
+            </div>
+          )}
         </div>
       )}
     </section>

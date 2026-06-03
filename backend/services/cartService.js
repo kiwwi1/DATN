@@ -95,7 +95,7 @@ export const getUserCartService = async (userId) => {
     return cartData;
 };
 
-/** Clear cartData of all users (for script/admin use). */
+/** Clear cartData of all users (for maintenance scripts). */
 export const clearAllCartsService = async () => {
     const result = await userModel.updateMany({}, { $set: { cartData: {} } });
     return result;

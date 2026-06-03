@@ -51,7 +51,7 @@ const App = () => {
 
   const loadNotifications = async (tok) => {
     try {
-      const res = await fetch(`${backendUrl}/api/notification/list`, {
+      const res = await fetch(`${backendUrl}/api/notification/list?audience=vendor`, {
         credentials: 'include',
         headers: { token: tok },
       });
@@ -68,7 +68,8 @@ const App = () => {
       await fetch(`${backendUrl}/api/notification/read-all`, {
         method: 'POST',
         credentials: 'include',
-        headers: { token: tok },
+        headers: { token: tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audience: 'vendor' }),
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
@@ -102,7 +103,7 @@ const App = () => {
     loadVendorInfo(token);
     loadNotifications(token);
 
-    const es = new EventSource(`${backendUrl}/api/notification/stream`, { withCredentials: true });
+    const es = new EventSource(`${backendUrl}/api/notification/stream?audience=vendor`, { withCredentials: true });
     sseRef.current = es;
     es.onmessage = (e) => {
       try {

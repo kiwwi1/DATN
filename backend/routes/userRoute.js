@@ -13,6 +13,7 @@ import {
     logoutUser,
 } from '../controllers/userController.js';
 import authUser from '../middleware/auth.js';
+import upload from '../middleware/multer.js';
 import {
     loginRateLimit,
     verifyEmailRateLimit,
@@ -27,7 +28,7 @@ userRouter.post('/register', registerUser);
 userRouter.post('/verify-email', ...verifyEmailRateLimit, verifyEmail);
 userRouter.post('/register-vendor', authUser, registerVendor);
 userRouter.post('/profile', authUser, getUserProfile);
-userRouter.post('/update-profile', authUser, updateUserProfile);
+userRouter.post('/update-profile', authUser, upload.single('avatar'), updateUserProfile);
 userRouter.post('/google', loginWithGoogle);
 userRouter.post('/forgot-password', ...forgotPasswordRateLimit, forgotPassword);
 userRouter.post('/reset-password', ...resetPasswordRateLimit, resetPassword);

@@ -130,8 +130,8 @@ const VendorRegis = () => {
         <div className="bg-gray-50 p-4 rounded-md">
           <h3 className="font-medium text-gray-800 mb-2">Lưu ý:</h3>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Thông tin sẽ được admin xem xét và phê duyệt</li>
-            <li>• Sau khi được phê duyệt, bạn có thể đăng sản phẩm</li>
+            <li>• Sau khi đăng ký, tài khoản sẽ chuyển sang quyền người bán</li>
+            <li>• Bạn có thể đăng sản phẩm ngay trên kênh người bán</li>
             <li>• Vui lòng cung cấp thông tin chính xác</li>
           </ul>
         </div>

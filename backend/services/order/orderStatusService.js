@@ -74,7 +74,9 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
     "order_status",
     "Cập nhật đơn hàng",
     `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-    order._id
+    order._id,
+    null,
+    { audience: "user" }
   );
 
   return order;
@@ -87,7 +89,15 @@ export const vendorOrdersService = async (vendorId) => {
     .map((order) => {
       const vendorItems = order.items.filter((item) => item.vendorId?.toString() === vendorId.toString());
       const vendorAmount = vendorItems.reduce((total, item) => total + item.price * item.quantity, 0);
-      return { ...order.toObject(), items: vendorItems, vendorAmount };
+      const vendorEntry = Array.isArray(order.vendors)
+        ? order.vendors.find((vendor) => vendor.vendorId?.toString() === vendorId.toString())
+        : null;
+      return {
+        ...order.toObject(),
+        items: vendorItems,
+        vendorAmount,
+        trackingNumber: vendorEntry?.trackingNumber || order.trackingNumber || "",
+      };
     });
 };
 
@@ -110,12 +120,21 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
   }
 
   const normalizedTracking = normalizeTrackingNumber(trackingNumber);
-  if (TRACKING_REQUIRED_VENDOR_STATUSES.has(nextVendorStatus) && !normalizedTracking && !order.trackingNumber) {
+  if (
+    TRACKING_REQUIRED_VENDOR_STATUSES.has(nextVendorStatus) &&
+    !normalizedTracking &&
+    !(vendorEntry?.trackingNumber || order.trackingNumber)
+  ) {
     throw Object.assign(new Error("Please provide tracking number before marking order as shipped"), { status: 400 });
   }
   if (normalizedTracking !== undefined) {
-    order.trackingNumber = normalizedTracking;
-    order.trackingUpdatedAt = Date.now();
+    const now = Date.now();
+    vendorEntry.trackingNumber = normalizedTracking;
+    vendorEntry.trackingUpdatedAt = now;
+    if (!order.trackingNumber || order.vendors?.length === 1) {
+      order.trackingNumber = normalizedTracking;
+      order.trackingUpdatedAt = now;
+    }
   }
 
   vendorEntry.vendorStatus = nextVendorStatus;
@@ -129,7 +148,9 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     "order_status",
     "Cập nhật đơn hàng",
     `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
-    order._id
+    order._id,
+    null,
+    { audience: "user" }
   );
 
   return order;

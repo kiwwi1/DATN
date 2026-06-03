@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ShopContext } from '../../context/ShopContext'
 import axios from 'axios'
 import NavbarSearch from './NavbarSearch'
+import { formatImageUrl } from '../../utils/imageUtils'
 
 const Navbar = () => {
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
@@ -94,6 +95,15 @@ const Navbar = () => {
 
   const primaryLinks = navLinks.slice(0, 2)
   const secondaryLinks = navLinks.slice(2)
+  const profileAvatarSrc =
+    formatImageUrl(userProfile?.avatar, {
+      variant: 'thumb',
+      width: 64,
+      height: 64,
+      fit: 'cover',
+      quality: 80,
+      format: 'webp',
+    }) || assets.profile_icon
 
   return (
     <header
@@ -207,7 +217,7 @@ const Navbar = () => {
                       className='rounded-full p-1.5 hover:bg-white/80 transition-colors'
                       aria-label='Mở menu hồ sơ'
                     >
-                      <img src={assets.profile_icon} alt='Hồ sơ' className='w-6 h-6 rounded-full bg-rose-100 p-0.5' />
+                      <img src={profileAvatarSrc} alt='Hồ sơ' className='w-6 h-6 rounded-full object-cover bg-rose-100 p-0.5' referrerPolicy='no-referrer' />
                     </button>
                     {showProfileMenu && (
                       <div className='absolute right-0 pt-2 z-[70]'>

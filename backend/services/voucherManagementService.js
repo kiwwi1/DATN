@@ -53,7 +53,6 @@ const loadRequester = async (userId) => {
 };
 
 const buildScopedQuery = (requester) => {
-  if (requester.role === "admin") return {};
   if (requester.role === "vendor") return { type: "SHOP", vendorId: requester._id };
   throw Object.assign(new Error("Forbidden"), { status: 403 });
 };
@@ -75,11 +74,6 @@ export const createVoucherService = async ({ userId, payload }) => {
       throw Object.assign(new Error("Vendor can only create SHOP vouchers"), { status: 403 });
     }
     data.vendorId = requester._id;
-  } else if (requester.role === "admin") {
-    if (data.type !== "SHOP") data.vendorId = undefined;
-    if (data.type === "SHOP" && !data.vendorId) {
-      throw Object.assign(new Error("SHOP voucher requires vendorId"), { status: 400 });
-    }
   } else {
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   }
@@ -110,7 +104,7 @@ export const updateVoucherService = async ({ userId, voucherId, payload }) => {
     if (voucher.type !== "SHOP" || String(voucher.vendorId) !== String(requester._id)) {
       throw Object.assign(new Error("Forbidden"), { status: 403 });
     }
-  } else if (requester.role !== "admin") {
+  } else {
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   }
 
@@ -143,7 +137,7 @@ export const toggleVoucherActiveService = async ({ userId, voucherId, isActive }
     if (voucher.type !== "SHOP" || String(voucher.vendorId) !== String(requester._id)) {
       throw Object.assign(new Error("Forbidden"), { status: 403 });
     }
-  } else if (requester.role !== "admin") {
+  } else {
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   }
 
@@ -164,7 +158,7 @@ export const deleteVoucherService = async ({ userId, voucherId }) => {
     if (voucher.type !== "SHOP" || String(voucher.vendorId) !== String(requester._id)) {
       throw Object.assign(new Error("Forbidden"), { status: 403 });
     }
-  } else if (requester.role !== "admin") {
+  } else {
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   }
 

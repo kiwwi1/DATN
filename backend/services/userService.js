@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/sendResetEmail.js";
 import { ensureUserDeletable } from "./deletionGuardService.js";
+import { uploadToR2 } from "../utils/r2Upload.js";
 
 const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "15m";
 const REFRESH_TOKEN_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
@@ -157,12 +158,16 @@ export const getUserProfileService = async (userId) => {
     return { ...user, cartData: cleanCart };
 };
 
-export const updateUserProfileService = async (userId, { name, email, phone }) => {
+export const updateUserProfileService = async (userId, { name, email, phone }, avatarFile) => {
     const user = await userModel.findById(userId);
     if (!user) throw new Error("User not found");
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
+    if (avatarFile) {
+        const avatar = await uploadToR2(avatarFile, "avatars");
+        user.avatar = avatar;
+    }
     await user.save();
     return user;
 };

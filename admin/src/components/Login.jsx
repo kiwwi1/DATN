@@ -11,8 +11,8 @@ const Login = ({ isCheckingSession = false }) => (
         </div>
 
         <div className="mb-6 text-center">
-          <h2 className="text-2xl font-bold text-slate-900">Cổng quản trị nhà bán</h2>
-          <p className="mt-1 text-sm text-slate-500">Đăng nhập tại storefront bằng cùng tài khoản người bán trước khi vào admin.</p>
+          <h2 className="text-2xl font-bold text-slate-900">Cong nguoi ban</h2>
+          <p className="mt-1 text-sm text-slate-500">Dang nhap tai storefront bang cung tai khoan nguoi ban truoc khi vao kenh nguoi ban.</p>
         </div>
 
         <div className="rounded-xl border border-sky-100 bg-sky-50 p-5">
@@ -21,8 +21,8 @@ const Login = ({ isCheckingSession = false }) => (
               1
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Đăng nhập ở storefront</p>
-              <p className="mt-0.5 text-xs text-slate-500">Sử dụng tài khoản hiện có, không có luồng đăng nhập admin riêng.</p>
+              <p className="text-sm font-semibold text-slate-800">Dang nhap o storefront</p>
+              <p className="mt-0.5 text-xs text-slate-500">Su dung tai khoan hien co, khong co luong dang nhap rieng cho quan tri.</p>
             </div>
           </div>
 
@@ -31,8 +31,8 @@ const Login = ({ isCheckingSession = false }) => (
               2
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-800">Mở trang nhà bán</p>
-              <p className="mt-0.5 text-xs text-slate-500">Nhấn nút vào trang nhà bán trong thanh điều hướng storefront.</p>
+              <p className="text-sm font-semibold text-slate-800">Mo trang nha ban</p>
+              <p className="mt-0.5 text-xs text-slate-500">Nhan nut vao trang nha ban trong thanh dieu huong storefront.</p>
             </div>
           </div>
 
@@ -42,12 +42,12 @@ const Login = ({ isCheckingSession = false }) => (
             rel="noreferrer"
             className="inline-flex w-full items-center justify-center rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
           >
-            Mở storefront
+            Mo storefront
           </a>
         </div>
 
         {isCheckingSession && (
-          <p className="mt-4 text-center text-sm text-slate-500">Đang kiểm tra phiên đăng nhập...</p>
+          <p className="mt-4 text-center text-sm text-slate-500">Dang kiem tra phien dang nhap...</p>
         )}
       </div>
     </div>

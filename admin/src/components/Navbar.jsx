@@ -1,5 +1,6 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { assets } from '../assets/assets'
+import { useNavigate } from 'react-router-dom'
 
 const TYPE_ICON_CLASS = {
   order_placed: 'bg-emerald-100 text-emerald-700',
@@ -29,6 +30,7 @@ const formatTime = (date) => {
 
 const Navbar = ({ onLogout, vendorInfo, unreadCount = 0, notifications = [], markAllRead }) => {
   const [showDropdown, setShowDropdown] = useState(false)
+  const navigate = useNavigate()
   const displayName = vendorInfo?.shopName || vendorInfo?.name || ''
 
   const handleBellClick = () => {
@@ -36,6 +38,17 @@ const Navbar = ({ onLogout, vendorInfo, unreadCount = 0, notifications = [], mar
     setShowDropdown(opening)
     if (opening && unreadCount > 0) {
       markAllRead?.()
+    }
+  }
+
+  const handleNotificationClick = (notification) => {
+    setShowDropdown(false)
+    if (notification?.orderId) {
+      navigate(`/orders?orderId=${notification.orderId}`)
+      return
+    }
+    if (notification?.productId) {
+      navigate('/list')
     }
   }
 
@@ -100,7 +113,10 @@ const Navbar = ({ onLogout, vendorInfo, unreadCount = 0, notifications = [], mar
                     notifications.map((notification) => (
                       <li
                         key={notification._id}
-                        className={`flex items-start gap-3 px-4 py-3 ${!notification.read ? 'bg-pink-50/60' : 'bg-white'}`}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`flex items-start gap-3 px-4 py-3 ${!notification.read ? 'bg-pink-50/60' : 'bg-white'} ${
+                          notification.orderId || notification.productId ? 'cursor-pointer hover:bg-slate-50' : ''
+                        }`}
                       >
                         <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${TYPE_ICON_CLASS[notification.type] || 'bg-slate-100 text-slate-600'}`}>
                           {TYPE_SYMBOL[notification.type] || 'i'}

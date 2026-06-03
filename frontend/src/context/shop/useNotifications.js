@@ -8,7 +8,9 @@ export const useNotifications = ({ backendUrl, token }) => {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const response = await axios.get(`${backendUrl}/api/notification/list`);
+      const response = await axios.get(`${backendUrl}/api/notification/list`, {
+        params: { audience: "user" },
+      });
       if (response.data.success) {
         setNotifications(response.data.notifications);
       }
@@ -19,7 +21,7 @@ export const useNotifications = ({ backendUrl, token }) => {
 
   const markAllNotificationsRead = useCallback(async () => {
     try {
-      await axios.post(`${backendUrl}/api/notification/read-all`, {});
+      await axios.post(`${backendUrl}/api/notification/read-all`, { audience: "user" });
       setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
     } catch {
       // non-critical
@@ -37,7 +39,10 @@ export const useNotifications = ({ backendUrl, token }) => {
     }
 
     loadNotifications();
-    const eventSource = new EventSource(`${backendUrl}/api/notification/stream`, { withCredentials: true });
+    const eventSource = new EventSource(
+      `${backendUrl}/api/notification/stream?audience=user`,
+      { withCredentials: true }
+    );
     sseRef.current = eventSource;
 
     eventSource.onmessage = (event) => {

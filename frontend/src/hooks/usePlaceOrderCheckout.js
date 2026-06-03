@@ -54,6 +54,38 @@ const computeFallbackPricing = (orderItems, deliveryFee) => {
   };
 };
 
+const groupOrderItemsByVendor = (items = []) => {
+  const vendorsMap = new Map();
+
+  for (const item of items) {
+    const vendorId = String(item.vendorId || "");
+    if (!vendorId) continue;
+    if (!vendorsMap.has(vendorId)) {
+      vendorsMap.set(vendorId, {
+        vendorId,
+        vendorShopName: item.vendorShopName || "Shop",
+        items: [],
+        subtotal: 0,
+      });
+    }
+    const vendor = vendorsMap.get(vendorId);
+    vendor.items.push(item);
+    vendor.subtotal += Number(item.price || 0) * Number(item.quantity || 0);
+  }
+
+  return Array.from(vendorsMap.values());
+};
+
+const filterByVendorIds = (source = {}, validVendorIds) => {
+  const next = {};
+  Object.entries(source || {}).forEach(([vendorId, value]) => {
+    if (validVendorIds.has(vendorId)) {
+      next[vendorId] = value;
+    }
+  });
+  return next;
+};
+
 export const usePlaceOrderCheckout = ({
   navigate,
   cartItems,
@@ -83,10 +115,13 @@ export const usePlaceOrderCheckout = ({
   });
   const [selectedTotal, setSelectedTotal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [shopVoucherInput, setShopVoucherInput] = useState("");
+  const [shopVoucherInputs, setShopVoucherInputs] = useState({});
+  const [shopVoucherCodesByVendor, setShopVoucherCodesByVendor] = useState({});
   const [platformVoucherInput, setPlatformVoucherInput] = useState("");
-  const [shopVoucherCodes, setShopVoucherCodes] = useState([]);
   const [platformVoucherCodes, setPlatformVoucherCodes] = useState([]);
+  const [shopVoucherSuggestionsByVendor, setShopVoucherSuggestionsByVendor] = useState({});
+  const [platformVoucherSuggestions, setPlatformVoucherSuggestions] = useState([]);
+  const [voucherSuggestionLoading, setVoucherSuggestionLoading] = useState(false);
   const [appliedVouchers, setAppliedVouchers] = useState([]);
   const [rejectedVouchers, setRejectedVouchers] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -101,6 +136,18 @@ export const usePlaceOrderCheckout = ({
     }
     return buildOrderItemsFromCart(cartItems, products);
   }, [selectedCartItems, cartItems, products]);
+
+  const groupedOrderItems = useMemo(
+    () => groupOrderItemsByVendor(currentOrderItems),
+    [currentOrderItems]
+  );
+
+  useEffect(() => {
+    const validVendorIds = new Set(groupedOrderItems.map((vendor) => vendor.vendorId));
+    setShopVoucherInputs((previous) => filterByVendorIds(previous, validVendorIds));
+    setShopVoucherCodesByVendor((previous) => filterByVendorIds(previous, validVendorIds));
+    setShopVoucherSuggestionsByVendor((previous) => filterByVendorIds(previous, validVendorIds));
+  }, [groupedOrderItems]);
 
   const fallbackPricing = useMemo(
     () => computeFallbackPricing(currentOrderItems, deliveryFee),
@@ -120,12 +167,13 @@ export const usePlaceOrderCheckout = ({
 
   const hasAddressBook = addresses.length > 0;
 
+  const shopVoucherCodes = useMemo(
+    () => uniqueVoucherCodes(Object.values(shopVoucherCodesByVendor).flat()),
+    [shopVoucherCodesByVendor]
+  );
+
   const voucherCodes = useMemo(
-    () =>
-      uniqueVoucherCodes([
-        ...shopVoucherCodes,
-        ...platformVoucherCodes,
-      ]),
+    () => uniqueVoucherCodes([...shopVoucherCodes, ...platformVoucherCodes]),
     [shopVoucherCodes, platformVoucherCodes]
   );
 
@@ -134,15 +182,40 @@ export const usePlaceOrderCheckout = ({
     [appliedVouchers]
   );
 
+  const appliedShopVouchersByVendor = useMemo(() => {
+    const grouped = {};
+    appliedShopVouchers.forEach((voucher) => {
+      const vendorId = String(voucher.vendorId || "");
+      if (!vendorId) return;
+      if (!grouped[vendorId]) grouped[vendorId] = [];
+      grouped[vendorId].push(voucher);
+    });
+    return grouped;
+  }, [appliedShopVouchers]);
+
   const appliedPlatformVouchers = useMemo(
     () => appliedVouchers.filter((voucher) => voucher.type === "PLATFORM" || voucher.type === "SHIPPING"),
     [appliedVouchers]
   );
 
-  const rejectedShopVouchers = useMemo(() => {
-    const shopCodeSet = new Set(shopVoucherCodes.map(normalizeVoucherCode));
-    return rejectedVouchers.filter((voucher) => shopCodeSet.has(normalizeVoucherCode(voucher.code)));
-  }, [rejectedVouchers, shopVoucherCodes]);
+  const rejectedShopVouchersByVendor = useMemo(() => {
+    const normalizedByVendor = {};
+    Object.entries(shopVoucherCodesByVendor).forEach(([vendorId, codes]) => {
+      normalizedByVendor[vendorId] = new Set((codes || []).map(normalizeVoucherCode));
+    });
+
+    const grouped = {};
+    rejectedVouchers.forEach((voucher) => {
+      const normalizedCode = normalizeVoucherCode(voucher.code);
+      Object.entries(normalizedByVendor).forEach(([vendorId, codeSet]) => {
+        if (!codeSet.has(normalizedCode)) return;
+        if (!grouped[vendorId]) grouped[vendorId] = [];
+        grouped[vendorId].push(voucher);
+      });
+    });
+
+    return grouped;
+  }, [rejectedVouchers, shopVoucherCodesByVendor]);
 
   const rejectedPlatformVouchers = useMemo(() => {
     const platformCodeSet = new Set(platformVoucherCodes.map(normalizeVoucherCode));
@@ -180,7 +253,7 @@ export const usePlaceOrderCheckout = ({
         setRejectedVouchers(rejected);
 
         if (showErrors && rejected.length > 0) {
-          toast.error(rejected[0].reason || "Voucher không hợp lệ");
+          toast.error(rejected[0].reason || "Voucher kh\u00f4ng h\u1ee3p l\u1ec7");
         }
 
         return { pricing, appliedVouchers: applied, rejectedVouchers: rejected };
@@ -199,6 +272,44 @@ export const usePlaceOrderCheckout = ({
     [backendUrl, deliveryFee, token]
   );
 
+  const fetchVoucherSuggestions = useCallback(
+    async (orderItems) => {
+      if (!token || !Array.isArray(orderItems) || orderItems.length === 0) {
+        setShopVoucherSuggestionsByVendor({});
+        setPlatformVoucherSuggestions([]);
+        return;
+      }
+
+      try {
+        setVoucherSuggestionLoading(true);
+        const response = await axios.post(
+          `${backendUrl}/api/order/voucher-suggestions`,
+          { items: orderItems },
+          { headers: { token } }
+        );
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || "Failed to load voucher suggestions");
+        }
+
+        const nextShopSuggestions = {};
+        (response.data.shopSuggestions || []).forEach((shop) => {
+          const vendorId = String(shop.vendorId || "");
+          if (!vendorId) return;
+          nextShopSuggestions[vendorId] = shop.vouchers || [];
+        });
+
+        setShopVoucherSuggestionsByVendor(nextShopSuggestions);
+        setPlatformVoucherSuggestions(response.data.platformSuggestions || []);
+      } catch {
+        // Suggestions are optional, keep checkout flow running.
+      } finally {
+        setVoucherSuggestionLoading(false);
+      }
+    },
+    [backendUrl, token]
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPricingPreview({ orderItems: currentOrderItems, codes: voucherCodes }).catch(() => {});
@@ -206,6 +317,14 @@ export const usePlaceOrderCheckout = ({
 
     return () => clearTimeout(timer);
   }, [currentOrderItems, voucherCodes, fetchPricingPreview]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchVoucherSuggestions(currentOrderItems).catch(() => {});
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [currentOrderItems, fetchVoucherSuggestions]);
 
   useEffect(() => {
     const loadAddresses = async () => {
@@ -297,48 +416,92 @@ export const usePlaceOrderCheckout = ({
   const validateAddressBeforeSubmit = () => {
     if (selectedAddress) return true;
     if (!formData.firstName || !formData.lastName || !formData.street || !formData.city || !formData.state || !formData.phone) {
-      toast.error("Vui lòng nhập đầy đủ thông tin giao hàng.");
+      toast.error("Vui l\u00f2ng nh\u1eadp \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin giao h\u00e0ng.");
       return false;
     }
     return true;
   };
 
-  const applyShopVoucherInput = () => {
-    const code = normalizeVoucherCode(shopVoucherInput);
+  const setShopVoucherInput = (vendorId, value) => {
+    const key = String(vendorId || "");
+    if (!key) return;
+    setShopVoucherInputs((previous) => ({
+      ...previous,
+      [key]: value,
+    }));
+  };
+
+  const applyShopVoucherInput = (vendorId) => {
+    const key = String(vendorId || "");
+    const code = normalizeVoucherCode(shopVoucherInputs[key]);
     if (!code) {
-      toast.error("Nhập mã voucher shop trước khi áp dụng");
+      toast.error("Nh\u1eadp m\u00e3 voucher shop tr\u01b0\u1edbc khi \u00e1p d\u1ee5ng");
       return;
     }
     if (voucherCodes.includes(code)) {
-      toast.info("Mã voucher đã được thêm");
+      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
       return;
     }
-    setShopVoucherCodes((prev) => [...prev, code]);
-    setShopVoucherInput("");
+    setShopVoucherCodesByVendor((previous) => ({
+      ...previous,
+      [key]: uniqueVoucherCodes([...(previous[key] || []), code]),
+    }));
+    setShopVoucherInputs((previous) => ({
+      ...previous,
+      [key]: "",
+    }));
+  };
+
+  const applySuggestedShopVoucher = (vendorId, code) => {
+    const key = String(vendorId || "");
+    const normalized = normalizeVoucherCode(code);
+    if (!key || !normalized) return;
+    if (voucherCodes.includes(normalized)) {
+      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      return;
+    }
+    setShopVoucherCodesByVendor((previous) => ({
+      ...previous,
+      [key]: uniqueVoucherCodes([...(previous[key] || []), normalized]),
+    }));
   };
 
   const applyPlatformVoucherInput = () => {
     const code = normalizeVoucherCode(platformVoucherInput);
     if (!code) {
-      toast.error("Nhập mã voucher sàn trước khi áp dụng");
+      toast.error("Nh\u1eadp m\u00e3 voucher s\u00e0n tr\u01b0\u1edbc khi \u00e1p d\u1ee5ng");
       return;
     }
     if (voucherCodes.includes(code)) {
-      toast.info("Mã voucher đã được thêm");
+      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
       return;
     }
-    setPlatformVoucherCodes((prev) => [...prev, code]);
+    setPlatformVoucherCodes((previous) => uniqueVoucherCodes([...previous, code]));
     setPlatformVoucherInput("");
   };
 
-  const removeShopVoucherCode = (code) => {
+  const applySuggestedPlatformVoucher = (code) => {
     const normalized = normalizeVoucherCode(code);
-    setShopVoucherCodes((prev) => prev.filter((item) => item !== normalized));
+    if (!normalized) return;
+    if (voucherCodes.includes(normalized)) {
+      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      return;
+    }
+    setPlatformVoucherCodes((previous) => uniqueVoucherCodes([...previous, normalized]));
+  };
+
+  const removeShopVoucherCode = (vendorId, code) => {
+    const key = String(vendorId || "");
+    const normalized = normalizeVoucherCode(code);
+    setShopVoucherCodesByVendor((previous) => ({
+      ...previous,
+      [key]: (previous[key] || []).filter((item) => item !== normalized),
+    }));
   };
 
   const removePlatformVoucherCode = (code) => {
     const normalized = normalizeVoucherCode(code);
-    setPlatformVoucherCodes((prev) => prev.filter((item) => item !== normalized));
+    setPlatformVoucherCodes((previous) => previous.filter((item) => item !== normalized));
   };
 
   const submitOrderByMethod = async ({ orderData, requestConfig }) => {
@@ -361,7 +524,7 @@ export const usePlaceOrderCheckout = ({
         console.error("Error fetching cart:", error);
       }
 
-      toast.success("Đặt hàng thành công!");
+      toast.success("\u0110\u1eb7t h\u00e0ng th\u00e0nh c\u00f4ng!");
       navigate("/orders");
       return;
     }
@@ -393,7 +556,7 @@ export const usePlaceOrderCheckout = ({
     if (inFlightRef.current) return;
 
     if (!token) {
-      toast.error("Vui lòng đăng nhập để đặt hàng.");
+      toast.error("Vui l\u00f2ng \u0111\u0103ng nh\u1eadp \u0111\u1ec3 \u0111\u1eb7t h\u00e0ng.");
       navigate("/login");
       return;
     }
@@ -405,7 +568,7 @@ export const usePlaceOrderCheckout = ({
 
     try {
       if (!currentOrderItems.length) {
-        toast.error("Không có sản phẩm để đặt hàng");
+        toast.error("Kh\u00f4ng c\u00f3 s\u1ea3n ph\u1ea9m \u0111\u1ec3 \u0111\u1eb7t h\u00e0ng");
         return;
       }
 
@@ -421,11 +584,11 @@ export const usePlaceOrderCheckout = ({
 
       const totalAmount = Number(latestPreview.pricing?.finalTotal || 0);
       if (method === "stripe" && totalAmount > STRIPE_VND_LIMIT) {
-        toast.error("Tổng đơn hàng vượt giới hạn Stripe. Vui lòng chọn COD.");
+        toast.error("T\u1ed5ng \u0111\u01a1n h\u00e0ng v\u01b0\u1ee3t gi\u1edbi h\u1ea1n Stripe. Vui l\u00f2ng ch\u1ecdn COD.");
         return;
       }
       if (method === "vnpay" && totalAmount > VNPAY_LIMIT) {
-        toast.error("Tổng đơn hàng vượt giới hạn VNPay.");
+        toast.error("T\u1ed5ng \u0111\u01a1n h\u00e0ng v\u01b0\u1ee3t gi\u1edbi h\u1ea1n VNPay.");
         return;
       }
 
@@ -479,24 +642,31 @@ export const usePlaceOrderCheckout = ({
     onChangeHandler,
     onProvinceChange,
     onSubmitHandler,
-    shopVoucherInput,
+    groupedOrderItems,
+    shopVoucherInputs,
     setShopVoucherInput,
     platformVoucherInput,
     setPlatformVoucherInput,
-    shopVoucherCodes,
+    shopVoucherCodesByVendor,
     platformVoucherCodes,
     voucherCodes,
     applyShopVoucherInput,
+    applySuggestedShopVoucher,
     applyPlatformVoucherInput,
+    applySuggestedPlatformVoucher,
     removeShopVoucherCode,
     removePlatformVoucherCode,
     pricingSummary,
     appliedVouchers,
     appliedShopVouchers,
+    appliedShopVouchersByVendor,
     appliedPlatformVouchers,
     rejectedVouchers,
-    rejectedShopVouchers,
+    rejectedShopVouchersByVendor,
     rejectedPlatformVouchers,
     previewLoading,
+    shopVoucherSuggestionsByVendor,
+    platformVoucherSuggestions,
+    voucherSuggestionLoading,
   };
 };

@@ -1,8 +1,13 @@
 import mongoose from "mongoose";
-import "dotenv/config";
+import dotenv from "dotenv";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import connectDB from "../config/mongodb.js";
 import userModel from "../models/userModel.js";
 import voucherModel from "../models/voucherModel.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, "..", ".env") });
 
 const seed = async () => {
   await connectDB();

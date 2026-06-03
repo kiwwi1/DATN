@@ -6,7 +6,14 @@ const userSchema = new mongoose.Schema({
     googleId: {type: String, required: false},
     password: {type: String, required: false},
     cartData: {type: Object, default: {}},
-    role: {type: String, enum: ['user', 'vendor', 'admin'], default: 'user'},
+    avatar: {
+        main: { type: String },
+        thumb: { type: String },
+        width: { type: Number },
+        height: { type: Number },
+        format: { type: String },
+    },
+    role: {type: String, enum: ['user', 'vendor'], default: 'user'},
     // Vendor-specific fields (only used when role is 'vendor')
     shopName: {type: String},
     shopAddress: {type: String},

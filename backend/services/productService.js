@@ -361,6 +361,10 @@ const buildPrompt = ({
         "- Có từ khóa liên quan tự nhiên theo SEO Shopee.",
         "- Văn phong bán hàng nhưng không lố.",
         "- Không bịa thông tin ngoài dữ liệu đã cung cấp.",
+        "- Trả lời trực tiếp vào mô tả sản phẩm, không viết lời mở đầu xã giao.",
+        "- Không viết các câu như: 'Tuyệt vời', 'Với vai trò...', 'Mình sẽ giúp...', 'Dưới đây là...'.",
+        "- Không nhắc lại đề bài/prompt, không giải thích cách làm, không ghi chú meta.",
+        "- Chỉ xuất nội dung mô tả cuối cùng theo đúng cấu trúc yêu cầu.",
         "",
         "Đa dạng hóa văn phong (bắt buộc):",
         `- Biến thể phong cách: ${styleProfile.id}`,
@@ -399,6 +403,47 @@ const fallbackDescription = ({ name, categoryName, subCategoryName, attributes, 
     return `${openingByStyle[styleProfile.id] || `${name} là lựa chọn phù hợp cho nhu cầu sử dụng hằng ngày.`}${
         categoryText ? ` Thuộc nhóm ${categoryText}, sản phẩm dễ phối hợp trong nhiều tình huống sử dụng.` : ""
     }${attrText}${variantText}${priceText} Liên hệ shop để được tư vấn thêm và chọn phiên bản phù hợp.`;
+};
+
+const parsePositiveInt = (value, fallback) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return Math.floor(parsed);
+};
+
+const toBooleanOrNull = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+    return null;
+};
+
+const resolveThinkingBudget = (model) => {
+    const fromEnv = process.env.GEMINI_THINKING_BUDGET;
+    if (fromEnv !== undefined && fromEnv !== null && String(fromEnv).trim() !== "") {
+        const parsed = Number(fromEnv);
+        if (Number.isFinite(parsed) && parsed >= -1) {
+            return Math.floor(parsed);
+        }
+    }
+
+    const explicitDisable = toBooleanOrNull(process.env.GEMINI_DISABLE_THINKING);
+    if (explicitDisable === true) return 0;
+    if (explicitDisable === false) return undefined;
+
+    // Gemini 2.5 bật thinking mặc định và dễ hết token output nếu prompt dài.
+    return /^gemini-2\.5/i.test(String(model || "")) ? 0 : undefined;
+};
+
+const extractGeminiText = (data) => {
+    const parts = data?.candidates?.[0]?.content?.parts;
+    if (!Array.isArray(parts) || parts.length === 0) return "";
+    return parts
+        .map((part) => (typeof part?.text === "string" ? part.text.trim() : ""))
+        .filter(Boolean)
+        .join("\n")
+        .trim();
 };
 
 export const generateProductDescriptionService = async ({
@@ -489,14 +534,21 @@ export const generateProductDescriptionService = async ({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 signal: controller.signal,
-                body: JSON.stringify({
-                    contents: [{ parts }],
-                    generationConfig: {
+                body: JSON.stringify((() => {
+                    const generationConfig = {
                         temperature: 0.55,
                         topP: 0.8,
-                        maxOutputTokens: 520,
-                    },
-                }),
+                        maxOutputTokens: parsePositiveInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 1024),
+                    };
+                    const thinkingBudget = resolveThinkingBudget(model);
+                    if (thinkingBudget !== undefined) {
+                        generationConfig.thinkingConfig = { thinkingBudget };
+                    }
+                    return {
+                        contents: [{ parts }],
+                        generationConfig,
+                    };
+                })()),
             }
         );
 
@@ -505,14 +557,15 @@ export const generateProductDescriptionService = async ({
         }
 
         const data = await response.json();
-        const rawDescription = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const rawDescription = extractGeminiText(data);
         const description = normalizeAiDescription(rawDescription);
         if (!description) {
             throw new Error("AI returned empty description");
         }
 
         return { description, source: "gemini" };
-    } catch {
+    } catch (error) {
+        console.warn("[ai-desc] generate description fallback:", error?.message || error);
         return {
             description: fallbackDescription({ name, categoryName, subCategoryName, attributes, price, variants }),
             source: "fallback",

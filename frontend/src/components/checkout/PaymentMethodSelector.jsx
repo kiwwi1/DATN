@@ -21,7 +21,7 @@ const PaymentMethodSelector = ({ method, setMethod, isSubmitting, assets }) => (
       className={`flex items-center gap-3 border p-2 px-3 ${isSubmitting ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
     >
       <p className={`min-h-3.5 min-w-3.5 rounded-full border ${method === "cod" ? "bg-green-400" : ""}`} />
-      <p className="mx-4 text-sm font-medium text-gray-500">THANH TOÁN KHI NHẬN HÀNG</p>
+      <p className="mx-4 text-sm font-medium text-gray-500">{"THANH TO\u00c1N KHI NH\u1eacN H\u00c0NG"}</p>
     </div>
   </div>
 );

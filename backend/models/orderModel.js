@@ -94,7 +94,7 @@ const orderSchema = new mongoose.Schema({
 
   // Cancellation info
   cancelReason: { type: String },
-  cancelledBy: { type: String, enum: ["user", "vendor", "admin"] },
+  cancelledBy: { type: String, enum: ["user", "vendor", "system"] },
   cancelledAt: { type: Number },
 
   // Vendor tracking for multi-vendor orders
@@ -109,6 +109,8 @@ const orderSchema = new mongoose.Schema({
         enum: ["pending", "confirmed", "preparing", "shipped", "delivered", "cancelled"],
         default: "pending",
       },
+      trackingNumber: { type: String, default: "" },
+      trackingUpdatedAt: { type: Number },
       voucherDiscount: { type: Number, default: 0 },
       commission: { type: Number, default: 10 },
     },
@@ -125,4 +127,3 @@ orderSchema.index(
 
 const orderModel = mongoose.model.order || mongoose.model("order", orderSchema);
 export default orderModel;
-

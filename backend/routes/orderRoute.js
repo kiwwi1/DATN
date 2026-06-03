@@ -6,6 +6,7 @@ import {
     verifyStripePayment,
     placeOrderVNPay,
     previewOrder,
+    listCheckoutVoucherSuggestions,
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,
@@ -26,6 +27,7 @@ orderRouter.get('/vendor-stats', vendorAuth, vendorStats);
 orderRouter.post('/place-order',authUser, placeOrder);
 orderRouter.post('/place-order-stripe',authUser, placeOrderStripe);
 orderRouter.post('/preview', authUser, previewOrder);
+orderRouter.post('/voucher-suggestions', authUser, listCheckoutVoucherSuggestions);
 
 // User Features
 orderRouter.post('/user-orders',authUser, userOrders);

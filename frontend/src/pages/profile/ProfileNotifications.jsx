@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+﻿import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../../context/ShopContext';
 import ProfileSidebar from '../../components/profile/ProfileSidebar';
@@ -57,7 +57,7 @@ const ProfileNotifications = () => {
   };
 
   const handleClick = (n) => {
-    if (n.orderId) navigate('/orders');
+    if (n.orderId) navigate(`/orders?orderId=${n.orderId}`);
     if (n.productId) navigate(`/product/${n.productId}`);
   };
 
@@ -70,7 +70,7 @@ const ProfileNotifications = () => {
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-800">Thông Báo</h1>
+            <h1 className="text-xl font-semibold text-gray-800">Thông báo</h1>
             {unread > 0 && (
               <button
                 onClick={handleMarkAllRead}
@@ -96,7 +96,7 @@ const ProfileNotifications = () => {
                     key={n._id}
                     onClick={() => handleClick(n)}
                     className={`flex items-start gap-3 px-4 py-4 transition-colors ${
-                      n.orderId ? 'cursor-pointer hover:bg-gray-50' : ''
+                      n.orderId || n.productId ? 'cursor-pointer hover:bg-gray-50' : ''
                     } ${!n.read ? 'bg-orange-50' : ''}`}
                   >
                     {TYPE_ICON[n.type] || TYPE_ICON.order_status}

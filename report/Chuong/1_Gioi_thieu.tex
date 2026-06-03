@@ -1,10 +1,6 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-\begin{center}
-    \Large{\textbf{CHƯƠNG 1. GIỚI THIỆU}}\\
-\end{center}
-\vspace{1cm}
 
 Chương 1 đặt nền móng cho toàn bộ nghiên cứu của đồ án bằng cách giới thiệu bối cảnh bài toán, đặt vấn đề khoa học và thực tiễn, từ đó xác lập mục tiêu, phạm vi nghiên cứu cùng định hướng giải pháp kỹ thuật cụ thể. Nội dung chương sẽ lần lượt trình bày về: đặt vấn đề về sự bùng nổ của mô hình thương mại điện tử đa nhà bán hàng cùng các thách thức lớn về tải và bảo mật trong phần \ref{section:1.1}; mục tiêu và phạm vi cụ thể của đề tài trong phần \ref{section:1.2}; định hướng giải pháp kỹ thuật lựa chọn bao gồm MERN Stack, Redis và Socket.IO trong phần \ref{section:1.3}; và sau cùng là bố cục chi tiết của quyển báo cáo đồ án tốt nghiệp trong phần \ref{section:1.4}.
 
@@ -39,15 +35,15 @@ Dựa trên các phân tích và đánh giá trên, đồ án hướng tới m�
 \label{section:1.4}
 Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ chức như sau.
 
-Chương 2 trình bày về phân tích thiết kế hệ thống bao gồm khảo sát hiện trạng thực tế, mô tả tổng quan chức năng qua biểu đồ ca sử dụng (Use Case) tổng quát và phân rã các phân hệ, vẽ quy trình nghiệp vụ mua bán giữ kho và đặc tả chi tiết các ca sử dụng then chốt cùng các yêu cầu phi chức năng.
+Chương 2 trình bày về phân tích và thiết kế hệ thống bao gồm khảo sát hiện trạng thực tế, mô tả tổng quan chức năng qua các biểu đồ ca sử dụng (Use Case) tổng quát và phân rã các nhóm nghiệp vụ chính, mô phỏng quy trình nghiệp vụ đặt hàng giữ kho nguyên tử kết hợp thanh toán đồng thời (qua biểu đồ hoạt động và biểu đồ tuần tự), đặc tả chi tiết 4 ca sử dụng then chốt cùng các chỉ số yêu cầu phi chức năng.
 
-Trong Chương 3, tôi giới thiệu về kiến trúc chi tiết và thiết kế cơ sở dữ liệu bao gồm sơ đồ tuần tự (Sequence Diagram) tương tác của hệ thống, thiết kế cấu trúc các bảng dữ liệu MongoDB và lược đồ thực thể (Entity Schemas) chi tiết.
+Trong Chương 3, tôi giới thiệu về nền tảng lý thuyết và công nghệ sử dụng bao gồm cơ sở lý thuyết và lý do lựa chọn bộ công nghệ của đồ án như kiến trúc MERN Stack (MongoDB, Express, React, Node.js), bộ đệm Redis cho rate-limiting và quản lý danh sách đen Refresh Token, truyền thông thời gian thực Socket.IO, các cổng thanh toán Stripe/VNPay và thuật toán khuyến nghị lai (Hybrid) có suy hao theo thời gian.
 
-Chương 4 thảo luận sâu sắc về thuật toán then chốt và giải pháp công nghệ của đồ án bao gồm thuật toán giữ kho nguyên tử ở tầng cơ sở dữ liệu chống lỗi oversell, hệ khuyến nghị sản phẩm lai Hybrid (Collaborative + Content-based) có suy hao thời gian thực tế và cơ chế rate limit đa cửa sổ của Redis.
+Chương 4 tập trung vào phân tích thiết kế, triển khai và đánh giá hệ thống bao gồm thiết kế kiến trúc phần mềm, biểu đồ gói UML, thiết kế lớp chi tiết, thiết kế cơ sở dữ liệu MongoDB, hiện thực hóa các giao diện mua sắm và Dashboard thống kê Recharts dành cho Merchant, cùng với thiết kế các trường hợp kiểm thử chức năng và đánh giá hiệu năng hệ thống.
 
-Trong Chương 5, tôi trình bày hiện thực hóa hệ thống, giao diện ứng dụng thực tế trên React (màn hình mua sắm và trang phân tích số liệu Recharts của Merchant), cùng đánh giá thực nghiệm kịch bản giả lập đồng thời lớn.
+Trong Chương 5, tôi trình bày các giải pháp và đóng góp nổi bật của đề tài bao gồm cơ chế khóa nguyên tử ngắn hạn dưới cơ sở dữ liệu để triệt tiêu lỗi bán vượt mức kho (overselling) và lá chắn bảo mật đa tầng Redis.
 
-Chương 6 đưa ra kết luận quan trọng, đánh giá mức độ hoàn thành và định hướng phát triển mở rộng của đề tài trong tương lai.
+Chương 6 đưa ra kết luận quan trọng, đánh giá tổng quát mức độ hoàn thành nhiệm vụ và đề tài, những hạn chế còn tồn tại cùng định hướng phát triển, mở rộng hệ thống trong tương lai.
 
 \section*{Kết chương}
 Chương 1 đã phác thảo toàn bộ bức tranh tổng quan của đồ án từ bối cảnh bùng nổ của mô hình sàn thương mại điện tử đa nhà bán hàng cho đến những vấn đề cốt lõi về tranh chấp tồn kho đồng thời và an toàn bảo mật hệ thống. Từ các mục tiêu cụ thể, đồ án đã đề xuất định hướng giải pháp toàn diện bằng sự kết hợp giữa kiến trúc MERN Stack, bộ đệm Redis và kênh thời gian thực Socket.IO. Những cơ sở lý thuyết và công nghệ chi tiết làm nền tảng cho việc thiết kế, cài đặt hệ thống này sẽ được thảo luận kỹ lưỡng trong chương tiếp theo – Chương 2.

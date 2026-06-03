@@ -71,6 +71,7 @@ const MAX_FORGOT_PASSWORD_IP = Number(process.env.AUTH_RL_MAX_FORGOT_IP || 15);
 const MAX_FORGOT_PASSWORD_EMAIL = Number(process.env.AUTH_RL_MAX_FORGOT_EMAIL || 5);
 const MAX_RESET_PASSWORD_IP = Number(process.env.AUTH_RL_MAX_RESET_IP || 20);
 const MAX_REFRESH_IP = Number(process.env.AUTH_RL_MAX_REFRESH_IP || 120);
+const MAX_REGISTER_IP = Number(process.env.AUTH_RL_MAX_REGISTER_IP || 10);
 
 export const loginRateLimit = [
     createLimiter({
@@ -141,6 +142,15 @@ export const refreshAuthRateLimit = [
         max: MAX_REFRESH_IP,
         windowSec: WINDOW_SEC,
         message: "Too many refresh attempts. Please try again later.",
+    }),
+];
+
+export const registerRateLimit = [
+    createLimiter({
+        keyBuilder: (req) => `rl:register:ip:${getIp(req)}`,
+        max: MAX_REGISTER_IP,
+        windowSec: WINDOW_SEC,
+        message: "Quá nhiều yêu cầu đăng ký từ địa chỉ này. Vui lòng thử lại sau.",
     }),
 ];
 

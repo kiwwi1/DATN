@@ -20,11 +20,12 @@ import {
     forgotPasswordRateLimit,
     resetPasswordRateLimit,
     refreshAuthRateLimit,
+    registerRateLimit,
 } from '../middleware/authRateLimit.js';
 const userRouter = express.Router();
 
 userRouter.post('/login', ...loginRateLimit, loginUser);
-userRouter.post('/register', registerUser);
+userRouter.post('/register', ...registerRateLimit, registerUser);
 userRouter.post('/verify-email', ...verifyEmailRateLimit, verifyEmail);
 userRouter.post('/register-vendor', authUser, registerVendor);
 userRouter.post('/profile', authUser, getUserProfile);

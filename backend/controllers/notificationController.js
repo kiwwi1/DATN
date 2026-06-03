@@ -13,14 +13,14 @@ import {
 
 /**
  * GET /api/notification/stream
- * SSE endpoint: client kết nối 1 lần, server đẩy sự kiện liên tục.
- * Ưu tiên token từ HttpOnly cookie, fallback query param để tương thích cũ.
+ * SSE endpoint — client kết nối một lần, server push events liên tục.
+ * Token chỉ được đọc từ HttpOnly cookie (EventSource gửi withCredentials: true).
  */
 export const sseStream = (req, res) => {
-  const token = req.cookies?.accessToken || req.query.token;
-  if (!token) {
-    return res.status(401).json({ success: false, message: "Chưa đăng nhập" });
-  }
+    const token = req.cookies?.accessToken;
+    if (!token) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
   const audience = String(req.query?.audience || "user").trim().toLowerCase() === "vendor"
     ? "vendor"

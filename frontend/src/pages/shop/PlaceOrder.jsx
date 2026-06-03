@@ -142,12 +142,14 @@ const PlaceOrder = () => {
   });
 
   return (
-    <form onSubmit={onSubmitHandler} className="border-t pt-5 sm:pt-10">
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <section className="space-y-4">
-          <div className="text-xl sm:text-2xl">
-            <Title text1={"TH\u00d4NG TIN "} text2={"GIAO H\u00c0NG"} />
-          </div>
+    <form onSubmit={onSubmitHandler} className="relative flex min-h-[80vh] flex-col justify-between gap-4 border-t pt-5 sm:flex-row sm:pt-14">
+      {isSubmitting && (
+        <div className="absolute inset-0 z-20 cursor-wait rounded bg-white/60" />
+      )}
+      <section className="flex w-full flex-col gap-4 sm:max-w-[520px]">
+        <div className="my-3 text-xl sm:text-2xl">
+          <Title text1={"THÔNG TIN "} text2={"GIAO HÀNG"} />
+        </div>
 
           <AddressBookSection
             navigate={navigate}
@@ -245,7 +247,7 @@ const PlaceOrder = () => {
               </div>
             )}
           </div>
-        </section>
+      </section>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -301,7 +303,6 @@ const PlaceOrder = () => {
             </div>
           </div>
         </aside>
-      </div>
     </form>
   );
 };

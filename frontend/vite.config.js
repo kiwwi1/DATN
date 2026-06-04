@@ -7,10 +7,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
 
-    // base: './' là BẮT BUỘC cho Capacitor.
-    // Khi app chạy từ bộ nhớ điện thoại (file://), Vite cần dùng
-    // đường dẫn tương đối thay vì tuyệt đối (/assets/...) để tránh lỗi 404.
-    base: './',
+    base: process.env.CAPACITOR_BUILD ? './' : '/',
 
     define: {
       'import.meta.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(env.VITE_GOOGLE_CLIENT_ID),

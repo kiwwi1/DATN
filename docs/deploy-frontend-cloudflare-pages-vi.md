@@ -118,9 +118,9 @@ DNS sẽ tự được cấu hình nếu domain đang dùng Cloudflare nameserve
 
 ## Thứ tự thực hiện
 
-- [ ] 1. Fix `base` trong `frontend/vite.config.js`
-- [ ] 2. Thêm `frontend/public/_redirects`
-- [ ] 3. Thêm `admin/public/_redirects`
+- [x] 1. Fix `base` trong `frontend/vite.config.js`
+- [x] 2. Thêm `frontend/public/_redirects`
+- [x] 3. Thêm `admin/public/_redirects`
 - [ ] 4. Test build local: `npm run build && npm run preview`
 - [ ] 5. Tạo 2 Pages project trên Cloudflare Dashboard
 - [ ] 6. Set environment variables cho từng project

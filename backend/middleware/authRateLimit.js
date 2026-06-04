@@ -75,6 +75,7 @@ const MAX_REGISTER_IP = Number(process.env.AUTH_RL_MAX_REGISTER_IP || 10);
 const MAX_REGISTER_VENDOR_IP = Number(process.env.AUTH_RL_MAX_REGISTER_VENDOR_IP || 10);
 const MAX_VENDOR_STATS_IP = Number(process.env.AUTH_RL_MAX_VENDOR_STATS_IP || 120);
 const MAX_VENDOR_LIST_IP = Number(process.env.AUTH_RL_MAX_VENDOR_LIST_IP || 120);
+const MAX_REGISTER_EMAIL = Number(process.env.AUTH_RL_MAX_REGISTER_EMAIL || 3);
 
 export const loginRateLimit = [
     createLimiter({
@@ -153,7 +154,16 @@ export const registerRateLimit = [
         keyBuilder: (req) => `rl:register:ip:${getIp(req)}`,
         max: MAX_REGISTER_IP,
         windowSec: WINDOW_SEC,
-        message: "Quá nhiều yêu cầu đăng ký từ địa chỉ này. Vui lòng thử lại sau.",
+        message: "Too many registration attempts from this IP. Please try again later.",
+    }),
+    createLimiter({
+        keyBuilder: (req) => {
+            const email = getEmail(req);
+            return email ? `rl:register:email:${email}` : "";
+        },
+        max: MAX_REGISTER_EMAIL,
+        windowSec: WINDOW_SEC,
+        message: "Too many registration attempts for this email. Please try again later.",
     }),
 ];
 

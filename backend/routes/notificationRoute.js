@@ -11,8 +11,8 @@ import {
 
 const notificationRouter = express.Router();
 
-// SSE — dùng GET, token qua query param (EventSource không hỗ trợ custom headers)
-notificationRouter.get("/stream", sseStream);
+// SSE uses auth middleware; EventSource sends cookies with withCredentials.
+notificationRouter.get("/stream", authUser, sseStream);
 
 // REST
 notificationRouter.get("/list", authUser, getNotifications);

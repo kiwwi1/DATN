@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import {
   registerSSEClient,
   removeSSEClient,
@@ -13,26 +12,17 @@ import {
 
 /**
  * GET /api/notification/stream
- * SSE endpoint — client kết nối một lần, server push events liên tục.
- * Token chỉ được đọc từ HttpOnly cookie (EventSource gửi withCredentials: true).
+ * SSE endpoint authenticated by authUser middleware.
  */
 export const sseStream = (req, res) => {
-    const token = req.cookies?.accessToken;
-    if (!token) {
-        return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+  const userId = req.userId || req.body?.userId;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
 
   const audience = String(req.query?.audience || "user").trim().toLowerCase() === "vendor"
     ? "vendor"
     : "user";
-
-  let userId;
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    userId = decoded.id;
-  } catch {
-    return res.status(401).json({ success: false, message: "Token không hợp lệ" });
-  }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -40,7 +30,7 @@ export const sseStream = (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Gửi heartbeat mỗi 25 giây để tránh proxy timeout.
+  // Send heartbeat every 25 seconds to keep proxies from timing out.
   const heartbeat = setInterval(() => {
     res.write(": heartbeat\n\n");
   }, 25000);

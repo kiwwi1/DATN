@@ -43,7 +43,24 @@ const allowCorsOrigin = (origin, callback) => {
         callback(null, true);
         return;
     }
-    callback(null, allowedOrigins.includes(origin));
+    
+    // Check exact match
+    if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+    }
+    
+    // Automatically allow Cloudflare Pages preview/production domains
+    const isCloudflarePages = 
+        /^https:\/\/(.*\.)?datn-frontend\.pages\.dev$/.test(origin) ||
+        /^https:\/\/(.*\.)?datn-admin\.pages\.dev$/.test(origin);
+        
+    if (isCloudflarePages) {
+        callback(null, true);
+        return;
+    }
+    
+    callback(null, false);
 };
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -58,7 +75,7 @@ const httpServer = http.createServer(app);
 app.set('trust proxy', 1);
 const io = new SocketIOServer(httpServer, {
     cors: {
-        origin: allowedOrigins,
+        origin: allowCorsOrigin,
         credentials: true,
     },
 });

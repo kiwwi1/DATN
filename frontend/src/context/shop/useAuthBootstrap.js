@@ -5,7 +5,7 @@ export const useAuthBootstrap = ({ backendUrl, token, setToken }) => {
   useEffect(() => {
     const restoreAuth = async () => {
       try {
-        const response = await axios.post(`${backendUrl}/api/user/refresh`, {});
+        const response = await axios.post(`${backendUrl}/api/user/refresh`, {}, { withCredentials: true });
         if (response.data.success && response.data.accessToken) {
           setToken(response.data.accessToken);
         }

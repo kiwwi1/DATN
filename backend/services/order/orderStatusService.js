@@ -46,6 +46,14 @@ const normalizeTrackingNumber = (trackingNumber) => {
   return String(trackingNumber).trim();
 };
 
+const buildTrackingNumber = ({ orderId, vendorId }) => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const orderPart = String(orderId || "").slice(-6).toUpperCase();
+  const vendorPart = String(vendorId || "").slice(-4).toUpperCase();
+  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `DATN-${orderPart}-${vendorPart}-${timestamp}-${randomPart}`;
+};
+
 export const deleteOrderService = async (orderId) => {
   const order = await orderModel.findById(orderId);
   await ensureOrderDeletable(order);
@@ -83,14 +91,15 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
 };
 
 export const vendorOrdersService = async (vendorId) => {
-  const allOrders = await orderModel.find({}).sort({ date: -1 });
-  return allOrders
-    .filter((order) => order.items.some((item) => item.vendorId?.toString() === vendorId.toString()))
+  const normalizedVendorId = vendorId.toString();
+  const orders = await orderModel.find({ "items.vendorId": vendorId }).sort({ date: -1 });
+  return orders
+    .filter((order) => order.items.some((item) => item.vendorId?.toString() === normalizedVendorId))
     .map((order) => {
-      const vendorItems = order.items.filter((item) => item.vendorId?.toString() === vendorId.toString());
+      const vendorItems = order.items.filter((item) => item.vendorId?.toString() === normalizedVendorId);
       const vendorAmount = vendorItems.reduce((total, item) => total + item.price * item.quantity, 0);
       const vendorEntry = Array.isArray(order.vendors)
-        ? order.vendors.find((vendor) => vendor.vendorId?.toString() === vendorId.toString())
+        ? order.vendors.find((vendor) => vendor.vendorId?.toString() === normalizedVendorId)
         : null;
       return {
         ...order.toObject(),
@@ -101,7 +110,7 @@ export const vendorOrdersService = async (vendorId) => {
     });
 };
 
-export const updateVendorOrderStatusService = async (orderId, status, vendorId, trackingNumber) => {
+export const updateVendorOrderStatusService = async (orderId, status, vendorId, trackingNumber, autoGenerateTracking = false) => {
   const order = await orderModel.findById(orderId);
   if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
 
@@ -119,7 +128,14 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     throw Object.assign(new Error("Invalid vendor status"), { status: 400 });
   }
 
-  const normalizedTracking = normalizeTrackingNumber(trackingNumber);
+  let normalizedTracking = normalizeTrackingNumber(trackingNumber);
+  if (
+    !normalizedTracking &&
+    !(vendorEntry?.trackingNumber || order.trackingNumber) &&
+    (TRACKING_REQUIRED_VENDOR_STATUSES.has(nextVendorStatus) || autoGenerateTracking)
+  ) {
+    normalizedTracking = buildTrackingNumber({ orderId: order._id, vendorId });
+  }
   if (
     TRACKING_REQUIRED_VENDOR_STATUSES.has(nextVendorStatus) &&
     !normalizedTracking &&

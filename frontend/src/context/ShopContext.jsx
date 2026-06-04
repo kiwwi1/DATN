@@ -13,6 +13,7 @@ import {
 import { useNotifications } from "./shop/useNotifications";
 import { useRecommendations } from "./shop/useRecommendations";
 import { useAuthBootstrap } from "./shop/useAuthBootstrap";
+import { configureAuthSession } from "../utils/authSession";
 
 export const ShopContext = createContext();
 
@@ -31,9 +32,7 @@ const ShopContextProvider = (props) => {
   const [homepageCategories, setHomepageCategories] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    axios.defaults.withCredentials = true;
-  }, []);
+  useEffect(() => configureAuthSession({ backendUrl, setToken }), [backendUrl, setToken]);
 
   useEffect(() => {
     if (!token) {

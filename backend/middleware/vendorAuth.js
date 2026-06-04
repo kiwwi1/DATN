@@ -29,7 +29,7 @@ const vendorAuth = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.log(error);
+        console.error("[vendor-auth]", error.message);
         return res.status(401).json({ success: false, message: 'Unauthorized - Invalid token' });
     }
 };

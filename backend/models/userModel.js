@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
     role: {type: String, enum: ['user', 'vendor'], default: 'user'},
     // Vendor-specific fields (only used when role is 'vendor')
     shopName: {type: String},
+    shopNameNormalized: { type: String, select: false },
     shopAddress: {type: String},
     phone: {type: String},
     telegramChatId: {type: String},
@@ -25,6 +26,16 @@ const userSchema = new mongoose.Schema({
     emailVerificationToken: { type: String, select: false },
     emailVerificationExpires: { type: Date, select: false },
 },{minimize: false})
+userSchema.index(
+    { shopNameNormalized: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            role: "vendor",
+            shopNameNormalized: { $type: "string" },
+        },
+    }
+);
 // {minimize: false} is used to allow empty objects in the schema
 const userModel = mongoose.model.user || mongoose.model('user', userSchema)
 export default userModel;

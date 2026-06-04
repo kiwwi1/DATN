@@ -1,165 +1,164 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { ShopContext } from '../../context/ShopContext';
-import ProductItem from '../../components/product/ProductItem';
+import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import { ShopContext } from '../../context/ShopContext'
+import ProductItem from '../../components/product/ProductItem'
 
 const TAB_ITEMS = [
   { id: 'all', label: 'TẤT CẢ SẢN PHẨM' },
   { id: 'sale', label: 'Giảm giá' },
-  { id: 'toy', label: 'Đồ chơi' },
   { id: 'bestsell', label: 'Sản phẩm bán chạy' },
   { id: 'new', label: 'Hàng mới về' },
-];
+]
 
 const VendorShop = () => {
-  const { vendorId } = useParams();
-  const navigate = useNavigate();
-  const { backendUrl, token } = useContext(ShopContext);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
-  const [vendor, setVendor] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
-  const [followerCount, setFollowerCount] = useState(0);
+  const { vendorId } = useParams()
+  const navigate = useNavigate()
+  const { backendUrl, token } = useContext(ShopContext)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('all')
+  const [vendor, setVendor] = useState(null)
+  const [stats, setStats] = useState(null)
+  const [products, setProducts] = useState([])
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
 
   useEffect(() => {
     const loadVendorShop = async () => {
-      setLoading(true);
+      setLoading(true)
       try {
-        const res = await axios.get(`${backendUrl}/api/product/vendor-shop/${vendorId}`);
+        const res = await axios.get(`${backendUrl}/api/product/vendor-shop/${vendorId}`)
         if (res.data.success) {
-          setVendor(res.data.vendor);
-          setStats(res.data.stats);
-          setProducts(res.data.products || []);
+          setVendor(res.data.vendor)
+          setStats(res.data.stats)
+          setProducts(res.data.products || [])
           const initialFollowers =
             res.data?.stats?.followers ??
             res.data?.vendor?.followers ??
-            0;
-          setFollowerCount(initialFollowers);
+            0
+          setFollowerCount(initialFollowers)
         } else {
-          toast.error(res.data.message || 'Không tải được thông tin shop');
+          toast.error(res.data.message || 'Không tải được thông tin shop')
         }
       } catch (error) {
-        toast.error(error.response?.data?.message || error.message);
+        toast.error(error.response?.data?.message || error.message)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    if (vendorId) loadVendorShop();
-  }, [backendUrl, vendorId]);
+    }
+
+    if (vendorId) loadVendorShop()
+  }, [backendUrl, vendorId])
 
   useEffect(() => {
     const loadCount = async () => {
       try {
-        const res = await axios.get(`${backendUrl}/api/shop-follow/count/${vendorId}`);
-        if (res.data.success) setFollowerCount(res.data.followerCount || 0);
-      } catch (_) {}
-    };
-    if (vendorId) loadCount();
-  }, [backendUrl, vendorId]);
+        const res = await axios.get(`${backendUrl}/api/shop-follow/count/${vendorId}`)
+        if (res.data.success) setFollowerCount(res.data.followerCount || 0)
+      } catch (_) {
+        // non-critical
+      }
+    }
+
+    if (vendorId) loadCount()
+  }, [backendUrl, vendorId])
 
   useEffect(() => {
     const loadStatus = async () => {
       if (!token || !vendorId) {
-        setIsFollowing(false);
-        return;
+        setIsFollowing(false)
+        return
       }
       try {
         const res = await axios.get(`${backendUrl}/api/shop-follow/status/${vendorId}`, {
           headers: { token },
-        });
-        if (res.data.success) setIsFollowing(!!res.data.followed);
+        })
+        if (res.data.success) setIsFollowing(!!res.data.followed)
       } catch (_) {
-        setIsFollowing(false);
+        setIsFollowing(false)
       }
-    };
-    loadStatus();
-  }, [backendUrl, token, vendorId]);
+    }
+
+    loadStatus()
+  }, [backendUrl, token, vendorId])
 
   const handleFollowToggle = async () => {
     if (!token) {
-      toast.info('Vui lòng đăng nhập để theo dõi shop');
-      navigate('/login');
-      return;
+      toast.info('Vui lòng đăng nhập để theo dõi shop')
+      navigate('/login')
+      return
     }
-    setFollowLoading(true);
+    setFollowLoading(true)
     try {
-      const endpoint = isFollowing ? 'unfollow' : 'follow';
+      const endpoint = isFollowing ? 'unfollow' : 'follow'
       const res = await axios.post(
         `${backendUrl}/api/shop-follow/${endpoint}`,
         { vendorId },
         { headers: { token } }
-      );
+      )
       if (res.data.success) {
-        const next = !isFollowing;
-        setIsFollowing(next);
-        const countFromApi = res.data?.result?.followerCount;
-        if (typeof countFromApi === 'number') setFollowerCount(countFromApi);
-        toast.success(next ? 'Đã theo dõi shop' : 'Đã bỏ theo dõi shop');
+        const next = !isFollowing
+        setIsFollowing(next)
+        const countFromApi = res.data?.result?.followerCount
+        if (typeof countFromApi === 'number') setFollowerCount(countFromApi)
+        toast.success(next ? 'Đã theo dõi shop' : 'Đã bỏ theo dõi shop')
       } else {
-        toast.error(res.data.message || 'Thao tác thất bại');
+        toast.error(res.data.message || 'Thao tác thất bại')
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message)
     } finally {
-      setFollowLoading(false);
+      setFollowLoading(false)
     }
-  };
+  }
 
   const handleStartChat = async () => {
     if (!token) {
-      toast.info('Vui lòng đăng nhập để nhắn tin với shop');
-      navigate('/login');
-      return;
+      toast.info('Vui lòng đăng nhập để nhắn tin với shop')
+      navigate('/login')
+      return
     }
     try {
       const res = await axios.post(
         `${backendUrl}/api/chat/init`,
         { vendorId },
         { headers: { token } }
-      );
+      )
       if (res.data.success) {
-        const conversationId = res.data.conversation?._id;
-        if (!conversationId) throw new Error('Không lấy được cuộc hội thoại');
+        const conversationId = res.data.conversation?._id
+        if (!conversationId) throw new Error('Không lấy được cuộc hội thoại')
         window.dispatchEvent(
           new CustomEvent('open-chat-conversation', { detail: { conversationId } })
-        );
+        )
       } else {
-        toast.error(res.data.message || 'Không thể tạo cuộc hội thoại');
+        toast.error(res.data.message || 'Không thể tạo cuộc hội thoại')
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message)
     }
-  };
+  }
 
   const filteredProducts = useMemo(() => {
     switch (activeTab) {
       case 'sale':
-        return products.filter((p) => (p.discount || 0) > 0);
-      case 'toy':
-        return products.filter((p) =>
-          String(p.name || '').toLowerCase().includes('đồ chơi') ||
-          String(p.name || '').toLowerCase().includes('toy')
-        );
+        return products.filter((product) => (product.discount || 0) > 0)
       case 'bestsell':
-        return [...products].sort((a, b) => (b.sold || 0) - (a.sold || 0));
+        return [...products].sort((left, right) => (right.sold || 0) - (left.sold || 0))
       case 'new':
-        return [...products].sort((a, b) => (b.date || 0) - (a.date || 0));
+        return [...products].sort((left, right) => (right.date || 0) - (left.date || 0))
       default:
-        return products;
+        return products
     }
-  }, [products, activeTab]);
+  }, [products, activeTab])
 
   if (loading) {
-    return <div className="py-16 text-center text-gray-500">Đang tải thông tin shop...</div>;
+    return <div className="py-16 text-center text-gray-500">Đang tải thông tin shop...</div>
   }
 
   if (!vendor) {
-    return <div className="py-16 text-center text-gray-500">Không tìm thấy shop.</div>;
+    return <div className="py-16 text-center text-gray-500">Không tìm thấy shop.</div>
   }
 
   return (
@@ -202,25 +201,25 @@ const VendorShop = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-sm">
             <p className="text-gray-600">Sản phẩm: <span className="text-orange-600">{stats?.productCount ?? 0}</span></p>
             <p className="text-gray-600">Người theo dõi: <span className="text-orange-600">{followerCount}</span></p>
-            <p className="text-gray-600">Đang theo dõi: <span className="text-orange-600">13</span></p>
+            <p className="text-gray-600">Đã bán: <span className="text-orange-600">{stats?.soldCount ?? 0}</span></p>
             <p className="text-gray-600">Đánh giá: <span className="text-orange-600">{stats?.avgRating ?? 0} ({stats?.reviewCount ?? 0} đánh giá)</span></p>
-            <p className="text-gray-600">Tỉ lệ phản hồi chat: <span className="text-orange-600">{stats?.replyRate ?? 94}% ({stats?.replyTimeText ?? 'trong vài giờ'})</span></p>
             <p className="text-gray-600">Tham gia vào: <span className="text-orange-600">{vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString('vi-VN') : '—'}</span></p>
+            <p className="text-gray-600">Địa chỉ shop: <span className="text-orange-600">{vendor.shopAddress || 'Đang cập nhật'}</span></p>
           </div>
         </div>
       </div>
 
       <div className="mt-5 border-b flex flex-wrap gap-4 text-sm">
-        {TAB_ITEMS.map((t) => (
+        {TAB_ITEMS.map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => setActiveTab(tab.id)}
             className={`pb-2 px-1 border-b-2 transition-colors ${
-              activeTab === t.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-600 hover:text-gray-800'
+              activeTab === tab.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-600 hover:text-gray-800'
             }`}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -247,7 +246,7 @@ const VendorShop = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default VendorShop;
+export default VendorShop

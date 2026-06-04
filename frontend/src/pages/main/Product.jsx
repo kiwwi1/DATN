@@ -169,6 +169,10 @@ const Product = () => {
     fetchProductData();
   }, [fetchProductData]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [productId]);
+
   const {
     reviews,
     loadingReviews,
@@ -799,4 +803,3 @@ const Product = () => {
 };
 
 export default Product;
-

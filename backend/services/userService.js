@@ -20,6 +20,12 @@ const createRefreshToken = (id) =>
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const normalizeShopName = (shopName) =>
+    String(shopName || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
 export const loginUserService = async (email, password) => {
     const user = await userModel.findOne({ email }).select("+emailVerified");
     if (!user) throw new Error("User does not exist");
@@ -137,15 +143,30 @@ export const verifyEmailService = async (email, otp) => {
 };
 
 export const registerVendorService = async (userId, shopName, shopAddress, phone) => {
+    const trimmedShopName = String(shopName || "").trim().replace(/\s+/g, " ");
+    const normalizedShopName = normalizeShopName(trimmedShopName);
+    if (!trimmedShopName) throw new Error("Shop name is required");
+
     const user = await userModel.findById(userId);
     if (!user) throw new Error("User not found");
-    const existingShop = await userModel.findOne({ shopName, _id: { $ne: userId } });
+    const existingShop = await userModel.findOne({
+        shopNameNormalized: normalizedShopName,
+        _id: { $ne: userId },
+    });
     if (existingShop) throw new Error("Tên cửa hàng đã tồn tại, vui lòng chọn tên khác");
-    user.shopName = shopName;
-    user.shopAddress = shopAddress;
-    user.phone = phone;
+    user.shopName = trimmedShopName;
+    user.shopNameNormalized = normalizedShopName;
+    user.shopAddress = String(shopAddress || "").trim();
+    user.phone = String(phone || "").trim();
     user.role = "vendor";
-    await user.save();
+    try {
+        await user.save();
+    } catch (error) {
+        if (error?.code === 11000 && error?.keyPattern?.shopNameNormalized) {
+            throw new Error("TÃªn cá»­a hÃ ng Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng chá»n tÃªn khÃ¡c");
+        }
+        throw error;
+    }
 };
 
 export const getUserProfileService = async (userId) => {

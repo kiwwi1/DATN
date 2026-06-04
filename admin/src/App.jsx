@@ -10,9 +10,10 @@ import Chat from "./pages/Chat";
 import Vouchers from "./pages/Vouchers";
 import Login from "./components/Login";
 import VendorValidator from "./components/VendorValidator";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import 'react-toastify/dist/ReactToastify.css';
+import { configureAuthSession } from "./utils/authSession";
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -24,53 +25,61 @@ const App = () => {
   const sseRef = useRef(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  const clearSession = useCallback(() => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+    setToken("");
+    setVendorInfo(null);
+    setNotifications([]);
+    setUnreadCount(0);
+  }, []);
+
   const handleLogout = async () => {
     try {
       await axios.post(`${backendUrl}/api/user/logout`, {}, { withCredentials: true });
     } catch {
       // noop
     }
-    setToken("");
-    setVendorInfo(null);
-    setNotifications([]);
-    setUnreadCount(0);
+    clearSession();
   };
+
+  useEffect(
+    () => configureAuthSession({ backendUrl, setToken, clearSession }),
+    [backendUrl, clearSession, setToken]
+  );
 
   const loadVendorInfo = async (tok) => {
     try {
-      const res = await fetch(`${backendUrl}/api/user/profile`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { token: tok, 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-      const data = await res.json();
-      if (data.success) setVendorInfo(data.user);
-    } catch { /* non-critical */ }
+      const response = await axios.post(`${backendUrl}/api/user/profile`, {}, { headers: { token: tok } });
+      if (response.data.success) setVendorInfo(response.data.user);
+      else setVendorInfo({ role: 'invalid' });
+    } catch {
+      setVendorInfo({ role: 'invalid' });
+    }
   };
 
   const loadNotifications = async (tok) => {
     try {
-      const res = await fetch(`${backendUrl}/api/notification/list?audience=vendor`, {
-        credentials: 'include',
+      const response = await axios.get(`${backendUrl}/api/notification/list`, {
+        params: { audience: 'vendor' },
         headers: { token: tok },
       });
-      const data = await res.json();
-      if (data.success) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.notifications.filter((n) => !n.read).length);
+      if (response.data.success) {
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.notifications.filter((n) => !n.read).length);
       }
     } catch { /* non-critical */ }
   };
 
   const markAllRead = async (tok) => {
     try {
-      await fetch(`${backendUrl}/api/notification/read-all`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { token: tok, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audience: 'vendor' }),
-      });
+      await axios.post(
+        `${backendUrl}/api/notification/read-all`,
+        { audience: 'vendor' },
+        { headers: { token: tok } }
+      );
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch { /* non-critical */ }
@@ -95,6 +104,7 @@ const App = () => {
   useEffect(() => {
     if (!token) {
       if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
+      setVendorInfo(null);
       setNotifications([]);
       setUnreadCount(0);
       return;
@@ -125,7 +135,7 @@ const App = () => {
       ) : token === "" ? (
         <Login />
       ) : (
-        <VendorValidator token={token} onLogout={handleLogout}>
+        <VendorValidator token={token} user={vendorInfo} onLogout={handleLogout}>
           <Navbar
             onLogout={handleLogout}
             vendorInfo={vendorInfo}

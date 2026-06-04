@@ -188,7 +188,7 @@ export const listVendorProductsService = async (vendorId) =>
 export const getVendorShopPublicService = async (vendorId) => {
     const vendor = await userModel
         .findOne({ _id: vendorId, role: "vendor" })
-        .select("name shopName followers createdAt");
+        .select("name shopName shopAddress followers createdAt");
     if (!vendor) throw Object.assign(new Error("Vendor not found"), { status: 404 });
 
     const products = await productModel
@@ -220,6 +220,7 @@ export const getVendorShopPublicService = async (vendorId) => {
             _id: vendor._id,
             name: vendor.name,
             shopName: vendor.shopName || vendor.name,
+            shopAddress: vendor.shopAddress || "",
             followers: Number(vendor.followers) || 0,
             createdAt: joinedAt,
         },
@@ -228,8 +229,6 @@ export const getVendorShopPublicService = async (vendorId) => {
             soldCount,
             avgRating,
             reviewCount,
-            replyRate: 94,
-            replyTimeText: "trong vài giờ",
         },
         products,
     };

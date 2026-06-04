@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShopContext } from '../../context/ShopContext';
@@ -26,8 +26,7 @@ const VENDOR_STATUS_MAP = {
   cancelled: { label: 'Đã hủy', color: 'text-rose-600' },
 };
 
-const INITIAL_VISIBLE_ORDERS = 6;
-const LOAD_MORE_STEP = 4;
+const ORDERS_PER_PAGE = 6;
 
 const inferVendorStatusFromOrder = (orderStatus) => {
   if (orderStatus === 'Cancelled') return 'cancelled';
@@ -98,15 +97,14 @@ const Orders = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ORDERS);
-  const sentinelRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadOrders = useCallback(async () => {
     if (!token) return;
     try {
       const res = await axios.post(backendUrl + '/api/order/user-orders', {}, { headers: { token } });
       if (res.data.success) {
-        setOrders([...res.data.orders].reverse());
+        setOrders(Array.isArray(res.data.orders) ? res.data.orders : []);
       } else {
         toast.error(res.data.message);
       }
@@ -131,54 +129,52 @@ const Orders = () => {
   }, [loadOrders, loadReviewedIds]);
 
   const filtered = useMemo(() => orders.filter((o) => matchTab(o, activeTab)), [orders, activeTab]);
-  const visibleOrders = useMemo(
-    () => filtered.slice(0, Math.min(visibleCount, filtered.length)),
-    [filtered, visibleCount]
-  );
-  const hasMoreOrders = visibleCount < filtered.length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ORDERS_PER_PAGE));
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
+    return filtered.slice(startIndex, startIndex + ORDERS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, orders.length]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     if (!focusOrderId || filtered.length === 0) {
-      setVisibleCount(INITIAL_VISIBLE_ORDERS);
       return;
     }
 
     const focusIndex = filtered.findIndex((order) => String(order._id) === String(focusOrderId));
     if (focusIndex === -1) {
-      setVisibleCount(INITIAL_VISIBLE_ORDERS);
       return;
     }
 
-    setVisibleCount(Math.max(INITIAL_VISIBLE_ORDERS, focusIndex + 1));
+    setCurrentPage(Math.floor(focusIndex / ORDERS_PER_PAGE) + 1);
   }, [focusOrderId, filtered]);
 
   useEffect(() => {
-    if (!focusOrderId || visibleOrders.length === 0) return;
+    if (!focusOrderId || paginatedOrders.length === 0) return;
     const id = `order-${focusOrderId}`;
     const target = document.getElementById(id);
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [focusOrderId, visibleOrders]);
-
-  useEffect(() => {
-    if (!hasMoreOrders || !sentinelRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, filtered.length));
-      },
-      { root: null, rootMargin: '220px 0px', threshold: 0.01 }
-    );
-
-    observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
-  }, [hasMoreOrders, filtered.length]);
+  }, [focusOrderId, paginatedOrders]);
 
   const handleReview = (productId, orderId) => {
     navigate(`/product/${productId}?tab=reviews&orderId=${orderId}`);
+  };
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage === currentPage) return;
+    setCurrentPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openCancelModal = (orderId) => {
@@ -257,7 +253,7 @@ const Orders = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {visibleOrders.map((order) => {
+              {paginatedOrders.map((order) => {
                 const statusInfo = STATUS_MAP[order.status] || { label: order.status, color: 'text-gray-500' };
                 const vendorGroups = normalizeVendorGroups(order);
 
@@ -420,12 +416,27 @@ const Orders = () => {
                 );
               })}
 
-              {hasMoreOrders && (
-                <div
-                  ref={sentinelRef}
-                  className="bg-white rounded-lg shadow-sm p-3 text-center text-xs text-gray-500"
-                >
-                  Kéo xuống để tải thêm đơn hàng...
+              {filtered.length > ORDERS_PER_PAGE && (
+                <div className="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Trang trước
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    Trang {currentPage}/{totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Trang sau
+                  </button>
                 </div>
               )}
             </div>

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 
 const VendorRegis = () => {
   const { token, navigate, backendUrl, userRole } = useContext(ShopContext)
+  const adminUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174'
 
   const [formData, setFormData] = useState({
     shopName: '',
@@ -19,10 +20,10 @@ const VendorRegis = () => {
       toast.error('Vui lòng đăng nhập trước khi đăng ký người bán')
       navigate('/login')
     } else if (userRole === 'vendor') {
-      window.open('http://localhost:5174/add', '_blank')
+      window.open(`${adminUrl.replace(/\/$/, '')}/add`, '_blank')
       navigate('/')
     }
-  }, [token, navigate, userRole])
+  }, [token, navigate, userRole, adminUrl])
 
   const handleInputChange = (event) => {
     const { name, value } = event.target

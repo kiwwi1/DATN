@@ -108,15 +108,11 @@ const Orders = ({ token }) => {
 
   const updateOrderStatus = async (orderId, status) => {
     const trackingNumber = (trackingInputs[orderId] || '').trim()
-    if (SHIPPING_STATUSES.has(status) && !trackingNumber) {
-      toast.error('Vui lòng nhập mã vận đơn trước khi cập nhật trạng thái giao hàng')
-      return
-    }
 
     try {
       const response = await axios.post(
         `${backendUrl}/api/order/vendor-status`,
-        { orderId, status, trackingNumber },
+        { orderId, status, trackingNumber, autoGenerateTracking: SHIPPING_STATUSES.has(status) && !trackingNumber },
         { headers: { token } }
       )
       if (response.data.success) {
@@ -132,18 +128,14 @@ const Orders = ({ token }) => {
 
   const saveTrackingNumber = async (orderId, status) => {
     const trackingNumber = (trackingInputs[orderId] || '').trim()
-    if (!trackingNumber) {
-      toast.error('Vui lòng nhập mã vận đơn')
-      return
-    }
     try {
       const response = await axios.post(
         `${backendUrl}/api/order/vendor-status`,
-        { orderId, status, trackingNumber },
+        { orderId, status, trackingNumber, autoGenerateTracking: !trackingNumber },
         { headers: { token } }
       )
       if (response.data.success) {
-        toast.success('Đã lưu mã vận đơn')
+        toast.success(trackingNumber ? 'Đã lưu mã vận đơn' : 'Đã tự động tạo mã vận đơn')
         await fetchAllOrders()
       } else {
         toast.error(response.data.message)
@@ -272,7 +264,7 @@ const Orders = ({ token }) => {
                             onClick={() => saveTrackingNumber(order._id, order.status)}
                             className="admin-btn-secondary px-3 py-1.5 text-xs"
                           >
-                            Lưu
+                            {(trackingInputs[order._id] || '').trim() ? 'Lưu' : 'Tự tạo'}
                           </button>
                         </div>
                       </div>

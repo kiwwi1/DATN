@@ -72,6 +72,9 @@ const MAX_FORGOT_PASSWORD_EMAIL = Number(process.env.AUTH_RL_MAX_FORGOT_EMAIL ||
 const MAX_RESET_PASSWORD_IP = Number(process.env.AUTH_RL_MAX_RESET_IP || 20);
 const MAX_REFRESH_IP = Number(process.env.AUTH_RL_MAX_REFRESH_IP || 120);
 const MAX_REGISTER_IP = Number(process.env.AUTH_RL_MAX_REGISTER_IP || 10);
+const MAX_REGISTER_VENDOR_IP = Number(process.env.AUTH_RL_MAX_REGISTER_VENDOR_IP || 10);
+const MAX_VENDOR_STATS_IP = Number(process.env.AUTH_RL_MAX_VENDOR_STATS_IP || 120);
+const MAX_VENDOR_LIST_IP = Number(process.env.AUTH_RL_MAX_VENDOR_LIST_IP || 120);
 
 export const loginRateLimit = [
     createLimiter({
@@ -154,3 +157,29 @@ export const registerRateLimit = [
     }),
 ];
 
+export const registerVendorRateLimit = [
+    createLimiter({
+        keyBuilder: (req) => `rl:register-vendor:ip:${getIp(req)}`,
+        max: MAX_REGISTER_VENDOR_IP,
+        windowSec: WINDOW_SEC,
+        message: "Quá nhiều yêu cầu đăng ký người bán. Vui lòng thử lại sau.",
+    }),
+];
+
+export const vendorStatsRateLimit = [
+    createLimiter({
+        keyBuilder: (req) => `rl:vendor-stats:ip:${getIp(req)}`,
+        max: MAX_VENDOR_STATS_IP,
+        windowSec: WINDOW_SEC,
+        message: "Quá nhiều yêu cầu thống kê gian hàng. Vui lòng thử lại sau.",
+    }),
+];
+
+export const vendorListRateLimit = [
+    createLimiter({
+        keyBuilder: (req) => `rl:vendor-list:ip:${getIp(req)}`,
+        max: MAX_VENDOR_LIST_IP,
+        windowSec: WINDOW_SEC,
+        message: "Quá nhiều yêu cầu danh sách dành cho nhà bán. Vui lòng thử lại sau.",
+    }),
+];

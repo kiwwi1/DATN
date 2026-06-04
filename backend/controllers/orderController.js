@@ -175,8 +175,14 @@ const vendorOrders = async (req, res) => {
 
 const updateVendorOrderStatus = async (req, res) => {
     try {
-        const { orderId, status, trackingNumber } = req.body;
-        const order = await updateVendorOrderStatusService(orderId, status, req.vendorId, trackingNumber);
+        const { orderId, status, trackingNumber, autoGenerateTracking } = req.body;
+        const order = await updateVendorOrderStatusService(
+            orderId,
+            status,
+            req.vendorId,
+            trackingNumber,
+            autoGenerateTracking
+        );
         res.json({ success: true, message: "Order status updated successfully", order });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -230,4 +236,3 @@ export {
     deleteOrder,
     stripeWebhook,
 };
-

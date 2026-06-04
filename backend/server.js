@@ -21,6 +21,7 @@ import chatRouter from './routes/chatRoute.js';
 import addressRouter from './routes/addressRoute.js';
 import locationRouter from './routes/locationRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
+import searchRouter from './routes/searchRoute.js';
 import { getImageProxy } from './controllers/imageProxyController.js';
 import { expirePendingReservationsService } from './services/orderService.js';
 import { stripeWebhook } from './controllers/orderController.js';
@@ -103,6 +104,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/address', addressRouter);
 app.use('/api/location', locationRouter);
 app.use('/api/voucher', voucherRouter);
+app.use('/api/search', searchRouter);
 
 io.use((socket, next) => {
     try {

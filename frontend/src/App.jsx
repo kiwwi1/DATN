@@ -1,17 +1,20 @@
 import React from 'react'
 import { Route,Routes } from 'react-router-dom'
 import Login from './pages/auth/Login'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
 import PlaceOrder from './pages/shop/PlaceOrder'
 import Orders from './pages/shop/Orders'
 import Navbar from './components/layout/Navbar'
 import Home from './pages/main/Home'
 import About from './pages/main/About'
 import Contact from './pages/main/Contact'
+import VendorShop from './pages/main/VendorShop'
 import Collection from './pages/main/Collection'
 import Product from './pages/main/Product'
 import Cart from './pages/shop/Cart'
 import Footer from './components/layout/Footer'
-import SearchBar from './components/layout/SearchBar'
+import FloatingChatButton from './components/layout/FloatingChatButton'
 import { ToastContainer } from 'react-toastify';
 import Verify from './pages/shop/Verify'
 import VendorRegis from './pages/auth/VendorRegis'
@@ -26,21 +29,25 @@ import ProfilePrivacySettings from './pages/profile/ProfilePrivacySettings'
 import ProfilePersonalInfo from './pages/profile/ProfilePersonalInfo'
 import ProfileVouchers from './pages/profile/ProfileVouchers'
 import ProfileCoins from './pages/profile/ProfileCoins'
+import RecommendationsPage from './pages/main/RecommendationsPage'
 
 const App = () => {
   return (
     <div className='px-4 sm:px-[5wh] md:px-[7vw] lg:px-[9vw]'>
     <ToastContainer />
       <Navbar />
-      <SearchBar />
       <Routes>
         <Route path='/' element={<Home />} />
         <Route path='/about' element={<About />} />
         <Route path='/contact' element={<Contact />} />
+        <Route path='/shop/:vendorId' element={<VendorShop />} />
         <Route path='/collection' element={<Collection />} />
         <Route path='/product/:productId' element={<Product />} />
+        <Route path='/recommendations' element={<RecommendationsPage />} />
         <Route path='/cart' element={<Cart />} />
         <Route path='/login' element={<Login />} />
+        <Route path='/forgot-password' element={<ForgotPassword />} />
+        <Route path='/reset-password' element={<ResetPassword />} />
         <Route path='/place-order' element={<PlaceOrder />} />
         <Route path='/orders' element={<Orders/>} />
         <Route path='/verify' element={<Verify/>} />
@@ -58,6 +65,7 @@ const App = () => {
         
       </Routes>
       <Footer />
+      <FloatingChatButton />
 
     </div>
   )

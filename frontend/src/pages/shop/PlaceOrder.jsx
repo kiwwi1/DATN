@@ -1,265 +1,310 @@
-import React, { useContext, useState, useEffect } from 'react'
-import Title from '../../components/ui/Title'
-import CartTotal from '../../components/cart/CartTotal'
-import { assets } from '../../assets/assets'
-import { ShopContext } from '../../context/ShopContext'
-import axios from 'axios'
-import { toast } from 'react-toastify'    
+import React, { useContext } from "react";
+import Title from "../../components/ui/Title";
+import CartTotal from "../../components/cart/CartTotal";
+import { assets } from "../../assets/assets";
+import { ShopContext } from "../../context/ShopContext";
+import { usePlaceOrderCheckout } from "../../hooks/usePlaceOrderCheckout";
+import AddressBookSection from "../../components/checkout/AddressBookSection";
+import ManualAddressForm from "../../components/checkout/ManualAddressForm";
+import PaymentMethodSelector from "../../components/checkout/PaymentMethodSelector";
+import { formatPrice } from "../../utils/priceFormat";
+import { formatImageUrl } from "../../utils/imageUtils";
+
+const pickImageUrl = (imageLike) => formatImageUrl(imageLike, { variant: "thumb" });
+
+const formatSelectedAttributes = (item) => {
+  if (Array.isArray(item.selectedAttributes) && item.selectedAttributes.length > 0) {
+    return item.selectedAttributes.map((attribute) => `${attribute.name}: ${attribute.value}`).join(", ");
+  }
+  return item.size || "";
+};
+
+const VoucherInputGroup = ({
+  title,
+  inputValue,
+  onInputChange,
+  onApply,
+  appliedCodes,
+  onRemoveCode,
+  suggestions,
+  onChooseSuggestion,
+  rejectedReason,
+}) => (
+  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <p className="text-sm font-semibold text-slate-800">{title}</p>
+    <div className="mt-2 flex gap-2">
+      <input
+        value={inputValue}
+        onChange={onInputChange}
+        placeholder={"Nh\u1eadp m\u00e3 voucher"}
+        className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none"
+      />
+      <button
+        type="button"
+        onClick={onApply}
+        className="rounded bg-black px-3 py-2 text-xs text-white hover:bg-slate-800"
+      >
+        {"\u00c1p d\u1ee5ng"}
+      </button>
+    </div>
+
+    {appliedCodes.length > 0 && (
+      <div className="mt-2 flex flex-wrap gap-2">
+        {appliedCodes.map((code) => (
+          <button
+            key={code}
+            type="button"
+            onClick={() => onRemoveCode(code)}
+            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+          >
+            {code} {"\u00d7"}
+          </button>
+        ))}
+      </div>
+    )}
+
+    {suggestions.length > 0 && (
+      <div className="mt-3">
+        <p className="text-xs font-medium text-slate-600">{"G\u1ee3i \u00fd \u0111ang hi\u1ec7u l\u1ef1c"}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {suggestions.map((voucher) => (
+            <button
+              key={voucher.code}
+              type="button"
+              onClick={() => onChooseSuggestion(voucher.code)}
+              className="rounded border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs text-orange-700 hover:bg-orange-100"
+            >
+              {voucher.code} (-{formatPrice(voucher.estimatedDiscount || 0)})
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {rejectedReason ? <p className="mt-2 text-xs text-red-500">{rejectedReason}</p> : null}
+  </div>
+);
+
 const PlaceOrder = () => {
-  // State to manage the selected payment method
+  const { navigate, cartItems, setCartItems, token, backendUrl, delivery_fee, products } = useContext(ShopContext);
 
-  const[method,setMethod] =useState('cod');
-  const {navigate,cartItems,setCartItems,token,backendUrl,delivery_fee,products} = useContext(ShopContext)
-
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    street: '',
-    city: '',
-    state: '',
-    phone: ''
-  })
-
-  const [selectedTotal, setSelectedTotal] = useState(0);
-
-  // Calculate selected items total
-  useEffect(() => {
-    const selectedCartItemsStr = sessionStorage.getItem('selectedCartItems');
-    if (selectedCartItemsStr) {
-      const selectedCartItems = JSON.parse(selectedCartItemsStr);
-      const total = selectedCartItems.reduce((sum, item) => {
-        const productData = products.find(p => p._id === item._id);
-        if (productData) {
-          return sum + (productData.price * item.quantity);
-        }
-        return sum;
-      }, 0);
-      setSelectedTotal(total);
-    }
-  }, [products]);
-
-
-  const onChangeHandler = (e) =>{
-    const name = e.target.name;
-    const value = e.target.value;
-
-    setFormData({...formData, [name]: value})
-  }
-
-  const onSubmitHandler = async (event) => {
-    event.preventDefault();
-    try {
-      // Get selected items from sessionStorage
-      const selectedCartItemsStr = sessionStorage.getItem('selectedCartItems');
-      const selectedCartItems = selectedCartItemsStr ? JSON.parse(selectedCartItemsStr) : null;
-      
-      let orderItems = []
-
-      // If we have selected items (from Cart page), only process those
-      if (selectedCartItems && selectedCartItems.length > 0) {
-        for (const selectedItem of selectedCartItems) {
-          const productData = products.find(product => product._id === selectedItem._id);
-          if (productData) {
-            // Prepare order item with all required fields from orderModel
-            const orderItem = {
-              _id: productData._id,
-              name: productData.name,
-              price: productData.price,
-              originalPrice: productData.originalPrice || productData.price,
-              discount: productData.discount || 0,
-              quantity: selectedItem.quantity,
-              image: productData.image || [],
-              brand: productData.brand || '',
-              vendorId: productData.vendorId,
-              vendorShopName: productData.vendorShopName || ''
-            };
-
-            // Parse attributes string to selectedAttributes array
-            if (selectedItem.size.includes(':')) {
-              const attributes = selectedItem.size.split(',').map(attr => {
-                const [name, value] = attr.split(':').map(s => s.trim());
-                return { name, value };
-              });
-              orderItem.selectedAttributes = attributes;
-              orderItem.size = selectedItem.size;
-            } else {
-              orderItem.size = selectedItem.size;
-              orderItem.selectedAttributes = [{ name: 'Size', value: selectedItem.size }];
-            }
-
-            orderItems.push(orderItem);
-          }
-        }
-      } else {
-        // Fallback: process all items in cart (backward compatibility)
-        for (const items in cartItems) {
-          for (const item in cartItems[items]) {
-            if (cartItems[items][item] > 0) {
-            const productData = products.find(product => product._id === items);
-            if(productData) {
-              // Prepare order item with all required fields from orderModel
-              const orderItem = {
-                _id: productData._id,
-                name: productData.name,
-                price: productData.price, // Current price (after discount)
-                originalPrice: productData.originalPrice || productData.price,
-                discount: productData.discount || 0,
-                quantity: cartItems[items][item],
-                image: productData.image || [],
-                brand: productData.brand || '',
-                vendorId: productData.vendorId,
-                vendorShopName: productData.vendorShopName || ''
-              };
-
-              // Parse attributes string to selectedAttributes array
-              // Format: "Size: M, Color: Red" -> [{name: "Size", value: "M"}, {name: "Color", value: "Red"}]
-              if (item.includes(':')) {
-                // New format with multiple attributes
-                const attributes = item.split(',').map(attr => {
-                  const [name, value] = attr.split(':').map(s => s.trim());
-                  return { name, value };
-                });
-                orderItem.selectedAttributes = attributes;
-                orderItem.size = item; // Keep for backward compatibility
-              } else {
-                // Old format with single size
-                orderItem.size = item;
-                orderItem.selectedAttributes = [{ name: 'Size', value: item }];
-              }
-
-              orderItems.push(orderItem);
-            }
-          }
-        }
-        }
-      }
-      
-      // Calculate total amount for selected items
-      const itemsTotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-      const shippingFee = itemsTotal >= 500000 ? 0 : delivery_fee;
-      const totalAmount = itemsTotal + shippingFee;
-
-      // Validate Stripe amount limit for VND
-      const STRIPE_VND_LIMIT = 99999999; // ₫99,999,999
-      if (method === 'stripe' && totalAmount > STRIPE_VND_LIMIT) {
-        toast.error('Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫99,999,999). Vui lòng chọn phương thức thanh toán COD.');
-        return;
-      }
-      
-      let orderData = {
-        address: formData,
-        items: orderItems,
-        amount: totalAmount
-      }
-
-      console.log('📦 Order Data:', orderData);
-      console.log('🛍️ Order Items:', orderItems);
-
-      // Declare response outside switch to avoid lexical declaration error
-      
-      switch(method) {
-        // api for cod order
-        case 'cod': {
-          const response = await axios.post(backendUrl + '/api/order/place-order', orderData, {headers:{token}})
-          if(response.data.success) {
-            // Clear selected items from sessionStorage
-            sessionStorage.removeItem('selectedCartItems');
-            
-            // Fetch fresh cart data from backend to sync
-            try {
-              const cartResponse = await axios.post(
-                backendUrl + '/api/cart/get',
-                {},
-                {headers:{token}}
-              );
-              if (cartResponse.data.success) {
-                setCartItems(cartResponse.data.cartData);
-              }
-            } catch (err) {
-              console.error('Error fetching cart:', err);
-            }
-            
-            toast.success('Đặt hàng thành công!');
-            navigate('/orders')
-          } else {
-            toast.error(response.data.message)
-          }
-          break;
-        }
-        case 'stripe': {
-          const response = await axios.post(backendUrl + '/api/order/place-order-stripe', orderData, {headers:{token}})
-          if(response.data.success) {
-            // Clear selected items from sessionStorage before redirect
-            // Backend will handle removing items from cart
-            sessionStorage.removeItem('selectedCartItems');
-            
-            window.location.href = response.data.sessionUrl
-          } else {
-            toast.error(response.data.message)
-          }
-          break;
-        }
-        default:
-          break;
-      }
-      
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message)
-    }
-  }
+  const {
+    method,
+    setMethod,
+    addresses,
+    addressesLoading,
+    selectedAddressId,
+    setSelectedAddressId,
+    selectedAddress,
+    hasAddressBook,
+    provinces,
+    wards,
+    loadingProvinces,
+    loadingWards,
+    formData,
+    setFormData,
+    selectedTotal,
+    isSubmitting,
+    onChangeHandler,
+    onProvinceChange,
+    onSubmitHandler,
+    groupedOrderItems,
+    shopVoucherInputs,
+    setShopVoucherInput,
+    platformVoucherInput,
+    setPlatformVoucherInput,
+    shopVoucherCodesByVendor,
+    platformVoucherCodes,
+    voucherCodes,
+    applyShopVoucherInput,
+    applySuggestedShopVoucher,
+    applyPlatformVoucherInput,
+    applySuggestedPlatformVoucher,
+    removeShopVoucherCode,
+    removePlatformVoucherCode,
+    pricingSummary,
+    appliedShopVouchersByVendor,
+    appliedPlatformVouchers,
+    rejectedShopVouchersByVendor,
+    rejectedPlatformVouchers,
+    previewLoading,
+    shopVoucherSuggestionsByVendor,
+    platformVoucherSuggestions,
+    voucherSuggestionLoading,
+  } = usePlaceOrderCheckout({
+    navigate,
+    cartItems,
+    setCartItems,
+    token,
+    backendUrl,
+    deliveryFee: delivery_fee,
+    products,
+  });
 
   return (
-    <form onSubmit={onSubmitHandler} className='flex flex-col sm:flex-row gap-4 justify-between sm:pt-14 pt-5 min-h-[80vh] border-t'>
-    {/* -----------------LEFT SIDE------------------------ */}
-      <div className='flex flex-col gap-4 w-full sm:max-w-[480px]'>
-          <div className='text-xl sm:text-2xl my-3'>
-            <Title text1={'DELIVERY '} text2={'INFORMATION'} />
-          </div>
-          <div className='flex gap-3'>
-              <input required onChange={onChangeHandler} name='firstName' value={formData.firstName} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="text" placeholder='First Name'></input>
-              <input required onChange={onChangeHandler} name='lastName' value={formData.lastName} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="text" placeholder='Last Name'></input>
-          </div>
-          <input required onChange={onChangeHandler} name='email' value={formData.email} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="email" placeholder='Email Address'></input>
-          <input required onChange={onChangeHandler} name='street' value={formData.street} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="text" placeholder='Street'></input>
-          <div className='flex gap-3'>
-              <input required onChange={onChangeHandler} name='city' value={formData.city} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="text" placeholder='City'></input>
-              <input required onChange={onChangeHandler} name='state' value={formData.state} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="text" placeholder='State'></input>
-          </div>
-          <input onChange={onChangeHandler} name='phone' value={formData.phone} className='border border-gray-300 rounded py-1.5 px-3.5 w-full' type="number" placeholder='Phone'></input>
-      </div>
+    <form onSubmit={onSubmitHandler} className="relative flex min-h-[80vh] flex-col justify-between gap-4 border-t pt-5 sm:flex-row sm:pt-14">
+      {isSubmitting && (
+        <div className="absolute inset-0 z-20 cursor-wait rounded bg-white/60" />
+      )}
+      <section className="flex w-full flex-col gap-4 sm:max-w-[520px]">
+        <div className="my-3 text-xl sm:text-2xl">
+          <Title text1={"THÔNG TIN "} text2={"GIAO HÀNG"} />
+        </div>
 
-      {/* -----------------RIGHT SIDE------------------------ */}
-      <div className='mt-8'>
-          <div className='mt-8 min-w-80'>
-            <CartTotal selectedTotal={selectedTotal > 0 ? selectedTotal : undefined} />
+          <AddressBookSection
+            navigate={navigate}
+            addressesLoading={addressesLoading}
+            hasAddressBook={hasAddressBook}
+            addresses={addresses}
+            selectedAddressId={selectedAddressId}
+            setSelectedAddressId={setSelectedAddressId}
+            selectedAddress={selectedAddress}
+          />
+
+          {!selectedAddress && (
+            <ManualAddressForm
+              formData={formData}
+              provinces={provinces}
+              wards={wards}
+              loadingProvinces={loadingProvinces}
+              loadingWards={loadingWards}
+              onChangeHandler={onChangeHandler}
+              onProvinceChange={onProvinceChange}
+              setFormData={setFormData}
+            />
+          )}
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-800">{"S\u1ea3n ph\u1ea9m \u0111\u00e3 ch\u1ecdn"}</h3>
+            {groupedOrderItems.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-500">{"Kh\u00f4ng c\u00f3 s\u1ea3n ph\u1ea9m n\u00e0o trong \u0111\u01a1n h\u00e0ng."}</p>
+            ) : (
+              <div className="mt-3 space-y-4">
+                {groupedOrderItems.map((vendorGroup) => {
+                  const vendorCodes = shopVoucherCodesByVendor[vendorGroup.vendorId] || [];
+                  const appliedCount = (appliedShopVouchersByVendor[vendorGroup.vendorId] || []).length;
+                  const rejectedReason = rejectedShopVouchersByVendor[vendorGroup.vendorId]?.[0]?.reason;
+                  const suggestions = shopVoucherSuggestionsByVendor[vendorGroup.vendorId] || [];
+
+                  return (
+                    <div key={vendorGroup.vendorId} className="rounded-lg border border-slate-200 p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {vendorGroup.vendorShopName || "C\u1eeda h\u00e0ng"}
+                          </p>
+                          <p className="text-xs text-slate-500">{"T\u1ea1m t\u00ednh shop"}: {formatPrice(vendorGroup.subtotal)}</p>
+                        </div>
+                        {appliedCount > 0 && (
+                          <span className="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+                            {"\u0110\u00e3 \u00e1p d\u1ee5ng"} {appliedCount} voucher
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        {vendorGroup.items.map((item, index) => (
+                          <div key={`${item._id}-${item.size || item.variantKey || index}`} className="flex gap-3">
+                            <img
+                              src={pickImageUrl(item.image) || assets.placeholder_image}
+                              alt={item.name}
+                              className="h-16 w-16 rounded border border-slate-200 object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-sm font-medium text-slate-800">{item.name}</p>
+                              {formatSelectedAttributes(item) ? (
+                                <p className="mt-0.5 text-xs text-slate-500">{formatSelectedAttributes(item)}</p>
+                              ) : null}
+                              <div className="mt-1 flex items-center justify-between text-xs text-slate-600">
+                                <span>SL: {item.quantity}</span>
+                                <span className="font-semibold text-slate-800">
+                                  {formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-3">
+                        <VoucherInputGroup
+                          title={"Voucher c\u1ee7a shop"}
+                          inputValue={shopVoucherInputs[vendorGroup.vendorId] || ""}
+                          onInputChange={(event) =>
+                            setShopVoucherInput(vendorGroup.vendorId, event.target.value)
+                          }
+                          onApply={() => applyShopVoucherInput(vendorGroup.vendorId)}
+                          appliedCodes={vendorCodes}
+                          onRemoveCode={(code) => removeShopVoucherCode(vendorGroup.vendorId, code)}
+                          suggestions={suggestions}
+                          onChooseSuggestion={(code) => applySuggestedShopVoucher(vendorGroup.vendorId, code)}
+                          rejectedReason={rejectedReason}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+      </section>
+
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <CartTotal selectedTotal={selectedTotal > 0 ? selectedTotal : undefined} pricing={pricingSummary} compact />
           </div>
 
-          <div className='mt-12'>
-            <Title text1={'PAYMENT '} text2={'METHOD'} />
-            {/*  ---------------------- Payment ----------------------- */}
-              <div className='flex gap-3 flex-col lg-flex-row'>
-                <div onClick={()=>setMethod('stripe')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
-                  <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'stripe' ?'bg-green-400':''}`}></p>
-                  <img className='h-5 mx-4' src={assets.stripe_logo}></img>
-                </div>
-                <div onClick={()=>setMethod('zalopay')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
-                  <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'zalopay' ?'bg-green-400':''}`}></p>
-                  <img className='h-5 mx-4' src={assets.zalopay_logo}></img>
-                </div>
-                <div onClick={()=>setMethod('cod')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
-                  <p className={` min-w-3.5 h-3.5 border rounded-full ${method === 'cod' ?'bg-green-400':''}`}></p>
-                  <p className='text-gray-500 text-sm font-medium mx-4'>CASH ON DELIVERY</p>
-                </div>
-              </div>
-              <div className='w-full text-end mt-8'>
-                <button type='submit' className='bg-black text-sm text-white py-2 px-16 '>PLACE ORDER</button>
-              </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-800">{"Voucher c\u1ee7a s\u00e0n"}</h3>
+            <div className="mt-3 space-y-3">
+              <VoucherInputGroup
+                title={"Voucher s\u00e0n v\u00e0 v\u1eadn chuy\u1ec3n"}
+                inputValue={platformVoucherInput}
+                onInputChange={(event) => setPlatformVoucherInput(event.target.value)}
+                onApply={applyPlatformVoucherInput}
+                appliedCodes={platformVoucherCodes}
+                onRemoveCode={removePlatformVoucherCode}
+                suggestions={platformVoucherSuggestions}
+                onChooseSuggestion={applySuggestedPlatformVoucher}
+                rejectedReason={rejectedPlatformVouchers[0]?.reason}
+              />
+
+              {voucherCodes.length > 0 && (
+                <p className="text-xs text-slate-500">
+                  {"T\u1ed5ng voucher \u0111\u00e3 th\u00eam"}: {voucherCodes.length} | {"S\u00e0n \u0111\u00e3 \u00e1p d\u1ee5ng"}: {appliedPlatformVouchers.length}
+                </p>
+              )}
+
+              {(previewLoading || voucherSuggestionLoading) && (
+                <p className="text-xs text-slate-500">{"\u0110ang c\u1eadp nh\u1eadt th\u00f4ng tin voucher..."}</p>
+              )}
+            </div>
           </div>
-      </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <Title text1={"PH\u01af\u01a0NG TH\u1ee8C "} text2={"THANH TO\u00c1N"} />
+            <PaymentMethodSelector
+              method={method}
+              setMethod={setMethod}
+              isSubmitting={isSubmitting}
+              assets={assets}
+            />
+
+            <div className="mt-6">
+              <button
+                disabled={isSubmitting}
+                type="submit"
+                className={`w-full rounded bg-black px-6 py-3 text-sm text-white hover:bg-slate-800 ${
+                  isSubmitting ? "cursor-not-allowed opacity-70" : ""
+                }`}
+              >
+                {isSubmitting ? "\u0110ANG X\u1eec L\u00dd..." : "\u0110\u1eb6T H\u00c0NG"}
+              </button>
+            </div>
+          </div>
+        </aside>
     </form>
-  )
-}
+  );
+};
 
-export default PlaceOrder
+export default PlaceOrder;

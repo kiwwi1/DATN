@@ -1,51 +1,96 @@
 import userInteractionModel from "../models/userInteractionModel.js";
 import productModel from "../models/productModel.js";
 
+const ALLOWED_INTERACTIONS = new Set([
+    "purchased",
+    "rated",
+    "reviewed",
+    "addedToCart",
+    "wishlisted",
+    "viewed",
+    "clicked",
+    "searched",
+    "timeSpent",
+]);
+const BOOLEAN_INTERACTIONS = new Set(["reviewed", "wishlisted"]);
+
+const normalizeLimit = (limit) => {
+    return Number.isFinite(limit) && limit > 0 ? limit : null;
+};
+
+const normalizeNumericValue = (value) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) return 1;
+    return Math.max(0, parsedValue);
+};
+
+const buildInteractionUpdate = (interactionType, value) => {
+    if (BOOLEAN_INTERACTIONS.has(interactionType)) {
+        return {
+            $set: {
+                [`interactions.${interactionType}`]: true,
+                lastInteraction: new Date(),
+            },
+        };
+    }
+
+    return {
+        $inc: { [`interactions.${interactionType}`]: normalizeNumericValue(value) },
+        $set: { lastInteraction: new Date() },
+    };
+};
+
 const incrementInteraction = async (userId, productId, interactionType, value, useUpsert) => {
+    const update = buildInteractionUpdate(interactionType, value);
+
     return userInteractionModel.findOneAndUpdate(
         { userId, productId },
-        {
-            $inc: { [`interactions.${interactionType}`]: value },
-            $set: { lastInteraction: new Date() }
-        },
+        update,
         { upsert: useUpsert, new: true }
     );
 };
 
 const getContentBasedRecs = async (userId, limit) => {
+    const normalizedLimit = normalizeLimit(limit);
+
     const interactions = await userInteractionModel
         .find({ userId })
         .sort({ interactionScore: -1 })
         .limit(5)
         .lean();
+
     if (interactions.length === 0) return [];
+
     const seenProductIds = interactions.map((i) => i.productId);
     const topProducts = await productModel
         .find({ _id: { $in: seenProductIds } })
         .select('category subCategory')
         .lean();
+
     const categoryIds = [...new Set(
         topProducts.flatMap((p) => [p.category, p.subCategory].filter(Boolean).map(String))
     )];
-    return productModel.find({
+
+    const query = productModel.find({
         $or: [{ category: { $in: categoryIds } }, { subCategory: { $in: categoryIds } }],
         _id: { $nin: seenProductIds },
         isActive: true,
-    })
-    .sort({ sold: -1, rating: -1 })
-    .limit(limit)
-    .lean();
+    }).sort({ sold: -1, rating: -1 });
+
+    if (normalizedLimit) query.limit(normalizedLimit);
+    return query.lean();
 };
 
-
 const getItemBasedRecs = async (userId, limit) => {
-    const userInteractions = await userInteractionModel
-    .find({ userId })
-    .sort({ interactionScore: -1 })
-    .limit(5)
-    .lean();
+    const normalizedLimit = normalizeLimit(limit);
 
-    if(userInteractions.length === 0) return [];
+    const userInteractions = await userInteractionModel
+        .find({ userId })
+        .sort({ interactionScore: -1 })
+        .limit(5)
+        .lean();
+
+    if (userInteractions.length === 0) return [];
 
     const userProductIds = userInteractions.map((i) => i.productId);
 
@@ -63,31 +108,35 @@ const getItemBasedRecs = async (userId, limit) => {
                 totalScore: { $sum: "$interactionScore" }
             }
         },
-        {$sort: { totalScore: -1 }},
-        {$limit: 20},
+        { $sort: { totalScore: -1 } },
+        { $limit: 20 },
+    ]);
 
-    ])
-
-    if(similarUsers.length === 0) return [];
+    if (similarUsers.length === 0) return [];
 
     const similarUserIds = similarUsers.map((u) => u._id);
     const candidateInteractions = await userInteractionModel.find({
-         userId: { $in: similarUserIds }, productId: { $nin: userProductIds } 
+        userId: { $in: similarUserIds },
+        productId: { $nin: userProductIds }
     })
     .sort({ interactionScore: -1 })
     .lean();
 
     const productScores = {};
-    for(const interaction of candidateInteractions) {
+    for (const interaction of candidateInteractions) {
         const pid = interaction.productId.toString();
         productScores[pid] = (productScores[pid] || 0) + interaction.interactionScore;
-}
-    const topProductIds = Object.entries(productScores)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, limit)
-    .map(([pid]) => pid);
+    }
 
-    if(topProductIds.length === 0) return [];
+    const rankedProductIds = Object.entries(productScores)
+        .sort(([, a], [, b]) => b - a)
+        .map(([pid]) => pid);
+
+    const topProductIds = normalizedLimit
+        ? rankedProductIds.slice(0, normalizedLimit)
+        : rankedProductIds;
+
+    if (topProductIds.length === 0) return [];
 
     const products = await productModel.find({
         _id: { $in: topProductIds },
@@ -96,42 +145,50 @@ const getItemBasedRecs = async (userId, limit) => {
 
     const productMap = new Map(products.map((p) => [p._id.toString(), p]));
     return topProductIds.map((pid) => productMap.get(pid)).filter(Boolean);
-}
+};
 
 export const trackInteractionService = async (userId, productId, interactionType, value = 1) => {
+    if (!userId || !productId) {
+        throw Object.assign(new Error("userId and productId are required"), { status: 400 });
+    }
+    if (!ALLOWED_INTERACTIONS.has(interactionType)) {
+        throw Object.assign(new Error("Invalid interaction type"), { status: 400 });
+    }
+
     let updated;
     try {
         updated = await incrementInteraction(userId, productId, interactionType, value, true);
     } catch (err) {
         if (err.code === 11000) {
-            // Duplicate key: document was just created by a concurrent request, retry as plain update
             updated = await incrementInteraction(userId, productId, interactionType, value, false);
         } else {
             throw err;
         }
     }
+
     const score = updated.calculateScore();
     await userInteractionModel.updateOne(
         { _id: updated._id },
         { $set: { interactionScore: score, decayFactor: updated.decayFactor } }
     );
+
     return score;
 };
 
-// Hàm public — hybrid
-export const getRecommendationsService = async (userId, limit = 10) => {
-    const half = Math.ceil(limit / 2);
+export const getRecommendationsService = async (userId, limit = null) => {
+    const normalizedLimit = normalizeLimit(limit);
+    const half = normalizedLimit ? Math.ceil(normalizedLimit / 2) : null;
 
     const [cfRecs, contentRecs] = await Promise.all([
         getItemBasedRecs(userId, half),
-        getContentBasedRecs(userId, limit), // lấy nhiều hơn để có dư bổ sung
+        getContentBasedRecs(userId, normalizedLimit),
     ]);
 
-    // Merge: CF trước (chính xác hơn), content-based bổ sung
     const seen = new Set();
     const result = [];
+
     for (const p of [...cfRecs, ...contentRecs]) {
-        if (result.length >= limit) break;
+        if (normalizedLimit && result.length >= normalizedLimit) break;
         const id = p._id.toString();
         if (!seen.has(id)) {
             seen.add(id);
@@ -139,21 +196,20 @@ export const getRecommendationsService = async (userId, limit = 10) => {
         }
     }
 
-    // Cold start: vẫn chưa đủ → fallback bestseller
-    if (result.length < limit) {
+    if (!normalizedLimit || result.length < normalizedLimit) {
         const excludeIds = result.map((p) => p._id);
-        const fallback = await productModel.find({
+        const fallbackQuery = productModel.find({
             _id: { $nin: excludeIds },
             isActive: true,
-        })
-        .sort({ sold: -1 })
-        .limit(limit - result.length)
-        .lean();
+        }).sort({ sold: -1, rating: -1, date: -1 });
+
+        if (normalizedLimit) {
+            fallbackQuery.limit(normalizedLimit - result.length);
+        }
+
+        const fallback = await fallbackQuery.lean();
         result.push(...fallback);
     }
 
     return result;
 };
-    
-
-

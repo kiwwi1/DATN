@@ -1,473 +1,410 @@
-import React, { useState, useEffect } from "react";
-import { assets } from "../assets/assets.js";
-import { backendUrl } from "../App.jsx";
-import axios from "axios";
-import { toast } from "react-toastify";
-import { getDefaultAttributesForCategory } from "../utils/categoryHelper.js";
-import AttributesManager from "../components/AttributesManager.jsx";
-import VariantsManager from "../components/VariantsManager.jsx";
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import { assets } from '../assets/assets.js'
+import { backendUrl } from '../App.jsx'
+import { getDefaultAttributesForCategory } from '../utils/categoryHelper.js'
+import AttributesManager from '../components/AttributesManager.jsx'
+import VariantsManager from '../components/VariantsManager.jsx'
+
+const getRawPriceValue = (value) => String(value || '').replace(/\D/g, '')
+const formatPriceInput = (value) => {
+  const rawValue = getRawPriceValue(value)
+  if (!rawValue) return ''
+  return Number(rawValue).toLocaleString('vi-VN')
+}
 
 const Add = ({ token }) => {
-  const [image1, setImage1] = useState(false);
-  const [image2, setImage2] = useState(false);
-  const [image3, setImage3] = useState(false);
-  const [image4, setImage4] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [subCategory, setSubCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [bestseller, setBestseller] = useState(false);
+  const [image1, setImage1] = useState(false)
+  const [image2, setImage2] = useState(false)
+  const [image3, setImage3] = useState(false)
+  const [image4, setImage4] = useState(false)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [subCategory, setSubCategory] = useState('')
+  const [price, setPrice] = useState('')
+  const [bestseller, setBestseller] = useState(false)
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
+  const [attributes, setAttributes] = useState([])
+  const [variants, setVariants] = useState([])
+  const [mainCategories, setMainCategories] = useState([])
+  const [subCategories, setSubCategories] = useState([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState(null)
 
-  // Flexible attributes system
-  const [attributes, setAttributes] = useState([]);
-  const [variants, setVariants] = useState([]);
-
-  // Auto-fill price from min variant price
   useEffect(() => {
     if (variants.length > 0) {
-      const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p) && p > 0);
-      if (prices.length > 0) setPrice(String(Math.min(...prices)));
+      const prices = variants.map((variant) => Number(variant.price)).filter((value) => !Number.isNaN(value) && value > 0)
+      if (prices.length > 0) setPrice(formatPriceInput(String(Math.min(...prices))))
     }
-  }, [variants]);
+  }, [variants])
 
-  // States for categories
-  const [mainCategories, setMainCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-
-  // Fetch main categories on component mount
   useEffect(() => {
     const fetchMainCategories = async () => {
       try {
-        const response = await axios.get(backendUrl + "/api/category/list");
+        const response = await axios.get(`${backendUrl}/api/category/list`)
         if (response.data.success) {
-          // Filter only level 1 (main) categories
-          const mainCats = response.data.categories.filter(
-            (cat) => cat.level === 1
-          );
-          setMainCategories(mainCats);
-
-          // Set first category as default if available
-          if (mainCats.length > 0) {
-            setCategory(mainCats[0]._id);
-            setSelectedCategory(mainCats[0]);
+          const categories = response.data.categories.filter((categoryItem) => categoryItem.level === 1)
+          setMainCategories(categories)
+          if (categories.length > 0) {
+            setCategory(categories[0]._id)
+            setSelectedCategory(categories[0])
           }
         }
       } catch (error) {
-        console.error("Error fetching categories:", error);
-        toast.error("Failed to load categories");
+        toast.error(error.response?.data?.message || 'Không thể tải danh mục')
       } finally {
-        setLoadingCategories(false);
+        setLoadingCategories(false)
       }
-    };
-
-    fetchMainCategories();
-  }, []);
-
-  // Update attributes when category changes
-  useEffect(() => {
-    if (selectedCategory) {
-      const defaultAttrs = getDefaultAttributesForCategory(selectedCategory);
-      setAttributes(defaultAttrs);
     }
-  }, [selectedCategory]);
 
-  // Fetch subcategories when main category changes
+    fetchMainCategories()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCategory) return
+    const defaultAttributes = getDefaultAttributesForCategory(selectedCategory)
+    setAttributes(defaultAttributes)
+  }, [selectedCategory])
+
   useEffect(() => {
     const fetchSubCategories = async () => {
       if (!category) {
-        setSubCategories([]);
-        setSubCategory("");
-        return;
+        setSubCategories([])
+        setSubCategory('')
+        return
       }
-
       try {
-        const response = await axios.get(
-          backendUrl + `/api/category/${category}/subcategories`
-        );
+        const response = await axios.get(`${backendUrl}/api/category/${category}/subcategories`)
         if (response.data.success) {
-          setSubCategories(response.data.subcategories);
-
-          // Set first subcategory as default if available
-          if (response.data.subcategories.length > 0) {
-            setSubCategory(response.data.subcategories[0]._id);
-          } else {
-            setSubCategory("");
-          }
+          const nextSubCategories = response.data.subcategories || []
+          setSubCategories(nextSubCategories)
+          setSubCategory(nextSubCategories.length > 0 ? nextSubCategories[0]._id : '')
         }
-      } catch (error) {
-        console.error("Error fetching subcategories:", error);
-        setSubCategories([]);
-        setSubCategory("");
-      }
-    };
-
-    fetchSubCategories();
-  }, [category]);
-
-  const onSubmitHandler = async (e) => {
-    e.preventDefault();
-    try {
-      // Validate required fields
-      if (!name || !description || !price) {
-        toast.error("Please fill all required fields");
-        return;
-      }
-
-      // Validate attributes have at least one value
-      const hasValidAttributes = attributes.every(
-        (attr) => attr.values && attr.values.length > 0
-      );
-      if (!hasValidAttributes) {
-        toast.error("Please add at least one value for each attribute");
-        return;
-      }
-
-      // Validate all variant prices are set
-      if (variants.length > 0) {
-        const missingPrice = variants.some(v => !v.price || v.price <= 0);
-        if (missingPrice) {
-          toast.error("Vui lòng nhập giá cho tất cả biến thể");
-          return;
-        }
-      }
-
-      // Validate at least one image
-      if (!image1 && !image2 && !image3 && !image4) {
-        toast.error("Please upload at least one image");
-        return;
-      }
-
-      const formData = new FormData();
-
-      formData.append("name", name);
-      formData.append("description", description);
-      formData.append("price", price);
-      formData.append("category", category);
-      formData.append("subCategory", subCategory);
-      formData.append("attributes", JSON.stringify(attributes));
-      formData.append("variants", JSON.stringify(variants));
-      formData.append("bestseller", bestseller);
-
-      if (image1) formData.append("image1", image1);
-      if (image2) formData.append("image2", image2);
-      if (image3) formData.append("image3", image3);
-      if (image4) formData.append("image4", image4);
-
-      const response = await axios.post(
-        backendUrl + "/api/product/add",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            token: token,
-          },
-        }
-      );
-
-      // Check if we have a response
-      if (!response || !response.data) {
-        toast.error("No response from server");
-        return;
-      }
-
-      // Handle success
-      if (response.data.success) {
-        toast.success(response.data.message || "Product added successfully!");
-        // Reset form
-        setName("");
-        setDescription("");
-        if (mainCategories.length > 0) {
-          setCategory(mainCategories[0]._id);
-          setSelectedCategory(mainCategories[0]);
-        }
-        setSubCategory("");
-        setPrice("");
-        setAttributes([]);
-        setVariants([]);
-        setBestseller(false);
-        setImage1(false);
-        setImage2(false);
-        setImage3(false);
-        setImage4(false);
-      } else {
-        // Handle server-side error
-        toast.error(response.data.message || "Failed to add product");
-      }
-    } catch (error) {
-      console.error("Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-
-      // Handle different types of errors
-      if (error.response) {
-        // Server responded with error
-        toast.error(error.response.data?.message || "Server error");
-      } else if (error.request) {
-        // Request was made but no response
-        toast.error("No response from server. Please check your connection.");
-      } else {
-        // Something else went wrong
-        toast.error("Error sending request: " + error.message);
+      } catch {
+        setSubCategories([])
+        setSubCategory('')
       }
     }
-  };
+
+    fetchSubCategories()
+  }, [category])
+
+  const onSubmitHandler = async (event) => {
+    event.preventDefault()
+    try {
+      const rawPrice = getRawPriceValue(price)
+      if (!name || !description || !rawPrice) {
+        toast.error('Vui lòng điền đầy đủ các trường bắt buộc')
+        return
+      }
+
+      const hasValidAttributes = attributes.every((attribute) => attribute.values && attribute.values.length > 0)
+      if (!hasValidAttributes) {
+        toast.error('Vui lòng thêm ít nhất một giá trị cho mỗi thuộc tính')
+        return
+      }
+
+      if (variants.length > 0) {
+        const missingPrice = variants.some((variant) => !variant.price || variant.price <= 0)
+        if (missingPrice) {
+          toast.error('Vui lòng nhập giá cho tất cả biến thể')
+          return
+        }
+      }
+
+      if (!image1 && !image2 && !image3 && !image4) {
+        toast.error('Vui lòng tải lên ít nhất một ảnh sản phẩm')
+        return
+      }
+
+      const formData = new FormData()
+      formData.append('name', name)
+      formData.append('description', description)
+      formData.append('price', rawPrice)
+      formData.append('category', category)
+      formData.append('subCategory', subCategory)
+      formData.append('attributes', JSON.stringify(attributes))
+      formData.append('variants', JSON.stringify(variants))
+      formData.append('bestseller', bestseller)
+
+      if (image1) formData.append('image1', image1)
+      if (image2) formData.append('image2', image2)
+      if (image3) formData.append('image3', image3)
+      if (image4) formData.append('image4', image4)
+
+      const response = await axios.post(`${backendUrl}/api/product/add`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data', token },
+      })
+
+      if (!response?.data) {
+        toast.error('Không nhận được phản hồi từ máy chủ')
+        return
+      }
+
+      if (response.data.success) {
+        toast.success(response.data.message || 'Đã thêm sản phẩm thành công')
+        setName('')
+        setDescription('')
+        if (mainCategories.length > 0) {
+          setCategory(mainCategories[0]._id)
+          setSelectedCategory(mainCategories[0])
+        }
+        setSubCategory('')
+        setPrice('')
+        setAttributes([])
+        setVariants([])
+        setBestseller(false)
+        setImage1(false)
+        setImage2(false)
+        setImage3(false)
+        setImage4(false)
+      } else {
+        toast.error(response.data.message || 'Không thể thêm sản phẩm')
+      }
+    } catch (error) {
+      if (error.response) {
+        toast.error(error.response.data?.message || 'Lỗi máy chủ')
+      } else if (error.request) {
+        toast.error('Không nhận được phản hồi từ máy chủ')
+      } else {
+        toast.error(`Lỗi gửi yêu cầu: ${error.message}`)
+      }
+    }
+  }
+
+  const handleGenerateDescription = async () => {
+    if (!name.trim()) {
+      toast.error('Vui lòng nhập tên sản phẩm trước khi tạo mô tả')
+      return
+    }
+    try {
+      setIsGeneratingDescription(true)
+      const selectedMainCategory = mainCategories.find((categoryItem) => categoryItem._id === category)
+      const selectedSubCategory = subCategories.find((categoryItem) => categoryItem._id === subCategory)
+      const primaryImage = image1 || image2 || image3 || image4
+
+      let imageBase64 = ''
+      let imageMimeType = ''
+      if (primaryImage) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result || ''))
+          reader.onerror = () => reject(new Error('Không đọc được ảnh đã chọn'))
+          reader.readAsDataURL(primaryImage)
+        })
+        const match = dataUrl.match(/^data:(.+);base64,(.+)$/)
+        if (match) {
+          imageMimeType = match[1] || 'image/jpeg'
+          imageBase64 = match[2] || ''
+        }
+      }
+
+      const response = await axios.post(
+        `${backendUrl}/api/product/generate-description`,
+        {
+          name: name.trim(),
+          category: selectedMainCategory?.name || '',
+          subCategory: selectedSubCategory?.name || '',
+          attributes,
+          price: price ? `${Number(getRawPriceValue(price)).toLocaleString('vi-VN')}đ` : '',
+          variants: attributes.map((attribute) => `${attribute.name}: ${attribute.values.join(', ')}`),
+          imageBase64,
+          imageMimeType,
+        },
+        { headers: { token } }
+      )
+
+      if (response.data?.success && response.data?.description) {
+        setDescription(response.data.description)
+        toast.success('Đã tạo mô tả tự động')
+      } else {
+        toast.error(response.data?.message || 'Không thể tạo mô tả')
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Lỗi khi tạo mô tả bằng AI')
+    } finally {
+      setIsGeneratingDescription(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 ">
-      <form
-        onSubmit={onSubmitHandler}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6"
-      >
+    <section className="space-y-4">
+      <div>
+        <h1 className="admin-page-title">Thêm sản phẩm</h1>
+        <p className="admin-page-subtitle">Tạo sản phẩm mới với danh mục, thuộc tính, biến thể và hình ảnh.</p>
+      </div>
+
+      <form onSubmit={onSubmitHandler} className="admin-card grid grid-cols-1 gap-5 p-5 lg:grid-cols-2">
         <div className="lg:col-span-1">
-          <p className="text-lg font-medium text-gray-800 mb-3">Upload Image</p>
-
-          <div className="flex gap-4 flex-wrap">
-            <label
-              className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-all duration-200 flex items-center justify-center overflow-hidden"
-              htmlFor="image1"
-            >
-              <img
-                src={image1 ? URL.createObjectURL(image1) : assets.upload_area}
-                alt="upload"
-                className={`${
-                  image1
-                    ? "w-full h-full object-cover"
-                    : "w-12 h-12 hover:scale-110 transition-transform duration-200"
-                }`}
-              />
-              <input
-                type="file"
-                id="image1"
-                hidden
-                accept="image/*"
-                onChange={(e) => setImage1(e.target.files[0])}
-              />
-            </label>
-            <label
-              className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-all duration-200 flex items-center justify-center overflow-hidden"
-              htmlFor="image2"
-            >
-              <img
-                src={image2 ? URL.createObjectURL(image2) : assets.upload_area}
-                alt="upload"
-                className={`${
-                  image2
-                    ? "w-full h-full object-cover"
-                    : "w-12 h-12 hover:scale-110 transition-transform duration-200"
-                }`}
-              />
-              <input
-                type="file"
-                id="image2"
-                hidden
-                accept="image/*"
-                onChange={(e) => setImage2(e.target.files[0])}
-              />
-            </label>
-            <label
-              className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-all duration-200 flex items-center justify-center overflow-hidden"
-              htmlFor="image3"
-            >
-              <img
-                src={image3 ? URL.createObjectURL(image3) : assets.upload_area}
-                alt="upload"
-                className={`${
-                  image3
-                    ? "w-full h-full object-cover"
-                    : "w-12 h-12 hover:scale-110 transition-transform duration-200"
-                }`}
-              />
-              <input
-                type="file"
-                id="image3"
-                hidden
-                accept="image/*"
-                onChange={(e) => setImage3(e.target.files[0])}
-              />
-            </label>
-            <label
-              className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-all duration-200 flex items-center justify-center overflow-hidden"
-              htmlFor="image4"
-            >
-              <img
-                src={image4 ? URL.createObjectURL(image4) : assets.upload_area}
-                alt="upload"
-                className={`${
-                  image4
-                    ? "w-full h-full object-cover"
-                    : "w-12 h-12 hover:scale-110 transition-transform duration-200"
-                }`}
-              />
-              <input
-                type="file"
-                id="image4"
-                hidden
-                accept="image/*"
-                onChange={(e) => setImage4(e.target.files[0])}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="w-full">
-          <p className="text-sm font-medium text-gray-700 mb-2">Product Name</p>
-          <input
-            onChange={(e) => setName(e.target.value)}
-            value={name}
-            className="w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-            type="text"
-            placeholder="Type product name here"
-            required
-          />
-        </div>
-
-        <div className="w-full">
-          <p className="text-sm font-medium text-gray-700 mb-2">
-            Product Description
-          </p>
-          <textarea
-            onChange={(e) => setDescription(e.target.value)}
-            value={description}
-            className="w-full border-2 border-gray-300 rounded-lg p-2.5 h-32 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-            placeholder="Write detailed product description"
-            required
-          />
-        </div>
-
-        <div className="w-full">
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Product Category <span className="text-red-500">*</span>
-            </p>
-            {loadingCategories ? (
-              <div className="w-full border-2 border-gray-300 rounded-lg p-2.5 text-gray-500">
-                Loading categories...
-              </div>
-            ) : (
-              <select
-                value={category}
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  setCategory(selectedId);
-                  const selected = mainCategories.find(
-                    (c) => c._id === selectedId
-                  );
-                  setSelectedCategory(selected || null);
-                }}
-                className="w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-                required
+          <p className="mb-3 text-sm font-semibold text-slate-800">Hình ảnh sản phẩm</p>
+          <div className="flex flex-wrap gap-3">
+            {[image1, image2, image3, image4].map((image, index) => (
+              <label
+                key={`image-input-${index + 1}`}
+                className="flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 transition hover:border-pink-400"
+                htmlFor={`image${index + 1}`}
               >
-                <option value="">-- Select Category --</option>
-                {mainCategories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.icon && `${cat.icon} `}
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            )}
+                <img
+                  src={image ? URL.createObjectURL(image) : assets.upload_area}
+                  alt="upload"
+                  className={image ? 'h-full w-full object-cover' : 'h-11 w-11 opacity-70'}
+                />
+                <input
+                  type="file"
+                  id={`image${index + 1}`}
+                  hidden
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files[0]
+                    if (index === 0) setImage1(file)
+                    if (index === 1) setImage2(file)
+                    if (index === 2) setImage3(file)
+                    if (index === 3) setImage4(file)
+                  }}
+                />
+              </label>
+            ))}
           </div>
+          <p className="mt-1 text-xs text-slate-400">Tối đa 4 ảnh. Khuyến nghị ảnh vuông hoặc tỷ lệ gần 1:1.</p>
         </div>
 
-        <div className="w-full">
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Product SubCategory
-              {subCategories.length === 0 && category && (
-                <span className="text-xs text-gray-500 ml-2">
-                  (No subcategories available)
-                </span>
-              )}
-            </p>
-            <select
-              value={subCategory}
-              onChange={(e) => setSubCategory(e.target.value)}
-              className="w-full border-2 border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-              disabled={!category || subCategories.length === 0}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Tên sản phẩm</label>
+          <input
+            onChange={(event) => setName(event.target.value)}
+            value={name}
+            className="admin-input"
+            type="text"
+            placeholder="Nhập tên sản phẩm"
+            required
+          />
+        </div>
+
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium text-slate-700">Mô tả sản phẩm</label>
+            <button
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={isGeneratingDescription}
+              className="inline-flex items-center justify-center rounded-md border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">-- Select SubCategory (Optional) --</option>
-              {subCategories.map((subCat) => (
-                <option key={subCat._id} value={subCat._id}>
-                  {subCat.name}
+              {isGeneratingDescription ? 'Đang tạo...' : 'AI tạo mô tả'}
+            </button>
+          </div>
+          <textarea
+            onChange={(event) => setDescription(event.target.value)}
+            value={description}
+            className="admin-input min-h-[132px]"
+            placeholder="Mô tả chi tiết sản phẩm"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Danh mục <span className="text-rose-500">*</span>
+          </label>
+          {loadingCategories ? (
+            <div className="admin-input text-slate-500">Đang tải danh mục...</div>
+          ) : (
+            <select
+              value={category}
+              onChange={(event) => {
+                const selectedId = event.target.value
+                setCategory(selectedId)
+                const selected = mainCategories.find((categoryItem) => categoryItem._id === selectedId)
+                setSelectedCategory(selected || null)
+              }}
+              className="admin-select"
+              required
+            >
+              <option value="">-- Chọn danh mục --</option>
+              {mainCategories.map((categoryItem) => (
+                <option key={categoryItem._id} value={categoryItem._id}>
+                  {categoryItem.icon ? `${categoryItem.icon} ` : ''}
+                  {categoryItem.name}
                 </option>
               ))}
             </select>
-          </div>
+          )}
         </div>
 
-        <div className="w-full">
-          <p className="text-sm font-medium text-gray-700 mb-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Danh mục con
+            {subCategories.length === 0 && category && (
+              <span className="ml-2 text-xs text-slate-400">(Không có danh mục con)</span>
+            )}
+          </label>
+          <select
+            value={subCategory}
+            onChange={(event) => setSubCategory(event.target.value)}
+            className="admin-select"
+            disabled={!category || subCategories.length === 0}
+          >
+            <option value="">-- Chọn danh mục con (tùy chọn) --</option>
+            {subCategories.map((subcategory) => (
+              <option key={subcategory._id} value={subcategory._id}>
+                {subcategory.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
             Giá sản phẩm (₫)
             {variants.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-blue-600">(tự động lấy từ giá thấp nhất của biến thể)</span>
+              <span className="ml-2 text-xs font-normal text-sky-600">(tự động lấy từ giá thấp nhất của biến thể)</span>
             )}
-          </p>
+          </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-              ₫
-            </span>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₫</span>
             <input
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(event) => setPrice(formatPriceInput(event.target.value))}
               value={price}
-              type="number"
-              className="w-full border-2 border-gray-300 rounded-lg p-2.5 pl-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+              type="text"
+              inputMode="numeric"
+              className="admin-input pl-8"
               placeholder="0"
-              min="0"
-              step="1"
               required
             />
           </div>
         </div>
 
-        <div className="w-full flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <input
             type="checkbox"
             id="bestseller"
             checked={bestseller}
-            onChange={(e) => setBestseller(e.target.checked)}
-            className="w-4 h-4 accent-blue-600 cursor-pointer"
+            onChange={(event) => setBestseller(event.target.checked)}
+            className="h-4 w-4 cursor-pointer accent-pink-500"
           />
-          <label htmlFor="bestseller" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+          <label htmlFor="bestseller" className="cursor-pointer select-none text-sm font-medium text-slate-700">
             Đánh dấu là Bestseller
-            <span className="ml-1 text-xs text-gray-400">(hiển thị nổi bật trên trang chủ)</span>
+            <span className="ml-1 text-xs text-slate-400">(hiển thị nổi bật trên storefront)</span>
           </label>
         </div>
 
-        {/* Flexible Attributes System - replaces hardcoded sizes */}
         <div className="lg:col-span-2">
-          <AttributesManager
-            attributes={attributes}
-            setAttributes={setAttributes}
-          />
+          <AttributesManager attributes={attributes} setAttributes={setAttributes} />
         </div>
 
-        {/* SKU Variants Table — auto-generated from attributes */}
         <div className="lg:col-span-2">
-          <VariantsManager
-            attributes={attributes}
-            variants={variants}
-            onChange={setVariants}
-          />
+          <VariantsManager attributes={attributes} variants={variants} onChange={setVariants} />
         </div>
 
-    
-
         <div className="lg:col-span-2">
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-          >
-            Add Product
+          <button type="submit" className="admin-btn-primary w-full py-2.5">
+            Thêm sản phẩm
           </button>
         </div>
       </form>
-    </div>
-  );
-};
+    </section>
+  )
+}
 
-export default Add;
+export default Add

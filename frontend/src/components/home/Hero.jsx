@@ -51,21 +51,21 @@ const Hero = () => {
           <div className='space-y-4'>
             <div className='flex items-center gap-3'>
               <div className='w-10 h-[2px] bg-gradient-to-r from-white to-transparent'></div>
-              <p className='font-medium tracking-wider text-xs md:text-sm text-gray-300'>OUR BESTSELLER</p>
+              <p className='font-medium tracking-wider text-xs md:text-sm text-gray-300'>SẢN PHẨM BÁN CHẠY</p>
             </div>
             <h1 className='text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight'>
-              <span className='block'>Latest</span>
-              <span className='block text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400'>Arrival</span>
+              <span className='block'>Bộ Sưu Tập</span>
+              <span className='block text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400'>Mới Nhất</span>
             </h1>
             <p className='text-gray-300 text-xs md:text-sm max-w-md'>
-              Discover our newest collection of premium fashion items, crafted with the finest materials and attention to detail.
+              Khám phá những thiết kế mới nhất với chất liệu cao cấp, kiểu dáng hiện đại và từng chi tiết được hoàn thiện tỉ mỉ.
             </p>
             <div className='flex items-center gap-3'>
               <button className='px-6 py-2.5 bg-white text-gray-900 rounded-full text-sm font-medium hover:bg-gray-100 transition-all duration-300 transform hover:scale-105'>
-                SHOP NOW
+                MUA NGAY
               </button>
               <button className='px-6 py-2.5 border border-white text-white rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300'>
-                LEARN MORE
+                XEM THÊM
               </button>
             </div>
           </div>
@@ -83,7 +83,7 @@ const Hero = () => {
               <img 
                 className='w-full h-[320px] sm:h-[360px] object-cover rounded-2xl' 
                 src={heroImages[currentIndex]} 
-                alt="Hero image"
+                alt="Ảnh nổi bật"
               />
             </div>
             

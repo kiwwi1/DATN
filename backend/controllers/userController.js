@@ -2,79 +2,192 @@ import {
     loginUserService,
     loginWithGoogleService,
     registerUserService,
+    verifyEmailService,
     registerVendorService,
     getUserProfileService,
     updateUserProfileService,
-    loginAdminService,
+    requestPasswordResetService,
+    resetPasswordWithTokenService,
+    deleteUserService,
+    refreshAccessTokenService,
 } from "../services/userService.js";
+
+const toBoolean = (value, fallback = false) => {
+    if (value === undefined || value === null || value === "") return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "off"].includes(normalized)) return false;
+    return fallback;
+};
+
+const resolveSameSite = () => {
+    const raw = String(process.env.COOKIE_SAME_SITE || "lax").trim().toLowerCase();
+    if (raw === "strict" || raw === "lax" || raw === "none") return raw;
+    return "lax";
+};
+
+const sameSite = resolveSameSite();
+const secureByEnv = toBoolean(process.env.COOKIE_SECURE, process.env.NODE_ENV === "production");
+const secure = sameSite === "none" ? true : secureByEnv;
+
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    sameSite,
+    secure,
+};
+
+const clearAuthCookies = (res) => {
+    res.clearCookie("accessToken", COOKIE_OPTIONS);
+    res.clearCookie("refreshToken", COOKIE_OPTIONS);
+};
+
+const attachAuthCookies = (res, { accessToken, refreshToken }) => {
+    const accessMaxAge = Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000);
+    const refreshMaxAge = Number(process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS || 7 * 24 * 60 * 60 * 1000);
+
+    res.cookie("accessToken", accessToken, { ...COOKIE_OPTIONS, maxAge: accessMaxAge });
+    res.cookie("refreshToken", refreshToken, { ...COOKIE_OPTIONS, maxAge: refreshMaxAge });
+};
 
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const token = await loginUserService(email, password);
-        res.json({ success: true, token });
+        const tokens = await loginUserService(email, password);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const loginWithGoogle = async (req, res) => {
     try {
         const { credential } = req.body;
-        const token = await loginWithGoogleService(credential);
-        res.json({ success: true, token });
+        const tokens = await loginWithGoogleService(credential);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        const token = await registerUserService(name, email, password);
-        res.json({ success: true, token });
+        const result = await registerUserService(name, email, password);
+        res.json({ success: true, ...result });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const verifyEmail = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const tokens = await verifyEmailService(email, otp);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const registerVendor = async (req, res) => {
     try {
-        const { shopName, shopAddress, phone, userId } = req.body;
+        const { shopName, shopAddress, phone } = req.body;
+        const userId = req.userId || req.body.userId;
         await registerVendorService(userId, shopName, shopAddress, phone);
         res.json({ success: true, message: "Vendor registered successfully" });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const getUserProfile = async (req, res) => {
     try {
-        const user = await getUserProfileService(req.body.userId);
+        const user = await getUserProfileService(req.userId || req.body.userId);
         res.json({ success: true, user });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
 const updateUserProfile = async (req, res) => {
     try {
         const { name, email, phone } = req.body;
-        await updateUserProfileService(req.body.userId, { name, email, phone });
-        res.json({ success: true, message: "Profile updated successfully" });
+        const userId = req.userId || req.body.userId;
+        await updateUserProfileService(userId, { name, email, phone }, req.file);
+        const user = await getUserProfileService(userId);
+        res.json({ success: true, message: "Profile updated successfully", user });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
-const loginAdmin = async (req, res) => {
+const forgotPassword = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        const token = loginAdminService(email, password);
-        res.json({ success: true, token });
+        const { email } = req.body;
+        await requestPasswordResetService(email);
+        res.json({
+            success: true,
+            message:
+                "Nếu email đã đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.",
+        });
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
-export { loginUser, registerUser, loginAdmin, registerVendor, getUserProfile, updateUserProfile, loginWithGoogle };
+const resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        await resetPasswordWithTokenService(token, password);
+        res.json({ success: true, message: "Đặt lại mật khẩu thành công." });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const deleteUser = async (req, res) => {
+    try {
+        await deleteUserService(req.params.id);
+        res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const refreshAuth = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+        const accessToken = await refreshAccessTokenService(refreshToken);
+        res.cookie("accessToken", accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000),
+        });
+        res.json({ success: true, accessToken });
+    } catch (error) {
+        clearAuthCookies(res);
+        res.status(401).json({ success: false, message: error.message });
+    }
+};
+
+const logoutUser = async (_req, res) => {
+    clearAuthCookies(res);
+    res.json({ success: true, message: "Logged out successfully" });
+};
+
+export {
+    loginUser,
+    registerUser,
+    verifyEmail,
+    registerVendor,
+    getUserProfile,
+    updateUserProfile,
+    loginWithGoogle,
+    forgotPassword,
+    resetPassword,
+    deleteUser,
+    refreshAuth,
+    logoutUser,
+};

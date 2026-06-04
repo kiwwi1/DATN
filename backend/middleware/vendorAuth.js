@@ -3,20 +3,23 @@ import userModel from '../models/userModel.js';
 
 const vendorAuth = async (req, res, next) => {
     try {
-        const { token } = req.headers;
+        const token = req.headers?.token || req.cookies?.accessToken;
         if (!token) {
-            return res.json({ success: false, message: 'Unauthorized - No token provided' });
+            return res.status(401).json({ success: false, message: 'Unauthorized - No token provided' });
         }
 
         const token_decode = jwt.verify(token, process.env.JWT_SECRET);
+        if (token_decode?.type && token_decode.type !== "access") {
+            return res.status(401).json({ success: false, message: 'Unauthorized - Invalid token type' });
+        }
         const user = await userModel.findById(token_decode.id);
 
         if (!user) {
-            return res.json({ success: false, message: 'Unauthorized - User not found' });
+            return res.status(401).json({ success: false, message: 'Unauthorized - User not found' });
         }
 
         if (user.role !== 'vendor') {
-            return res.json({ success: false, message: 'Unauthorized - Not a vendor' });
+            return res.status(403).json({ success: false, message: 'Unauthorized - Not a vendor' });
         }
 
         // Add user info to request object for use in controllers
@@ -26,8 +29,8 @@ const vendorAuth = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.log(error);
-        return res.json({ success: false, message: 'Unauthorized - Invalid token' });
+        console.error("[vendor-auth]", error.message);
+        return res.status(401).json({ success: false, message: 'Unauthorized - Invalid token' });
     }
 };
 

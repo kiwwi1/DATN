@@ -1,192 +1,172 @@
-# DATN — Ứng dụng Thương Mại Điện Tử
+# DATN - E-commerce Marketplace (User/Vendor)
 
-Đồ án tốt nghiệp — Hệ thống mua sắm trực tuyến hỗ trợ đa vendor, thanh toán online (Stripe), lưu trữ ảnh (Cloudflare R2), đánh giá sản phẩm theo đơn hàng.
+Du an marketplace fullstack gom 3 phan:
+- `frontend`: website mua sam cho nguoi dung.
+- `admin`: dashboard cho vendor quan ly san pham, don hang, chat, thong ke.
+- `backend`: REST API + realtime + tich hop thanh toan.
 
----
+## 1. Kien truc tong quan
 
-## Công nghệ sử dụng
+- **Frontend shop**: React + Vite, chay mac dinh tai `http://localhost:5173`.
+- **Frontend vendor dashboard (`admin`)**: React + Vite, chay tai `http://localhost:5174`.
+- **Backend API**: Express + MongoDB, chay tai `http://localhost:4000`.
+- **Realtime**:
+  - Socket.IO cho chat.
+  - SSE cho thong bao trong vendor dashboard.
+- **Storage anh**: Cloudflare R2 (kem image proxy endpoint).
+- **Thanh toan**: Stripe + VNPay + COD.
 
-| Lớp | Công nghệ |
-|---|---|
-| Backend | Node.js, Express 5, MongoDB (Mongoose) |
-| Frontend | React 19, Vite 6, Tailwind CSS |
-| Admin/Vendor | React 19, Vite 6, Tailwind CSS |
-| Thanh toán | Stripe |
-| Lưu trữ ảnh | Cloudflare R2 |
-| Xác thực | JWT |
+## 2. Tinh nang chinh
 
----
+- Dang ky/dang nhap user, refresh token qua cookie (`HttpOnly`).
+- Mo hinh auth hop nhat user/vendor (mot tai khoan co the nang quyen vendor).
+- Quan ly san pham, danh muc phan cap, gio hang, dat hang.
+- Theo doi don hang va xu ly thanh toan online.
+- Realtime chat buyer-vendor.
+- Notification cho vendor (SSE stream).
+- Bao mat auth bang Redis rate-limit cho cac endpoint nhay cam.
 
-## Cấu trúc dự án
+## 3. Cong nghe su dung
 
-```
+- **Backend**: Node.js, Express, MongoDB/Mongoose, Redis, Socket.IO, JWT, Stripe.
+- **Frontend/Admin**: React 19, React Router, Axios, TailwindCSS, Vite.
+- **Ha tang**: Docker, Nginx (build production frontend/admin).
+
+## 4. Cau truc thu muc
+
+```text
 DATN/
-├── backend/          # REST API (port 4000)
-├── frontend/         # Giao diện khách hàng (port 5173)
-├── admin/            # Dashboard admin/vendor (port 5174)
-├── docker-compose.yml
-└── .gitignore
+- backend/   # API server, models, routes, services, scripts
+- frontend/  # App cho nguoi mua
+- admin/     # Dashboard cho vendor
+- docker/    # Docker Compose cho moi truong dev/prod
+- docs/      # Tai lieu ky thuat va kien truc
 ```
 
----
+## 5. Yeu cau moi truong
 
-## Cài đặt & Chạy
+- Node.js 18+
+- npm 9+
+- MongoDB (local hoac Atlas)
+- Redis (khuyen nghi manh cho auth/security)
 
-### Yêu cầu
+## 6. Chay local (khong Docker)
 
-- Node.js >= 18
-- MongoDB Atlas (hoặc local)
-- Tài khoản Cloudflare R2
+### Buoc 1: Tao file moi truong
 
-### 1. Clone dự án
-
+- Backend:
 ```bash
-git clone <repo-url>
-cd DATN
+copy backend\.env.example backend\.env
+```
+- Frontend:
+```bash
+copy frontend\.env.example frontend\.env
+```
+- Admin:
+```bash
+copy admin\.env.example admin\.env
 ```
 
-### 2. Cài dependencies
+### Buoc 2: Cai dependencies
 
 ```bash
 cd backend && npm install
-cd ../frontend && npm install
-cd ../admin && npm install
+cd ..\frontend && npm install
+cd ..\admin && npm install
 ```
 
-### 3. Cấu hình biến môi trường
+### Buoc 3: Chay tung service
 
-**`backend/.env`**
-```env
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net
-
-PORT=4000
-
-JWT_SECRET=your_jwt_secret_key
-
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=your_admin_password
-
-STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxx
-
-CLOUDINARY_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET_KEY=your_cloudinary_api_secret
-
-R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY=your_r2_access_key
-R2_SECRET_KEY=your_r2_secret_key
-R2_BUCKET=your_bucket_name
-R2_PUBLIC_BASE_URL=https://pub-xxxxxxxx.r2.dev
-```
-
-**`frontend/.env`**
-```env
-VITE_BACKEND_URL=http://localhost:4000
-VITE_R2_PUBLIC_BASE_URL=https://pub-xxxxxxxx.r2.dev
-VITE_R2_BUCKET=your_bucket_name
-```
-
-**`admin/.env`**
-```env
-VITE_BACKEND_URL=http://localhost:4000
-VITE_R2_PUBLIC_BASE_URL=https://pub-xxxxxxxx.r2.dev
-VITE_R2_BUCKET=your_bucket_name
-```
-
-### 4. Chạy ứng dụng
-
-Mở 3 terminal riêng:
-
+Terminal 1 (backend):
 ```bash
-# Terminal 1 — Backend
-cd backend && npm run server
-
-# Terminal 2 — Frontend
-cd frontend && npm run dev
-
-# Terminal 3 — Admin
-cd admin && npm run dev
+cd backend
+npm run server
 ```
 
-| Dịch vụ | URL |
-|---|---|
-| Backend API | http://localhost:4000 |
-| Frontend | http://localhost:5173 |
-| Admin Dashboard | http://localhost:5174 |
-
----
-
-## API Endpoints
-
-### Auth
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| POST | `/api/user/register` | Đăng ký tài khoản |
-| POST | `/api/user/login` | Đăng nhập user |
-| POST | `/api/user/admin` | Đăng nhập admin |
-
-### Sản phẩm
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| GET | `/api/product/list` | Danh sách sản phẩm |
-| POST | `/api/product/single` | Chi tiết 1 sản phẩm |
-| POST | `/api/product/add` | Thêm sản phẩm (admin) |
-| POST | `/api/product/remove` | Xóa sản phẩm (admin) |
-
-### Giỏ hàng
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| POST | `/api/cart/add` | Thêm vào giỏ |
-| POST | `/api/cart/update` | Cập nhật số lượng |
-| POST | `/api/cart/get` | Lấy giỏ hàng |
-
-### Đơn hàng
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| POST | `/api/order/place-order` | Đặt hàng COD |
-| POST | `/api/order/place-order-stripe` | Đặt hàng Stripe |
-| POST | `/api/order/verify-stripe` | Xác nhận thanh toán Stripe |
-| POST | `/api/order/user-orders` | Đơn hàng của user |
-| POST | `/api/order/vendor-list` | Đơn hàng của vendor |
-| POST | `/api/order/vendor-status` | Cập nhật trạng thái (vendor) |
-
-### Đánh giá
-| Method | Endpoint | Mô tả |
-|---|---|---|
-| GET | `/api/review/product/:id` | Lấy đánh giá theo sản phẩm |
-| POST | `/api/review` | Gửi đánh giá (cần đăng nhập + đã nhận hàng) |
-| PUT | `/api/review/:id` | Sửa đánh giá |
-| DELETE | `/api/review/:id` | Xóa đánh giá |
-| POST | `/api/review/can-review/:productId` | Kiểm tra quyền đánh giá |
-| POST | `/api/review/my-reviewed-products` | Danh sách đã đánh giá |
-
----
-
-## Tính năng nổi bật
-
-- **Đa vendor**: Mỗi sản phẩm gắn với một shop, vendor quản lý đơn hàng riêng
-- **Đánh giá theo đơn hàng**: Chỉ được đánh giá sau khi nhận hàng, mỗi lần mua = 1 đánh giá độc lập
-- **Upload ảnh đánh giá**: Tối đa 5 ảnh/đánh giá, lưu trên Cloudflare R2
-- **Lọc đánh giá theo sao**: Xem phân bố và lọc 1–5 sao
-- **Thanh toán Stripe**: Hỗ trợ thanh toán thẻ quốc tế
-- **Trạng thái đơn hàng**: Order Placed → Packing → Shipped → Out for delivery → Delivered
-
----
-
-## Docker
-
-Chỉ backend được containerize:
-
+Terminal 2 (frontend):
 ```bash
-docker-compose up --build
+cd frontend
+npm run dev
 ```
 
-Backend chạy trong container, map port `4000:3000`.
+Terminal 3 (admin):
+```bash
+cd admin
+npm run dev
+```
 
----
+Sau khi chay:
+- Shop: `http://localhost:5173`
+- Vendor dashboard: `http://localhost:5174`
+- API: `http://localhost:4000`
 
-## Lưu ý bảo mật
+## 7. Chay bang Docker
 
-- **Không commit file `.env`** lên Git
-- Đổi `JWT_SECRET`, `ADMIN_PASSWORD` trước khi deploy production
-- Thêm IP vào whitelist trên MongoDB Atlas Network Access
+Tu thu muc `docker/`:
+
+### Production compose
+```bash
+docker compose up -d --build
+```
+
+### Development compose (HMR + mount code)
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Luu y:
+- Cau hinh bien moi truong o `docker/.env`.
+- Neu dung Atlas, chi can set `MONGODB_URI`; co the khong can bat service `mongo` trong compose.
+
+## 8. Backend scripts huu ich
+
+Trong `backend/`:
+
+- Seed du lieu:
+```bash
+npm run seed-categories
+npm run seed-products
+npm run seed-reviews
+```
+
+- Import/resync du lieu san pham:
+```bash
+npm run import-external-products
+npm run reimport-fakestore
+npm run resync-external-images
+```
+
+- Test:
+```bash
+npm test
+```
+
+## 9. Bien moi truong quan trong
+
+### Backend (`backend/.env`)
+
+- `MONGODB_URI`, `PORT`
+- `JWT_SECRET`, `JWT_ACCESS_EXPIRES`, `JWT_REFRESH_EXPIRES`
+- `REDIS_URL`, `REDIS_PREFIX`, cac bien `AUTH_RL_*`
+- `STRIPE_SECRET_KEY`
+- `VNP_TMN_CODE`, `VNP_HASH_SECRET`, `VNP_RETURN_URL`
+- `R2_ENDPOINT`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL`
+- `MAIL_USER`, `MAIL_APP_PASSWORD`, `FRONTEND_URL`
+
+### Frontend/Admin
+
+- `VITE_BACKEND_URL`
+- `VITE_R2_PUBLIC_BASE_URL`, `VITE_R2_BUCKET`
+- `VITE_GOOGLE_CLIENT_ID` (frontend, neu dung Google login)
+- `VITE_FRONTEND_URL` (admin)
+
+## 10. Tai lieu ky thuat lien quan
+
+- [Auth unified user/vendor](docs/auth-unified-user-vendor.md)
+- [Ke hoach bao mat auth voi Redis](docs/redis-auth-security-plan-vi.md)
+- [Ke hoach chong oversell + idempotency](docs/concurrent-purchase-stock-plan-vi.md)
+
+## 11. Ghi chu hien trang
+
+- Du an da chuyen huong auth hop nhat user/vendor, nhung van con mot so route dung `adminAuth` theo env tinh; nen tiep tuc don dep theo tai lieu trong `docs/`.
+- `node_modules` dang co trong cac thu muc app tai workspace hien tai, nhung khong nen commit len git.

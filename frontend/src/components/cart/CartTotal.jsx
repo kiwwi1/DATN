@@ -1,80 +1,84 @@
-import React from 'react'
-import { useContext } from 'react';
-import { ShopContext } from '../../context/ShopContext';
-import { formatPrice } from '../../utils/priceFormat';
+import React, { useContext } from "react";
+import { ShopContext } from "../../context/ShopContext";
+import { formatPrice } from "../../utils/priceFormat";
 
-const CartTotal = ({ selectedTotal }) => {
-    const { delivery_fee, getCartAmount } = useContext(ShopContext);
-    
-    // If selectedTotal is provided (from Cart page), use it; otherwise use full cart amount
-    const subtotal = selectedTotal !== undefined ? selectedTotal : getCartAmount();
-    const shipping = subtotal === 0 ? 0 : (subtotal >= 500000 ? 0 : delivery_fee);
-    const total = subtotal + shipping;
-    
-    return (
-        <div className='w-full'>
-            <h2 className='text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-200'>
-                TỔNG ĐƠN HÀNG
-            </h2>
+const CartTotal = ({ selectedTotal, pricing, compact = false }) => {
+  const { delivery_fee, getCartAmount } = useContext(ShopContext);
 
-            <div className='space-y-4'>
-                {/* Subtotal */}
-                <div className='flex justify-between items-center text-gray-700'>
-                    <span className='text-sm'>Tạm tính:</span>
-                    <span className='font-medium'>{formatPrice(subtotal)}</span>
-                </div>
+  const hasPricing = pricing && typeof pricing.finalTotal === "number";
 
-                {/* Shipping */}
-                <div className='flex justify-between items-center text-gray-700'>
-                    <span className='text-sm'>
-                        Phí vận chuyển:
-                        {subtotal > 0 && subtotal < 500000 && (
-                            <span className='block text-xs text-gray-500 mt-1'>
-                                (Miễn phí cho đơn ≥ 500.000₫)
-                            </span>
-                        )}
-                    </span>
-                    <span className='font-medium'>
-                        {shipping === 0 ? (
-                            <span className='text-green-600'>Miễn phí</span>
-                        ) : (
-                            formatPrice(shipping)
-                        )}
-                    </span>
-                </div>
+  const subtotal = hasPricing
+    ? Number(pricing.subtotal || 0)
+    : selectedTotal !== undefined
+      ? selectedTotal
+      : getCartAmount();
 
-                <hr className='border-gray-300'/>
+  const shopDiscount = hasPricing ? Number(pricing.shopDiscount || 0) : 0;
+  const platformDiscount = hasPricing ? Number(pricing.platformDiscount || 0) : 0;
+  const shippingFee = hasPricing
+    ? Number(pricing.shippingFee || 0)
+    : subtotal === 0
+      ? 0
+      : subtotal >= 500000
+        ? 0
+        : delivery_fee;
+  const shippingDiscount = hasPricing ? Number(pricing.shippingDiscount || 0) : 0;
 
-                {/* Total */}
-                <div className='flex justify-between items-center py-3 bg-orange-50 rounded-lg px-4 -mx-4'>
-                    <span className='font-bold text-gray-800'>Tổng cộng:</span>
-                    <span className='font-bold text-2xl text-orange-600'>
-                        {formatPrice(total)}
-                    </span>
-                </div>
+  const total = hasPricing ? Number(pricing.finalTotal || 0) : subtotal + shippingFee;
 
-                {/* Savings Info */}
-                {subtotal >= 500000 && (
-                    <div className='flex items-center gap-2 text-xs text-green-600 bg-green-50 p-3 rounded-lg'>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+  const rowClass = compact
+    ? "flex items-center justify-between rounded-md bg-slate-50 px-3 py-2"
+    : "flex items-center justify-between rounded-md border border-slate-100 px-3 py-2";
 
-                    </div>
-                )}
+  return (
+    <section className="w-full">
+      <h2 className="mb-4 border-b border-slate-200 pb-3 text-lg font-semibold text-slate-800">
+        {"T\u1ed5ng \u0111\u01a1n h\u00e0ng"}
+      </h2>
 
-                {/* Almost free shipping */}
-                {subtotal > 0 && subtotal < 500000 && (
-                    <div className='flex items-center gap-2 text-xs text-blue-600 bg-blue-50 p-3 rounded-lg'>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                        </svg>
-                        <span>Mua thêm {formatPrice(500000 - subtotal)} để được miễn phí vận chuyển</span>
-                    </div>
-                )}
-            </div>
+      <div className="space-y-2.5">
+        <div className={rowClass}>
+          <span className="text-sm text-slate-600">{"T\u1ea1m t\u00ednh"}</span>
+          <span className="text-sm font-semibold text-slate-800">{formatPrice(subtotal)}</span>
         </div>
-    )
-}
 
-export default CartTotal
+        {shopDiscount > 0 && (
+          <div className={rowClass}>
+            <span className="text-sm text-slate-600">{"Gi\u1ea3m gi\u00e1 shop"}</span>
+            <span className="text-sm font-semibold text-emerald-600">- {formatPrice(shopDiscount)}</span>
+          </div>
+        )}
+
+        {platformDiscount > 0 && (
+          <div className={rowClass}>
+            <span className="text-sm text-slate-600">{"Gi\u1ea3m gi\u00e1 s\u00e0n"}</span>
+            <span className="text-sm font-semibold text-emerald-600">- {formatPrice(platformDiscount)}</span>
+          </div>
+        )}
+
+        <div className={rowClass}>
+          <span className="text-sm text-slate-600">{"Ph\u00ed v\u1eadn chuy\u1ec3n"}</span>
+          <span className="text-sm font-semibold text-slate-800">
+            {shippingFee === 0 ? <span className="text-emerald-600">{"Mi\u1ec5n ph\u00ed"}</span> : formatPrice(shippingFee)}
+          </span>
+        </div>
+
+        {shippingDiscount > 0 && (
+          <div className={rowClass}>
+            <span className="text-sm text-slate-600">{"Gi\u1ea3m ph\u00ed v\u1eadn chuy\u1ec3n"}</span>
+            <span className="text-sm font-semibold text-emerald-600">- {formatPrice(shippingDiscount)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-lg bg-orange-50 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-700">{"T\u1ed5ng c\u1ed9ng"}</span>
+          <span className="text-xl font-bold text-orange-600">{formatPrice(total)}</span>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default CartTotal;

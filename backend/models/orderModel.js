@@ -1,66 +1,132 @@
 import mongoose from "mongoose";
 
-const orderSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  items: [{ 
-    _id: { type: String, required: true }, // Product ID
+const orderItemSchema = new mongoose.Schema(
+  {
+    _id: { type: String, required: true },
     name: { type: String, required: true },
-    price: { type: Number, required: true }, // Current price (after discount)
-    originalPrice: { type: Number }, // Price before discount
-    discount: { type: Number, default: 0 }, // Discount percentage
+    price: { type: Number, required: true },
+    originalPrice: { type: Number },
+    discount: { type: Number, default: 0 },
     quantity: { type: Number, required: true },
-    image: { type: Array, default: [] }, // Product images
-    brand: { type: String, default: '' },
-    
-    // Product attributes selected (e.g., Size: M, Color: Red)
-    selectedAttributes: [{ 
-      name: { type: String }, // e.g., "Size", "Color"
-      value: { type: String }  // e.g., "M", "Red"
-    }],
-    
-    // Deprecated: Keep for backward compatibility
+    image: { type: Array, default: [] },
+    brand: { type: String, default: "" },
+    selectedAttributes: [
+      {
+        name: { type: String },
+        value: { type: String },
+      },
+    ],
     size: { type: String },
-    
-    // Vendor information (for filtering orders)
-    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
-    vendorShopName: { type: String }
-  }],
+    variantKey: { type: String, default: "" },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    vendorShopName: { type: String },
+  },
+  { _id: false }
+);
+
+const vendorItemSchema = new mongoose.Schema(
+  {
+    productId: { type: String, required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
+    originalPrice: { type: Number },
+    discount: { type: Number, default: 0 },
+    quantity: { type: Number, required: true },
+    image: { type: Array, default: [] },
+    brand: { type: String, default: "" },
+    selectedAttributes: [
+      {
+        name: { type: String },
+        value: { type: String },
+      },
+    ],
+    size: { type: String },
+    variantKey: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
+const appliedVoucherSchema = new mongoose.Schema(
+  {
+    voucherId: { type: mongoose.Schema.Types.ObjectId, ref: "voucher" },
+    code: { type: String },
+    type: { type: String, enum: ["SHOP", "PLATFORM", "SHIPPING"] },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+    discount: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const orderSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
+  items: [orderItemSchema],
   amount: { type: Number, required: true },
+  pricing: {
+    subtotal: { type: Number, default: 0 },
+    shopDiscount: { type: Number, default: 0 },
+    platformDiscount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
+    shippingDiscount: { type: Number, default: 0 },
+    finalTotal: { type: Number, default: 0 },
+  },
+  appliedVouchers: [appliedVoucherSchema],
   address: { type: Object, required: true },
   status: { type: String, default: "Order Placed" },
+  trackingNumber: { type: String, default: "" },
+  trackingUpdatedAt: { type: Number },
   paymentMethod: { type: String, required: true },
   payment: { type: Boolean, default: false, required: true },
   date: { type: Number, required: true },
-  
+
+  // Idempotency / reservation fields
+  idempotencyKey: { type: String },
+  reservationExpiresAt: { type: Number },
+  stockReservedAt: { type: Number },
+  stockReleasedAt: { type: Number },
+  voucherUsageReleasedAt: { type: Number },
+
+  // Gateway metadata
+  stripeSessionId: { type: String },
+  stripeSessionUrl: { type: String },
+  vnpPaymentUrl: { type: String },
+  vnp_TransactionNo: { type: String },
+  vnpTxnRef: { type: String },
+
   // Cancellation info
   cancelReason: { type: String },
-  cancelledBy: { type: String, enum: ['user', 'vendor', 'admin'] },
+  cancelledBy: { type: String, enum: ["user", "vendor", "system"] },
   cancelledAt: { type: Number },
 
   // Vendor tracking for multi-vendor orders
-  vendors: [{
-    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
-    vendorShopName: { type: String },
-    items: [{ 
-      productId: { type: String, required: true },
-      name: { type: String, required: true },
-      price: { type: Number, required: true },
-      originalPrice: { type: Number },
-      discount: { type: Number, default: 0 },
-      quantity: { type: Number, required: true },
-      image: { type: Array, default: [] },
-      brand: { type: String, default: '' },
-      selectedAttributes: [{ 
-        name: { type: String },
-        value: { type: String }
-      }],
-      size: { type: String } // Deprecated
-    }],
-    subtotal: { type: Number, required: true },
-    vendorStatus: { type: String, enum: ['pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    commission: { type: Number, default: 10 }
-  }]
+  vendors: [
+    {
+      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
+      vendorShopName: { type: String },
+      items: [vendorItemSchema],
+      subtotal: { type: Number, required: true },
+      vendorStatus: {
+        type: String,
+        enum: ["pending", "confirmed", "preparing", "shipped", "delivered", "cancelled"],
+        default: "pending",
+      },
+      trackingNumber: { type: String, default: "" },
+      trackingUpdatedAt: { type: Number },
+      voucherDiscount: { type: Number, default: 0 },
+      commission: { type: Number, default: 10 },
+    },
+  ],
 });
+
+orderSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } },
+  }
+);
+
+orderSchema.index({ "items.vendorId": 1, date: -1 });
+orderSchema.index({ "vendors.vendorId": 1, date: -1 });
 
 const orderModel = mongoose.model.order || mongoose.model("order", orderSchema);
 export default orderModel;

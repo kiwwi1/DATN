@@ -5,16 +5,20 @@ import {
     getNotifications,
     markAllRead,
     markOneRead,
+    getPriceAlertStatus,
+    setPriceAlertSubscription,
 } from "../controllers/notificationController.js";
 
 const notificationRouter = express.Router();
 
-// SSE — dùng GET, token qua query param (EventSource không hỗ trợ custom headers)
-notificationRouter.get("/stream", sseStream);
+// SSE uses auth middleware; EventSource sends cookies with withCredentials.
+notificationRouter.get("/stream", authUser, sseStream);
 
 // REST
 notificationRouter.get("/list", authUser, getNotifications);
 notificationRouter.post("/read-all", authUser, markAllRead);
 notificationRouter.post("/read/:id", authUser, markOneRead);
+notificationRouter.get("/price-alert/status", authUser, getPriceAlertStatus);
+notificationRouter.post("/price-alert/subscribe", authUser, setPriceAlertSubscription);
 
 export default notificationRouter;

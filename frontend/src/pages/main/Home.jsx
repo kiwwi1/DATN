@@ -5,18 +5,16 @@ import BestSeller from '../../components/home/BestSeller'
 import OurPolicy from '../../components/home/OurPolicy'
 import NewsletterBox from '../../components/home/NewsletterBox'
 import CategorySelection from '../../components/home/CategorySelection'
-import HomeSearchBar from '../../components/home/HomeSearchBar'
 import Recommendations from '../../components/home/Recommendations'
 
 const Home = () => {
   return (
-    <div>
+    <div className='mt-3'>
       <Hero />
-      <HomeSearchBar />
-      <CategorySelection/>
-      <Recommendations />
-      <LatestCollection />
       <BestSeller />
+      <CategorySelection/>
+      <LatestCollection />
+      <Recommendations />
       <OurPolicy/>
       <NewsletterBox/>
     </div>

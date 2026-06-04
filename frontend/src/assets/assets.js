@@ -74,6 +74,7 @@ import razorpay_logo from './razorpay_logo.png'
 import stripe_logo from './stripe_logo.png'
 import cross_icon from './cross_icon.png'
 import zalopay_logo from './ZaloPay_Logo.png'
+import bell_icon from './bell_icon.svg'
 
 export const assets = {
     logo,
@@ -95,6 +96,7 @@ export const assets = {
     stripe_logo,
     cross_icon,
     zalopay_logo,
+    bell_icon,
     placeholder_image: p_img1,
 }
 

@@ -1,0 +1,96 @@
+% ==========================================
+% TRANG BÌA ĐỒ ÁN TỐT NGHIỆP
+% ==========================================
+
+\begin{titlepage}
+\begin{center}
+
+% Vẽ khung hoa văn cho trang bìa ngoài
+\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width = 3pt] ($(current page.north west) + (2.5cm,-2cm)$) rectangle ($(current page.south east) + (-1.5cm,2cm)$);
+    \draw[line width = 1pt] ($(current page.north west) + (2.6cm,-2.1cm)$) rectangle ($(current page.south east) + (-1.6cm,2.1cm)$);
+\end{tikzpicture}
+
+{\large \bf \univname \\}
+{\large \bf \deptname \\}
+\vspace{0.5cm}
+\begin{figure}[h!]
+    \centering
+    % Có thể thay bằng logo trường nếu có file logo.png trong thư mục figures/
+    % \includegraphics[width=2.5cm]{figures/logo_bachkhoa.png}
+    \vspace{1.5cm} % Tạm thời dùng vspace nếu chưa có ảnh logo
+\end{figure}
+
+\vspace{1cm}
+{\Large \bf \thesisType \\}
+\vspace{1.5cm}
+
+\begin{minipage}{14cm}
+    \centering
+    {\Large \bf \thesisTitle \par}
+\end{minipage}
+
+\vspace{2.5cm}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{r l}
+    \textbf{Ngành:} & \majorname \\
+    \textbf{Sinh viên thực hiện:} & \studentName \\
+    \textbf{Mã số sinh viên:} & \studentID \\
+    \textbf{Lớp:} & \className \\
+    \textbf{Giảng viên hướng dẫn:} & \supervisorName \\
+\end{tabular}
+\end{table}
+
+\vfill
+{\large \bf \locationName, \thesisYear}
+
+\end{center}
+\end{titlepage}
+
+
+% ==========================================
+% TRANG BÌA PHỤ
+% ==========================================
+\begin{titlepage}
+\begin{center}
+
+% Vẽ khung hoa văn cho trang bìa phụ
+\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width = 3pt] ($(current page.north west) + (2.5cm,-2cm)$) rectangle ($(current page.south east) + (-1.5cm,2cm)$);
+    \draw[line width = 1pt] ($(current page.north west) + (2.6cm,-2.1cm)$) rectangle ($(current page.south east) + (-1.6cm,2.1cm)$);
+\end{tikzpicture}
+
+{\large \univname \\}
+{\large \deptname \\}
+\vspace{2cm}
+
+{\Large \bf \thesisType \\}
+\vspace{1.5cm}
+
+\begin{minipage}{14cm}
+    \centering
+    {\Large \bf \thesisTitle \par}
+    \vspace{0.8cm}
+    {\large \bf (\thesisTitleEn) \par}
+\end{minipage}
+
+\vspace{2.5cm}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{r l}
+    \textbf{Ngành:} & \majorname \\
+    \textbf{Sinh viên thực hiện:} & \studentName \\
+    \textbf{Mã số sinh viên:} & \studentID \\
+    \textbf{Lớp:} & \className \\
+    \textbf{Giảng viên hướng dẫn:} & \supervisorName \\
+\end{tabular}
+\end{table}
+
+\vfill
+{\large \locationName, \thesisYear}
+
+\end{center}
+\end{titlepage}

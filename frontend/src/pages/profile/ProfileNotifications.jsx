@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+﻿import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../../context/ShopContext';
 import ProfileSidebar from '../../components/profile/ProfileSidebar';
@@ -22,6 +22,13 @@ const TYPE_ICON = {
     <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
       <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </div>
+  ),
+  price_drop: (
+    <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+      <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0l-3-3m3 3l-3 3M11 4H3m0 0l3 3M3 4l3-3" />
       </svg>
     </div>
   ),
@@ -50,7 +57,8 @@ const ProfileNotifications = () => {
   };
 
   const handleClick = (n) => {
-    if (n.orderId) navigate('/orders');
+    if (n.orderId) navigate(`/orders?orderId=${n.orderId}`);
+    if (n.productId) navigate(`/product/${n.productId}`);
   };
 
   const unread = notifications.filter((n) => !n.read).length;
@@ -62,7 +70,7 @@ const ProfileNotifications = () => {
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-800">Thông Báo</h1>
+            <h1 className="text-xl font-semibold text-gray-800">Thông báo</h1>
             {unread > 0 && (
               <button
                 onClick={handleMarkAllRead}
@@ -88,7 +96,7 @@ const ProfileNotifications = () => {
                     key={n._id}
                     onClick={() => handleClick(n)}
                     className={`flex items-start gap-3 px-4 py-4 transition-colors ${
-                      n.orderId ? 'cursor-pointer hover:bg-gray-50' : ''
+                      n.orderId || n.productId ? 'cursor-pointer hover:bg-gray-50' : ''
                     } ${!n.read ? 'bg-orange-50' : ''}`}
                   >
                     {TYPE_ICON[n.type] || TYPE_ICON.order_status}

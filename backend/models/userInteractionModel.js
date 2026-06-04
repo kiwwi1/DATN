@@ -54,7 +54,7 @@ userInteractionSchema.index({ lastInteraction: -1 });
 userInteractionSchema.methods.calculateScore = function() {
     const weights = {
         purchased: 10,
-        rated: this.interactions.rated || 0, // 1-5 stars
+        rated: 2,
         reviewed: 8,
         addedToCart: 5,
         wishlisted: 6,

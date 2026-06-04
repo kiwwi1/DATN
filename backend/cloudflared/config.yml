@@ -1,0 +1,9 @@
+tunnel: datn-backend
+credentials-file: C:\Users\dquan\.cloudflared\a2687c5c-6081-4379-acfa-1a2a82ba6319.json
+protocol: http2
+edge-ip-version: 4
+
+ingress:
+  - hostname: api.qhuy.id.vn
+    service: http://localhost:4000
+  - service: http_status:404

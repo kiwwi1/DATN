@@ -1,0 +1,9 @@
+tunnel: your-tunnel-name
+credentials-file: C:\Users\<your-user>\.cloudflared\<tunnel-id>.json
+protocol: http2
+edge-ip-version: 4
+
+ingress:
+  - hostname: api.your-domain.com
+    service: http://localhost:4000
+  - service: http_status:404

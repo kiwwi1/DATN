@@ -26,6 +26,8 @@ backend/scripts/output/
 ############################
 # Environment & secrets
 ############################
+.env
+.env.*
 *.env
 *.env.*
 !.env.example

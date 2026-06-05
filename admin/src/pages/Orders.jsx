@@ -27,6 +27,7 @@ const STATUS_LABELS = {
   'Out for delivery': 'Đang giao',
   Delivered: 'Đã giao',
   Cancelled: 'Đã hủy',
+  Refunded: 'Đã hoàn tiền',
 }
 
 const RETURN_STATUS_LABELS = {
@@ -348,10 +349,12 @@ const Orders = ({ token }) => {
                         </div>
                       </div>
 
-                      {order.status === 'Delivered' || order.status === 'Cancelled' ? (
+                      {['Delivered', 'Cancelled', 'Refunded'].includes(order.status) ? (
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                            order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                            order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' :
+                            order.status === 'Refunded' ? 'bg-blue-100 text-blue-700' :
+                            'bg-rose-100 text-rose-700'
                           }`}
                         >
                           {STATUS_LABELS[order.status]}

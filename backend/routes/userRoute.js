@@ -11,6 +11,9 @@ import {
     resetPassword,
     refreshAuth,
     logoutUser,
+    getNotificationPrefs,
+    updateNotificationPrefs,
+    changePassword,
 } from '../controllers/userController.js';
 import authUser from '../middleware/auth.js';
 import upload from '../middleware/multer.js';
@@ -36,4 +39,7 @@ userRouter.post('/forgot-password', ...forgotPasswordRateLimit, forgotPassword);
 userRouter.post('/reset-password', ...resetPasswordRateLimit, resetPassword);
 userRouter.post('/refresh', ...refreshAuthRateLimit, refreshAuth);
 userRouter.post('/logout', logoutUser);
+userRouter.get('/notification-prefs', authUser, getNotificationPrefs);
+userRouter.patch('/notification-prefs', authUser, updateNotificationPrefs);
+userRouter.post('/change-password', authUser, changePassword);
 export default userRouter;

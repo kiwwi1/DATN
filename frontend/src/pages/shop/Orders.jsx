@@ -15,6 +15,10 @@ import {
   matchTab,
   CANCEL_REASONS,
   CANCELLABLE_STATUSES,
+  RETURNABLE_STATUSES,
+  RETURN_WINDOW_DAYS,
+  RETURN_REASON_LABELS,
+  RETURN_STATUS_MAP,
 } from '../../constants/orderConstants';
 
 const VENDOR_STATUS_MAP = {
@@ -86,18 +90,29 @@ const normalizeVendorGroups = (order) => {
   return Array.from(map.values());
 };
 
+const isWithinReturnWindow = (order) => {
+  const placed = Number(order.date) || 0;
+  if (!placed) return false;
+  return Date.now() - placed < RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+};
+
 const Orders = () => {
   const { backendUrl, token, navigate } = useContext(ShopContext);
   const [searchParams] = useSearchParams();
   const focusOrderId = searchParams.get('orderId') || '';
   const [orders, setOrders] = useState([]);
   const [reviewedIds, setReviewedIds] = useState(new Set());
+  const [returnRequests, setReturnRequests] = useState({});
   const [activeTab, setActiveTab] = useState('all');
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [returnModal, setReturnModal] = useState(null);
+  const [returnReason, setReturnReason] = useState('damaged');
+  const [returnDesc, setReturnDesc] = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   const loadOrders = useCallback(async () => {
     if (!token) return;
@@ -110,6 +125,23 @@ const Orders = () => {
       }
     } catch (err) {
       toast.error(err.message);
+    }
+  }, [token, backendUrl]);
+
+  const loadReturnRequests = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(backendUrl + '/api/return/my', { headers: { token } });
+      if (res.data.success) {
+        const map = {};
+        (res.data.returnRequests || []).forEach((r) => {
+          const oid = r.orderId?._id || r.orderId;
+          if (oid) map[String(oid)] = r;
+        });
+        setReturnRequests(map);
+      }
+    } catch {
+      // non-critical
     }
   }, [token, backendUrl]);
 
@@ -126,9 +158,17 @@ const Orders = () => {
   useEffect(() => {
     loadOrders();
     loadReviewedIds();
-  }, [loadOrders, loadReviewedIds]);
+    loadReturnRequests();
+  }, [loadOrders, loadReviewedIds, loadReturnRequests]);
 
-  const filtered = useMemo(() => orders.filter((o) => matchTab(o, activeTab)), [orders, activeTab]);
+  const ordersWithReturn = useMemo(
+    () => orders.map((o) => ({ ...o, _returnRequest: returnRequests[String(o._id)] || null })),
+    [orders, returnRequests]
+  );
+  const filtered = useMemo(
+    () => ordersWithReturn.filter((o) => matchTab(o, activeTab)),
+    [ordersWithReturn, activeTab]
+  );
   const totalPages = Math.max(1, Math.ceil(filtered.length / ORDERS_PER_PAGE));
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
@@ -175,6 +215,38 @@ const Orders = () => {
     if (nextPage === currentPage) return;
     setCurrentPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openReturnModal = (orderId) => {
+    setReturnModal({ orderId });
+    setReturnReason('damaged');
+    setReturnDesc('');
+  };
+  const closeReturnModal = () => {
+    setReturnModal(null);
+    setReturnDesc('');
+  };
+  const handleSubmitReturn = async () => {
+    if (!returnModal) return;
+    setSubmittingReturn(true);
+    try {
+      const res = await axios.post(
+        backendUrl + '/api/return/request',
+        { orderId: returnModal.orderId, reason: returnReason, description: returnDesc },
+        { headers: { token } }
+      );
+      if (res.data.success) {
+        toast.success('Đã gửi yêu cầu trả hàng. Người bán sẽ xem xét trong 1–2 ngày.');
+        closeReturnModal();
+        loadReturnRequests();
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
+    } finally {
+      setSubmittingReturn(false);
+    }
   };
 
   const openCancelModal = (orderId) => {
@@ -388,14 +460,25 @@ const Orders = () => {
                       );
                     })}
 
-                    <div className="px-4 py-3 bg-gray-50 flex items-center justify-between gap-4">
+                    <div className="px-4 py-3 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
                       <div className="text-sm text-gray-600">
                         <p>
                           Thành tiền:{' '}
                           <span className="text-orange-600 font-semibold text-base">{formatPrice(order.amount)}</span>
                         </p>
+                        {order._returnRequest && (() => {
+                          const rs = RETURN_STATUS_MAP[order._returnRequest.status] || {};
+                          return (
+                            <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded ${rs.bg} ${rs.color}`}>
+                              Trả hàng: {rs.label}
+                              {order._returnRequest.vendorNote && order._returnRequest.status === 'rejected'
+                                ? ` — ${order._returnRequest.vendorNote}`
+                                : ''}
+                            </span>
+                          );
+                        })()}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {CANCELLABLE_STATUSES.includes(order.status) && (
                           <button
                             onClick={() => openCancelModal(order._id)}
@@ -404,11 +487,21 @@ const Orders = () => {
                             Hủy đơn
                           </button>
                         )}
+                        {RETURNABLE_STATUSES.includes(order.status)
+                          && !order._returnRequest
+                          && isWithinReturnWindow(order) && (
+                          <button
+                            onClick={() => openReturnModal(order._id)}
+                            className="border border-blue-400 text-blue-600 text-sm px-4 py-2 rounded hover:bg-blue-50 transition-colors"
+                          >
+                            Trả hàng
+                          </button>
+                        )}
                         <button
                           onClick={loadOrders}
                           className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:bg-gray-100 transition-colors"
                         >
-                          Cập nhật trạng thái
+                          Cập nhật
                         </button>
                       </div>
                     </div>
@@ -443,6 +536,73 @@ const Orders = () => {
           )}
         </div>
       </div>
+
+      {returnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-base font-semibold text-gray-800 mb-1">Yêu cầu trả hàng / hoàn tiền</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Bạn có thể yêu cầu trả hàng trong vòng {RETURN_WINDOW_DAYS} ngày kể từ khi đặt hàng.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Lý do trả hàng</label>
+              <div className="space-y-2">
+                {Object.entries(RETURN_REASON_LABELS).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="returnReason"
+                      value={key}
+                      checked={returnReason === key}
+                      onChange={() => setReturnReason(key)}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả thêm (tuỳ chọn)</label>
+              <textarea
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value)}
+                placeholder="Mô tả chi tiết vấn đề..."
+                rows={3}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none"
+              />
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-3 mb-5 text-xs text-blue-700">
+              <p className="font-medium mb-1">Quy trình trả hàng:</p>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>Gửi yêu cầu → Người bán xem xét (1–2 ngày)</li>
+                <li>Người bán duyệt → Bạn gửi hàng về</li>
+                <li>Người bán xác nhận nhận hàng → Hoàn tiền</li>
+              </ol>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeReturnModal}
+                disabled={submittingReturn}
+                className="px-5 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-600 transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={handleSubmitReturn}
+                disabled={submittingReturn}
+                className="px-5 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-60"
+              >
+                {submittingReturn ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

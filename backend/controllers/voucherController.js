@@ -6,6 +6,25 @@ import {
   updateVoucherService,
 } from "../services/voucherManagementService.js";
 
+const listPublicVouchers = async (req, res) => {
+  try {
+    const now = Date.now();
+    const vouchers = await (await import("../models/voucherModel.js")).default.find({
+      type: { $in: ["PLATFORM", "SHIPPING"] },
+      isActive: true,
+      startAt: { $lte: now },
+      endAt: { $gte: now },
+      $or: [{ usageLimit: 0 }, { $expr: { $lt: ["$usedCount", "$usageLimit"] } }],
+    })
+      .select("code type discountType discountValue maxDiscount minOrderValue endAt description usageLimit usedCount")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, vouchers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const listVouchers = async (req, res) => {
   try {
     const vouchers = await listVouchersService({
@@ -70,6 +89,7 @@ const deleteVoucher = async (req, res) => {
 
 export {
   listVouchers,
+  listPublicVouchers,
   createVoucher,
   updateVoucher,
   toggleVoucherActive,

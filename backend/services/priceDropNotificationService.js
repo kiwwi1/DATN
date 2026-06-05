@@ -5,6 +5,9 @@ import userModel from "../models/userModel.js";
 import notificationModel from "../models/notificationModel.js";
 import { createNotification } from "./notificationService.js";
 import { sendTelegramMessage } from "./telegramService.js";
+import { sendPriceDropEmail } from "../utils/sendResetEmail.js";
+
+const PRICE_DROP_EMAIL_ENABLED = process.env.PRICE_DROP_EMAIL_ENABLED !== "false";
 
 const PRICE_DROP_DEDUP_HOURS = Number(process.env.PRICE_DROP_DEDUP_HOURS) || 24;
 
@@ -86,7 +89,7 @@ export const notifyPriceDrop = async ({ productBefore, productAfter }) => {
   const users = await userModel.find({
     _id: { $in: subscribedUserIds },
     [`cartData.${productId.toString()}`]: { $exists: true },
-  }).select("_id telegramChatId cartData").lean();
+  }).select("_id name email telegramChatId cartData notificationPrefs").lean();
 
   const discountPct = calculateDiscountPct(oldPrice, newPrice);
   const title = `Sản phẩm giảm giá${discountPct > 0 ? ` -${discountPct}%` : ""}`;
@@ -99,12 +102,28 @@ export const notifyPriceDrop = async ({ productBefore, productAfter }) => {
     await createNotification(u._id, "price_drop", title, message, null, productId, {
       audience: "user",
     });
+
     if (u.telegramChatId) {
       const telegramText =
         `Giá giảm!\n${productAfter.name}\n` +
         `${formatCurrency(oldPrice)} -> ${formatCurrency(newPrice)}\n` +
         (discountPct > 0 ? `Giảm ${discountPct}%` : "");
       sendTelegramMessage(u.telegramChatId, telegramText).catch(() => {});
+    }
+
+    const emailEnabled = u.notificationPrefs?.emailPriceDrop !== false;
+    if (PRICE_DROP_EMAIL_ENABLED && emailEnabled && u.email) {
+      const productUrl = `${process.env.FRONTEND_URL || ""}/product/${productId}`;
+      sendPriceDropEmail(u.email, u.name || "bạn", {
+        name: productAfter.name,
+        oldPrice,
+        newPrice,
+        discountPct,
+        productUrl,
+        thumbUrl: productAfter.thumb || null,
+      }).catch((err) => {
+        console.error("⚠ price-drop email failed:", err.message);
+      });
     }
   }
 };

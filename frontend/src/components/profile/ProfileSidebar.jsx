@@ -11,15 +11,11 @@ const ProfileSidebar = () => {
   const menuItems = [
     { id: 'notifications', label: 'Thông báo', icon: '🔔', path: '/profile/notifications' },
     { id: 'account', label: 'Tài khoản của tôi', icon: '👤', path: '/my-profile' },
-    { id: 'bank', label: 'Ngân hàng', icon: null, path: '/profile/bank' },
     { id: 'address', label: 'Địa chỉ', icon: null, path: '/profile/address' },
     { id: 'change-password', label: 'Đổi mật khẩu', icon: null, path: '/profile/change-password' },
     { id: 'notification-settings', label: 'Cài đặt thông báo', icon: null, path: '/profile/notification-settings' },
-    { id: 'privacy-settings', label: 'Thiết lập riêng tư', icon: null, path: '/profile/privacy-settings' },
-    { id: 'personal-info', label: 'Thông tin cá nhân', icon: null, path: '/profile/personal-info' },
     { id: 'orders', label: 'Đơn mua', icon: '📋', path: '/orders' },
     { id: 'vouchers', label: 'Kho mã giảm giá', icon: '🎫', path: '/profile/vouchers' },
-    { id: 'coins', label: 'Xu tích lũy', icon: '🪙', path: '/profile/coins' },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -79,7 +75,7 @@ const ProfileSidebar = () => {
               <span>{item.label}</span>
             </button>
 
-            {index === 7 && <div className="my-4 border-t border-gray-200"></div>}
+            {index === 4 && <div className="my-4 border-t border-gray-200"></div>}
           </div>
         ))}
       </nav>

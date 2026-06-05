@@ -29,6 +29,22 @@ const STATUS_LABELS = {
   Cancelled: 'Đã hủy',
 }
 
+const RETURN_STATUS_LABELS = {
+  pending:  'Chờ duyệt',
+  approved: 'Đã duyệt — chờ nhận hàng',
+  rejected: 'Đã từ chối',
+  received: 'Đã nhận hàng',
+  refunded: 'Đã hoàn tiền',
+}
+
+const RETURN_REASON_LABELS = {
+  damaged:          'Hàng bị hỏng / lỗi',
+  wrong_item:       'Sai sản phẩm',
+  not_as_described: 'Không đúng mô tả',
+  changed_mind:     'Đổi ý / không còn nhu cầu',
+  other:            'Lý do khác',
+}
+
 const Orders = ({ token }) => {
   const [searchParams] = useSearchParams()
   const focusOrderId = searchParams.get('orderId') || ''
@@ -37,6 +53,9 @@ const Orders = ({ token }) => {
   const [loading, setLoading] = useState(true)
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ORDERS)
   const sentinelRef = useRef(null)
+  const [returnRequests, setReturnRequests] = useState({})
+  const [returnNotes, setReturnNotes] = useState({})
+  const [processingReturn, setProcessingReturn] = useState(null)
 
   const visibleOrders = useMemo(
     () => orders.slice(0, Math.min(visibleCount, orders.length)),
@@ -145,8 +164,68 @@ const Orders = ({ token }) => {
     }
   }
 
+  const fetchReturnRequests = async () => {
+    if (!token) return
+    try {
+      const res = await axios.get(`${backendUrl}/api/return/vendor`, { headers: { token } })
+      if (res.data.success) {
+        const map = {}
+        ;(res.data.returnRequests || []).forEach((r) => {
+          const oid = r.orderId?._id || r.orderId
+          if (oid) map[String(oid)] = r
+        })
+        setReturnRequests(map)
+      }
+    } catch { /* non-critical */ }
+  }
+
+  const handleReviewReturn = async (returnId, approved) => {
+    setProcessingReturn(returnId)
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/return/${returnId}/review`,
+        { approved, vendorNote: returnNotes[returnId] || '' },
+        { headers: { token } }
+      )
+      if (res.data.success) {
+        toast.success(approved ? 'Đã duyệt yêu cầu trả hàng' : 'Đã từ chối yêu cầu')
+        fetchReturnRequests()
+      } else {
+        toast.error(res.data.message)
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || e.message)
+    } finally {
+      setProcessingReturn(null)
+    }
+  }
+
+  const handleConfirmReceived = async (returnId) => {
+    if (!window.confirm('Xác nhận đã nhận hàng hoàn trả? Hệ thống sẽ xử lý hoàn tiền ngay.')) return
+    setProcessingReturn(returnId)
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/return/${returnId}/confirm-received`,
+        {},
+        { headers: { token } }
+      )
+      if (res.data.success) {
+        toast.success('Đã xác nhận nhận hàng — hoàn tiền đang xử lý')
+        fetchReturnRequests()
+        fetchAllOrders()
+      } else {
+        toast.error(res.data.message)
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || e.message)
+    } finally {
+      setProcessingReturn(null)
+    }
+  }
+
   useEffect(() => {
     fetchAllOrders()
+    fetchReturnRequests()
   }, [token])
 
   const renderItemVariant = (item) => {
@@ -295,6 +374,85 @@ const Orders = ({ token }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Return Request Panel */}
+                {returnRequests[String(order._id)] && (() => {
+                  const rr = returnRequests[String(order._id)]
+                  const isPending  = rr.status === 'pending'
+                  const isApproved = rr.status === 'approved'
+                  return (
+                    <div className={`mt-3 rounded-lg border p-3 text-sm ${
+                      isPending ? 'border-amber-200 bg-amber-50' :
+                      isApproved ? 'border-blue-200 bg-blue-50' :
+                      'border-slate-200 bg-slate-50'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-slate-700">
+                          🔄 Yêu cầu trả hàng
+                        </span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          isPending  ? 'bg-amber-100 text-amber-700' :
+                          isApproved ? 'bg-blue-100 text-blue-700' :
+                          rr.status === 'refunded' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {RETURN_STATUS_LABELS[rr.status] || rr.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mb-1">
+                        <span className="font-medium">Lý do:</span> {RETURN_REASON_LABELS[rr.reason] || rr.reason}
+                      </p>
+                      {rr.description && (
+                        <p className="text-xs text-slate-500 mb-2">"{rr.description}"</p>
+                      )}
+                      {isPending && (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Ghi chú phản hồi (tuỳ chọn)..."
+                            value={returnNotes[rr._id] || ''}
+                            onChange={(e) => setReturnNotes((prev) => ({ ...prev, [rr._id]: e.target.value }))}
+                            className="admin-input py-1 text-xs w-full"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleReviewReturn(rr._id, true)}
+                              disabled={processingReturn === rr._id}
+                              className="flex-1 rounded bg-emerald-600 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              ✓ Chấp nhận
+                            </button>
+                            <button
+                              onClick={() => handleReviewReturn(rr._id, false)}
+                              disabled={processingReturn === rr._id}
+                              className="flex-1 rounded bg-rose-600 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                            >
+                              ✗ Từ chối
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {isApproved && (
+                        <button
+                          onClick={() => handleConfirmReceived(rr._id)}
+                          disabled={processingReturn === rr._id}
+                          className="w-full rounded bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {processingReturn === rr._id ? 'Đang xử lý...' : '📦 Đã nhận hàng hoàn trả → Hoàn tiền'}
+                        </button>
+                      )}
+                      {rr.vendorNote && rr.status === 'rejected' && (
+                        <p className="text-xs text-rose-600 mt-1">Lý do từ chối: {rr.vendorNote}</p>
+                      )}
+                      {rr.stripeRefundId && (
+                        <p className="text-xs text-emerald-600 mt-1">Stripe Refund ID: {rr.stripeRefundId}</p>
+                      )}
+                      {rr.isManualRefund && rr.status === 'refunded' && (
+                        <p className="text-xs text-amber-600 mt-1">⚠ Hoàn tiền thủ công — vui lòng xử lý với khách hàng</p>
+                      )}
+                    </div>
+                  )
+                })()}
               </article>
             )
           })}

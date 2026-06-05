@@ -25,6 +25,9 @@ const userSchema = new mongoose.Schema({
     emailVerified: { type: Boolean, default: false },
     emailVerificationToken: { type: String, select: false },
     emailVerificationExpires: { type: Date, select: false },
+    notificationPrefs: {
+        emailPriceDrop: { type: Boolean, default: true },
+    },
 },{minimize: false})
 userSchema.index(
     { shopNameNormalized: 1 },
@@ -37,5 +40,5 @@ userSchema.index(
     }
 );
 // {minimize: false} is used to allow empty objects in the schema
-const userModel = mongoose.model.user || mongoose.model('user', userSchema)
+const userModel = mongoose.models.user || mongoose.model('user', userSchema)
 export default userModel;

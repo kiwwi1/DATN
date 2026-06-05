@@ -10,6 +10,9 @@ import {
     resetPasswordWithTokenService,
     deleteUserService,
     refreshAccessTokenService,
+    getNotificationPrefsService,
+    updateNotificationPrefsService,
+    changePasswordService,
 } from "../services/userService.js";
 
 const toBoolean = (value, fallback = false) => {
@@ -177,6 +180,37 @@ const logoutUser = async (_req, res) => {
     res.json({ success: true, message: "Logged out successfully" });
 };
 
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.userId || req.body.userId;
+        const { currentPassword, newPassword } = req.body;
+        await changePasswordService(userId, currentPassword, newPassword);
+        res.json({ success: true, message: "Đổi mật khẩu thành công" });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const getNotificationPrefs = async (req, res) => {
+    try {
+        const userId = req.userId || req.body.userId;
+        const prefs = await getNotificationPrefsService(userId);
+        res.json({ success: true, prefs });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const updateNotificationPrefs = async (req, res) => {
+    try {
+        const userId = req.userId || req.body.userId;
+        const prefs = await updateNotificationPrefsService(userId, req.body);
+        res.json({ success: true, prefs });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
 export {
     loginUser,
     registerUser,
@@ -190,4 +224,7 @@ export {
     deleteUser,
     refreshAuth,
     logoutUser,
+    getNotificationPrefs,
+    updateNotificationPrefs,
+    changePassword,
 };

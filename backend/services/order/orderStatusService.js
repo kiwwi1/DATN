@@ -9,6 +9,7 @@ const STATUS_LABEL = {
   "Out for delivery": "Đang giao hàng",
   Delivered: "Đã giao thành công",
   Cancelled: "Đã hủy",
+  Refunded: "Đã hoàn tiền",
 };
 
 const TRACKING_REQUIRED_STATUSES = new Set(["Shipped", "Out for delivery", "Delivered"]);

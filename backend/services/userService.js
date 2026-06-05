@@ -281,3 +281,38 @@ export const deleteUserService = async (userId) => {
     await ensureUserDeletable(userId);
     await userModel.findByIdAndDelete(userId);
 };
+
+export const changePasswordService = async (userId, currentPassword, newPassword) => {
+    validatePasswordOrThrow(newPassword);
+    const user = await userModel.findById(userId).select("+password");
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+    if (!user.password) throw Object.assign(new Error("Tài khoản này đăng nhập bằng Google, không có mật khẩu để đổi"), { status: 400 });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) throw Object.assign(new Error("Mật khẩu hiện tại không đúng"), { status: 400 });
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+};
+
+export const getNotificationPrefsService = async (userId) => {
+    const user = await userModel.findById(userId).select("notificationPrefs").lean();
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+    return user.notificationPrefs ?? { emailPriceDrop: true };
+};
+
+export const updateNotificationPrefsService = async (userId, prefs) => {
+    const allowed = ["emailPriceDrop"];
+    const update = {};
+    for (const key of allowed) {
+        if (typeof prefs[key] === "boolean") {
+            update[`notificationPrefs.${key}`] = prefs[key];
+        }
+    }
+    if (!Object.keys(update).length) throw new Error("Không có tuỳ chọn hợp lệ");
+    const user = await userModel.findByIdAndUpdate(
+        userId,
+        { $set: update },
+        { new: true, select: "notificationPrefs" }
+    ).lean();
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+    return user.notificationPrefs;
+};

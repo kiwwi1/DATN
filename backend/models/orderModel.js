@@ -128,5 +128,5 @@ orderSchema.index(
 orderSchema.index({ "items.vendorId": 1, date: -1 });
 orderSchema.index({ "vendors.vendorId": 1, date: -1 });
 
-const orderModel = mongoose.model.order || mongoose.model("order", orderSchema);
+const orderModel = mongoose.models.order || mongoose.model("order", orderSchema);
 export default orderModel;

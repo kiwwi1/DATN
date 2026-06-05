@@ -21,14 +21,11 @@ import VendorRegis from './pages/auth/VendorRegis'
 import MyProfile from './pages/profile/MyProfile'
 import ProfileNotifications from './pages/profile/ProfileNotifications'
 
-import ProfileBank from './pages/profile/ProfileBank'
 import ProfileAddress from './pages/profile/ProfileAddress'
 import ProfileChangePassword from './pages/profile/ProfileChangePassword'
 import ProfileNotificationSettings from './pages/profile/ProfileNotificationSettings'
-import ProfilePrivacySettings from './pages/profile/ProfilePrivacySettings'
 import ProfilePersonalInfo from './pages/profile/ProfilePersonalInfo'
 import ProfileVouchers from './pages/profile/ProfileVouchers'
-import ProfileCoins from './pages/profile/ProfileCoins'
 import RecommendationsPage from './pages/main/RecommendationsPage'
 
 const App = () => {
@@ -54,14 +51,11 @@ const App = () => {
         <Route path='/vendor-register' element={<VendorRegis/>} />
         <Route path='/my-profile' element={<MyProfile/>} />
         <Route path='/profile/notifications' element={<ProfileNotifications/>} />
-        <Route path='/profile/bank' element={<ProfileBank/>} />
         <Route path='/profile/address' element={<ProfileAddress/>} />
         <Route path='/profile/change-password' element={<ProfileChangePassword/>} />
         <Route path='/profile/notification-settings' element={<ProfileNotificationSettings/>} />
-        <Route path='/profile/privacy-settings' element={<ProfilePrivacySettings/>} />
         <Route path='/profile/personal-info' element={<ProfilePersonalInfo/>} />
         <Route path='/profile/vouchers' element={<ProfileVouchers/>} />
-        <Route path='/profile/coins' element={<ProfileCoins/>} />
         
       </Routes>
       <Footer />

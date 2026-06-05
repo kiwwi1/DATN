@@ -10,7 +10,10 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["order_placed", "order_status", "order_cancelled", "price_drop"],
+        enum: [
+            "order_placed", "order_status", "order_cancelled", "price_drop",
+            "return_request", "return_approved", "return_rejected", "return_refunded",
+        ],
         required: true,
     },
     title: { type: String, required: true },
@@ -25,6 +28,6 @@ const notificationSchema = new mongoose.Schema({
 notificationSchema.index({ userId: 1, audience: 1, createdAt: -1 });
 
 const notificationModel =
-    mongoose.model.notification || mongoose.model("notification", notificationSchema);
+    mongoose.models.notification || mongoose.model("notification", notificationSchema);
 
 export default notificationModel;

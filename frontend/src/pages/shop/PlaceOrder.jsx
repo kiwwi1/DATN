@@ -36,7 +36,7 @@ const VoucherInputGroup = ({
       <input
         value={inputValue}
         onChange={onInputChange}
-        placeholder={"Nh\u1eadp m\u00e3 voucher"}
+        placeholder={"Nhập mã voucher"}
         className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none"
       />
       <button
@@ -44,7 +44,7 @@ const VoucherInputGroup = ({
         onClick={onApply}
         className="rounded bg-black px-3 py-2 text-xs text-white hover:bg-slate-800"
       >
-        {"\u00c1p d\u1ee5ng"}
+        {"Áp dụng"}
       </button>
     </div>
 
@@ -57,7 +57,7 @@ const VoucherInputGroup = ({
             onClick={() => onRemoveCode(code)}
             className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
           >
-            {code} {"\u00d7"}
+            {code} {"×"}
           </button>
         ))}
       </div>
@@ -65,7 +65,7 @@ const VoucherInputGroup = ({
 
     {suggestions.length > 0 && (
       <div className="mt-3">
-        <p className="text-xs font-medium text-slate-600">{"G\u1ee3i \u00fd \u0111ang hi\u1ec7u l\u1ef1c"}</p>
+        <p className="text-xs font-medium text-slate-600">{"Gợi ý đang hiệu lực"}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {suggestions.map((voucher) => (
             <button
@@ -175,9 +175,9 @@ const PlaceOrder = () => {
           )}
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800">{"S\u1ea3n ph\u1ea9m \u0111\u00e3 ch\u1ecdn"}</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{"Sản phẩm đã chọn"}</h3>
             {groupedOrderItems.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">{"Kh\u00f4ng c\u00f3 s\u1ea3n ph\u1ea9m n\u00e0o trong \u0111\u01a1n h\u00e0ng."}</p>
+              <p className="mt-2 text-sm text-slate-500">{"Không có sản phẩm nào trong đơn hàng."}</p>
             ) : (
               <div className="mt-3 space-y-4">
                 {groupedOrderItems.map((vendorGroup) => {
@@ -191,13 +191,13 @@ const PlaceOrder = () => {
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="text-sm font-semibold text-slate-800">
-                            {vendorGroup.vendorShopName || "C\u1eeda h\u00e0ng"}
+                            {vendorGroup.vendorShopName || "Cửa hàng"}
                           </p>
-                          <p className="text-xs text-slate-500">{"T\u1ea1m t\u00ednh shop"}: {formatPrice(vendorGroup.subtotal)}</p>
+                          <p className="text-xs text-slate-500">{"Tạm tính shop"}: {formatPrice(vendorGroup.subtotal)}</p>
                         </div>
                         {appliedCount > 0 && (
                           <span className="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
-                            {"\u0110\u00e3 \u00e1p d\u1ee5ng"} {appliedCount} voucher
+                            {"Đã áp dụng"} {appliedCount} voucher
                           </span>
                         )}
                       </div>
@@ -228,7 +228,7 @@ const PlaceOrder = () => {
 
                       <div className="mt-3">
                         <VoucherInputGroup
-                          title={"Voucher c\u1ee7a shop"}
+                          title={"Voucher của shop"}
                           inputValue={shopVoucherInputs[vendorGroup.vendorId] || ""}
                           onInputChange={(event) =>
                             setShopVoucherInput(vendorGroup.vendorId, event.target.value)
@@ -255,10 +255,10 @@ const PlaceOrder = () => {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800">{"Voucher c\u1ee7a s\u00e0n"}</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{"Voucher của sàn"}</h3>
             <div className="mt-3 space-y-3">
               <VoucherInputGroup
-                title={"Voucher s\u00e0n v\u00e0 v\u1eadn chuy\u1ec3n"}
+                title={"Voucher sàn và vận chuyển"}
                 inputValue={platformVoucherInput}
                 onInputChange={(event) => setPlatformVoucherInput(event.target.value)}
                 onApply={applyPlatformVoucherInput}
@@ -271,18 +271,18 @@ const PlaceOrder = () => {
 
               {voucherCodes.length > 0 && (
                 <p className="text-xs text-slate-500">
-                  {"T\u1ed5ng voucher \u0111\u00e3 th\u00eam"}: {voucherCodes.length} | {"S\u00e0n \u0111\u00e3 \u00e1p d\u1ee5ng"}: {appliedPlatformVouchers.length}
+                  {"Tổng voucher đã thêm"}: {voucherCodes.length} | {"Sàn đã áp dụng"}: {appliedPlatformVouchers.length}
                 </p>
               )}
 
               {(previewLoading || voucherSuggestionLoading) && (
-                <p className="text-xs text-slate-500">{"\u0110ang c\u1eadp nh\u1eadt th\u00f4ng tin voucher..."}</p>
+                <p className="text-xs text-slate-500">{"Đang cập nhật thông tin voucher..."}</p>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <Title text1={"PH\u01af\u01a0NG TH\u1ee8C "} text2={"THANH TO\u00c1N"} />
+            <Title text1={"PHƯƠNG THỨC "} text2={"THANH TOÁN"} />
             <PaymentMethodSelector
               method={method}
               setMethod={setMethod}
@@ -298,7 +298,7 @@ const PlaceOrder = () => {
                   isSubmitting ? "cursor-not-allowed opacity-70" : ""
                 }`}
               >
-                {isSubmitting ? "\u0110ANG X\u1eec L\u00dd..." : "\u0110\u1eb6T H\u00c0NG"}
+                {isSubmitting ? "ĐANG XỬ LÝ..." : "ĐẶT HÀNG"}
               </button>
             </div>
           </div>

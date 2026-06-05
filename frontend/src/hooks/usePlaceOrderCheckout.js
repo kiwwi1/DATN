@@ -253,7 +253,7 @@ export const usePlaceOrderCheckout = ({
         setRejectedVouchers(rejected);
 
         if (showErrors && rejected.length > 0) {
-          toast.error(rejected[0].reason || "Voucher kh\u00f4ng h\u1ee3p l\u1ec7");
+          toast.error(rejected[0].reason || "Voucher không hợp lệ");
         }
 
         return { pricing, appliedVouchers: applied, rejectedVouchers: rejected };
@@ -416,7 +416,7 @@ export const usePlaceOrderCheckout = ({
   const validateAddressBeforeSubmit = () => {
     if (selectedAddress) return true;
     if (!formData.firstName || !formData.lastName || !formData.street || !formData.city || !formData.state || !formData.phone) {
-      toast.error("Vui l\u00f2ng nh\u1eadp \u0111\u1ea7y \u0111\u1ee7 th\u00f4ng tin giao h\u00e0ng.");
+      toast.error("Vui lòng nhập đầy đủ thông tin giao hàng.");
       return false;
     }
     return true;
@@ -435,11 +435,11 @@ export const usePlaceOrderCheckout = ({
     const key = String(vendorId || "");
     const code = normalizeVoucherCode(shopVoucherInputs[key]);
     if (!code) {
-      toast.error("Nh\u1eadp m\u00e3 voucher shop tr\u01b0\u1edbc khi \u00e1p d\u1ee5ng");
+      toast.error("Nhập mã voucher shop trước khi áp dụng");
       return;
     }
     if (voucherCodes.includes(code)) {
-      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      toast.info("Mã voucher đã được thêm");
       return;
     }
     setShopVoucherCodesByVendor((previous) => ({
@@ -457,7 +457,7 @@ export const usePlaceOrderCheckout = ({
     const normalized = normalizeVoucherCode(code);
     if (!key || !normalized) return;
     if (voucherCodes.includes(normalized)) {
-      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      toast.info("Mã voucher đã được thêm");
       return;
     }
     setShopVoucherCodesByVendor((previous) => ({
@@ -469,11 +469,11 @@ export const usePlaceOrderCheckout = ({
   const applyPlatformVoucherInput = () => {
     const code = normalizeVoucherCode(platformVoucherInput);
     if (!code) {
-      toast.error("Nh\u1eadp m\u00e3 voucher s\u00e0n tr\u01b0\u1edbc khi \u00e1p d\u1ee5ng");
+      toast.error("Nhập mã voucher sàn trước khi áp dụng");
       return;
     }
     if (voucherCodes.includes(code)) {
-      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      toast.info("Mã voucher đã được thêm");
       return;
     }
     setPlatformVoucherCodes((previous) => uniqueVoucherCodes([...previous, code]));
@@ -484,7 +484,7 @@ export const usePlaceOrderCheckout = ({
     const normalized = normalizeVoucherCode(code);
     if (!normalized) return;
     if (voucherCodes.includes(normalized)) {
-      toast.info("M\u00e3 voucher \u0111\u00e3 \u0111\u01b0\u1ee3c th\u00eam");
+      toast.info("Mã voucher đã được thêm");
       return;
     }
     setPlatformVoucherCodes((previous) => uniqueVoucherCodes([...previous, normalized]));
@@ -524,7 +524,7 @@ export const usePlaceOrderCheckout = ({
         console.error("Error fetching cart:", error);
       }
 
-      toast.success("\u0110\u1eb7t h\u00e0ng th\u00e0nh c\u00f4ng!");
+      toast.success("Đặt hàng thành công!");
       navigate("/orders");
       return;
     }
@@ -556,7 +556,7 @@ export const usePlaceOrderCheckout = ({
     if (inFlightRef.current) return;
 
     if (!token) {
-      toast.error("Vui l\u00f2ng \u0111\u0103ng nh\u1eadp \u0111\u1ec3 \u0111\u1eb7t h\u00e0ng.");
+      toast.error("Vui lòng đăng nhập để đặt hàng.");
       navigate("/login");
       return;
     }
@@ -568,7 +568,7 @@ export const usePlaceOrderCheckout = ({
 
     try {
       if (!currentOrderItems.length) {
-        toast.error("Kh\u00f4ng c\u00f3 s\u1ea3n ph\u1ea9m \u0111\u1ec3 \u0111\u1eb7t h\u00e0ng");
+        toast.error("Không có sản phẩm để đặt hàng");
         return;
       }
 
@@ -584,11 +584,11 @@ export const usePlaceOrderCheckout = ({
 
       const totalAmount = Number(latestPreview.pricing?.finalTotal || 0);
       if (method === "stripe" && totalAmount > STRIPE_VND_LIMIT) {
-        toast.error("T\u1ed5ng \u0111\u01a1n h\u00e0ng v\u01b0\u1ee3t gi\u1edbi h\u1ea1n Stripe. Vui l\u00f2ng ch\u1ecdn COD.");
+        toast.error("Tổng đơn hàng vượt giới hạn Stripe. Vui lòng chọn COD.");
         return;
       }
       if (method === "vnpay" && totalAmount > VNPAY_LIMIT) {
-        toast.error("T\u1ed5ng \u0111\u01a1n h\u00e0ng v\u01b0\u1ee3t gi\u1edbi h\u1ea1n VNPay.");
+        toast.error("Tổng đơn hàng vượt giới hạn VNPay.");
         return;
       }
 

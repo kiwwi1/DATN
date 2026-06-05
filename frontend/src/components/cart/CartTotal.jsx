@@ -33,39 +33,39 @@ const CartTotal = ({ selectedTotal, pricing, compact = false }) => {
   return (
     <section className="w-full">
       <h2 className="mb-4 border-b border-slate-200 pb-3 text-lg font-semibold text-slate-800">
-        {"T\u1ed5ng \u0111\u01a1n h\u00e0ng"}
+        {"Tổng đơn hàng"}
       </h2>
 
       <div className="space-y-2.5">
         <div className={rowClass}>
-          <span className="text-sm text-slate-600">{"T\u1ea1m t\u00ednh"}</span>
+          <span className="text-sm text-slate-600">{"Tạm tính"}</span>
           <span className="text-sm font-semibold text-slate-800">{formatPrice(subtotal)}</span>
         </div>
 
         {shopDiscount > 0 && (
           <div className={rowClass}>
-            <span className="text-sm text-slate-600">{"Gi\u1ea3m gi\u00e1 shop"}</span>
+            <span className="text-sm text-slate-600">{"Giảm giá shop"}</span>
             <span className="text-sm font-semibold text-emerald-600">- {formatPrice(shopDiscount)}</span>
           </div>
         )}
 
         {platformDiscount > 0 && (
           <div className={rowClass}>
-            <span className="text-sm text-slate-600">{"Gi\u1ea3m gi\u00e1 s\u00e0n"}</span>
+            <span className="text-sm text-slate-600">{"Giảm giá sàn"}</span>
             <span className="text-sm font-semibold text-emerald-600">- {formatPrice(platformDiscount)}</span>
           </div>
         )}
 
         <div className={rowClass}>
-          <span className="text-sm text-slate-600">{"Ph\u00ed v\u1eadn chuy\u1ec3n"}</span>
+          <span className="text-sm text-slate-600">{"Phí vận chuyển"}</span>
           <span className="text-sm font-semibold text-slate-800">
-            {shippingFee === 0 ? <span className="text-emerald-600">{"Mi\u1ec5n ph\u00ed"}</span> : formatPrice(shippingFee)}
+            {shippingFee === 0 ? <span className="text-emerald-600">{"Miễn phí"}</span> : formatPrice(shippingFee)}
           </span>
         </div>
 
         {shippingDiscount > 0 && (
           <div className={rowClass}>
-            <span className="text-sm text-slate-600">{"Gi\u1ea3m ph\u00ed v\u1eadn chuy\u1ec3n"}</span>
+            <span className="text-sm text-slate-600">{"Giảm phí vận chuyển"}</span>
             <span className="text-sm font-semibold text-emerald-600">- {formatPrice(shippingDiscount)}</span>
           </div>
         )}
@@ -73,7 +73,7 @@ const CartTotal = ({ selectedTotal, pricing, compact = false }) => {
 
       <div className="mt-3 rounded-lg bg-orange-50 px-4 py-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-700">{"T\u1ed5ng c\u1ed9ng"}</span>
+          <span className="text-sm font-semibold text-slate-700">{"Tổng cộng"}</span>
           <span className="text-xl font-bold text-orange-600">{formatPrice(total)}</span>
         </div>
       </div>

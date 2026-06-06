@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { ShopContext } from "../../context/ShopContext";
 import ProfileSidebar from "../../components/profile/ProfileSidebar";
 import { useChatInbox } from "../../hooks/useChatInbox";
+import { formatPrice } from "../../utils/priceFormat";
+import { formatImageUrl } from "../../utils/imageUtils";
 
 const ProfileChat = () => {
   const { backendUrl, token, userId } = useContext(ShopContext);
@@ -123,11 +125,36 @@ const ProfileChat = () => {
                   return (
                     <div key={message._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`max-w-[75%] px-3 py-2 rounded-lg text-sm ${
+                        className={`max-w-[75%] px-3.5 py-2.5 rounded-lg text-sm ${
                           mine ? "bg-orange-500 text-white" : "bg-white text-gray-800 border border-gray-100"
                         }`}
                       >
-                        {message.content}
+                        {message.productId && (
+                          <div className={`mb-1.5 rounded p-1.5 flex items-center gap-2 border text-left ${
+                            mine ? "bg-orange-600 border-orange-400 text-white" : "bg-gray-50 border-gray-100 text-gray-800"
+                          }`}>
+                            <img
+                              src={formatImageUrl(message.productId.image, {
+                                variant: "thumb",
+                                width: 64,
+                                height: 64,
+                                fit: "cover",
+                                quality: 70,
+                                format: "webp",
+                              })}
+                              alt={message.productId.name}
+                              className="h-9 w-9 rounded object-cover bg-white flex-shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[10px] font-medium">{message.productId.name}</p>
+                              <p className={`text-[11px] font-bold ${mine ? "text-orange-100" : "text-orange-600"}`}>
+                                {formatPrice(message.productId.price || 0)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        <div>{message.content}</div>
                       </div>
                     </div>
                   );

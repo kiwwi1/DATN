@@ -230,177 +230,243 @@ const Add = ({ token }) => {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <div>
-        <h1 className="admin-page-title">Thêm sản phẩm</h1>
-        <p className="admin-page-subtitle">Tạo sản phẩm mới với danh mục, thuộc tính, biến thể và hình ảnh.</p>
+        <h1 className="admin-page-title text-2xl font-bold tracking-tight text-slate-800">Đăng bán sản phẩm</h1>
+        <p className="admin-page-subtitle text-xs text-slate-400 mt-1 font-medium">Đăng tải thông tin chi tiết, hình ảnh minh họa và thiết lập biến thể cho sản phẩm mới.</p>
       </div>
 
-      <form onSubmit={onSubmitHandler} className="admin-card grid grid-cols-1 gap-5 p-5 lg:grid-cols-2">
-        <div className="lg:col-span-1">
-          <p className="mb-3 text-sm font-semibold text-slate-800">Hình ảnh sản phẩm</p>
-          <div className="flex flex-wrap gap-3">
-            {[image1, image2, image3, image4].map((image, index) => (
-              <label
-                key={`image-input-${index + 1}`}
-                className="flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 transition hover:border-pink-400"
-                htmlFor={`image${index + 1}`}
-              >
-                <img
-                  src={image ? URL.createObjectURL(image) : assets.upload_area}
-                  alt="upload"
-                  className={image ? 'h-full w-full object-cover' : 'h-11 w-11 opacity-70'}
-                />
-                <input
-                  type="file"
-                  id={`image${index + 1}`}
-                  hidden
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files[0]
-                    if (index === 0) setImage1(file)
-                    if (index === 1) setImage2(file)
-                    if (index === 2) setImage3(file)
-                    if (index === 3) setImage4(file)
-                  }}
-                />
-              </label>
-            ))}
+      <form onSubmit={onSubmitHandler} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left column: Images & Pricing */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Images Section */}
+          <div className="admin-card p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 tracking-tight">Hình ảnh sản phẩm</h3>
+              <p className="text-[11px] text-slate-400 mt-1 leading-normal">
+                Tải lên tối đa 4 ảnh. Khuyên dùng ảnh vuông, ảnh đầu tiên sẽ làm ảnh đại diện chính của sản phẩm.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {[image1, image2, image3, image4].map((image, index) => (
+                <label
+                  key={`image-input-${index + 1}`}
+                  className="group relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 transition-all hover:border-pink-400 hover:bg-slate-50"
+                  htmlFor={`image${index + 1}`}
+                >
+                  {image ? (
+                    <div className="relative h-full w-full">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`upload-${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-200">
+                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">Thay đổi ảnh</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5 p-3 text-center">
+                      <svg className="w-5 h-5 text-slate-400 group-hover:text-pink-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-[10px] font-bold text-slate-450 group-hover:text-pink-600 transition-colors">
+                        {index === 0 ? 'Ảnh chính' : `Ảnh phụ ${index}`}
+                      </span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    id={`image${index + 1}`}
+                    hidden
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files[0]
+                      if (index === 0) setImage1(file)
+                      if (index === 1) setImage2(file)
+                      if (index === 2) setImage3(file)
+                      if (index === 3) setImage4(file)
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
           </div>
-          <p className="mt-1 text-xs text-slate-400">Tối đa 4 ảnh. Khuyến nghị ảnh vuông hoặc tỷ lệ gần 1:1.</p>
+
+          {/* Pricing & Bestseller Section */}
+          <div className="admin-card p-5 space-y-5">
+            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Giá & Trưng bày</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Giá sản phẩm (₫)
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-450">₫</span>
+                  <input
+                    onChange={(event) => setPrice(formatPriceInput(event.target.value))}
+                    value={price}
+                    type="text"
+                    inputMode="numeric"
+                    className="admin-input pl-8 py-2.5 font-semibold text-slate-700 focus:border-pink-500"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                {variants.length > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-1.5 font-medium flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Tự động lấy giá thấp nhất từ các biến thể.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="bestseller"
+                  checked={bestseller}
+                  onChange={(event) => setBestseller(event.target.checked)}
+                  className="h-4.5 w-4.5 cursor-pointer rounded-md border-slate-300 text-pink-600 accent-pink-500 focus:ring-pink-500/20"
+                />
+                <label htmlFor="bestseller" className="cursor-pointer select-none text-xs font-semibold text-slate-750">
+                  Đánh dấu là Bestseller
+                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">Hiển thị nổi bật trên trang chủ storefront</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Tên sản phẩm</label>
-          <input
-            onChange={(event) => setName(event.target.value)}
-            value={name}
-            className="admin-input"
-            type="text"
-            placeholder="Nhập tên sản phẩm"
-            required
-          />
-        </div>
+        {/* Right column: General Info & Variants */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* General Information */}
+          <div className="admin-card p-5 space-y-5">
+            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Thông tin chung</h3>
 
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-slate-700">Mô tả sản phẩm</label>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Tên sản phẩm</label>
+                <input
+                  onChange={(event) => setName(event.target.value)}
+                  value={name}
+                  className="admin-input py-2.5 text-sm font-medium focus:border-pink-500"
+                  type="text"
+                  placeholder="Nhập tên sản phẩm đầy đủ và chi tiết..."
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Danh mục chính <span className="text-rose-500">*</span>
+                  </label>
+                  {loadingCategories ? (
+                    <div className="admin-input py-2.5 text-slate-400">Đang tải danh mục...</div>
+                  ) : (
+                    <select
+                      value={category}
+                      onChange={(event) => {
+                        const selectedId = event.target.value
+                        setCategory(selectedId)
+                        const selected = mainCategories.find((categoryItem) => categoryItem._id === selectedId)
+                        setSelectedCategory(selected || null)
+                      }}
+                      className="admin-select py-2.5 focus:border-pink-500"
+                      required
+                    >
+                      <option value="">-- Chọn danh mục --</option>
+                      {mainCategories.map((categoryItem) => (
+                        <option key={categoryItem._id} value={categoryItem._id}>
+                          {categoryItem.icon ? `${categoryItem.icon} ` : ''}
+                          {categoryItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Danh mục con
+                  </label>
+                  <select
+                    value={subCategory}
+                    onChange={(event) => setSubCategory(event.target.value)}
+                    className="admin-select py-2.5 focus:border-pink-500"
+                    disabled={!category || subCategories.length === 0}
+                  >
+                    <option value="">-- Chọn danh mục con (tùy chọn) --</option>
+                    {subCategories.map((subcategory) => (
+                      <option key={subcategory._id} value={subcategory._id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Mô tả sản phẩm</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateDescription}
+                    disabled={isGeneratingDescription}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg text-xs font-bold shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isGeneratingDescription ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-sky-400 border-t-sky-700 rounded-full animate-spin"></span>
+                        <span>Đang phân tích...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        <span>AI viết mô tả</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  onChange={(event) => setDescription(event.target.value)}
+                  value={description}
+                  className="admin-input min-h-[120px] py-2.5 text-sm leading-relaxed"
+                  placeholder="Mô tả các thông số kỹ thuật, chất liệu, tính năng đặc biệt của sản phẩm..."
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Attributes Manager */}
+          <div className="admin-card p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Thuộc tính sản phẩm</h3>
+            <AttributesManager attributes={attributes} setAttributes={setAttributes} />
+          </div>
+
+          {/* Variants Manager */}
+          <div className="admin-card p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Biến thể & Tồn kho</h3>
+            <VariantsManager attributes={attributes} variants={variants} onChange={setVariants} />
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end gap-3">
             <button
-              type="button"
-              onClick={handleGenerateDescription}
-              disabled={isGeneratingDescription}
-              className="inline-flex items-center justify-center rounded-md border border-sky-200 px-3 py-1.5 text-xs font-medium text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              className="admin-btn-primary w-full py-3 text-sm font-bold shadow-md shadow-pink-500/10 hover:shadow-lg hover:shadow-pink-500/15"
             >
-              {isGeneratingDescription ? 'Đang tạo...' : 'AI tạo mô tả'}
+              Đăng bán sản phẩm ngay
             </button>
           </div>
-          <textarea
-            onChange={(event) => setDescription(event.target.value)}
-            value={description}
-            className="admin-input min-h-[132px]"
-            placeholder="Mô tả chi tiết sản phẩm"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Danh mục <span className="text-rose-500">*</span>
-          </label>
-          {loadingCategories ? (
-            <div className="admin-input text-slate-500">Đang tải danh mục...</div>
-          ) : (
-            <select
-              value={category}
-              onChange={(event) => {
-                const selectedId = event.target.value
-                setCategory(selectedId)
-                const selected = mainCategories.find((categoryItem) => categoryItem._id === selectedId)
-                setSelectedCategory(selected || null)
-              }}
-              className="admin-select"
-              required
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {mainCategories.map((categoryItem) => (
-                <option key={categoryItem._id} value={categoryItem._id}>
-                  {categoryItem.icon ? `${categoryItem.icon} ` : ''}
-                  {categoryItem.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Danh mục con
-            {subCategories.length === 0 && category && (
-              <span className="ml-2 text-xs text-slate-400">(Không có danh mục con)</span>
-            )}
-          </label>
-          <select
-            value={subCategory}
-            onChange={(event) => setSubCategory(event.target.value)}
-            className="admin-select"
-            disabled={!category || subCategories.length === 0}
-          >
-            <option value="">-- Chọn danh mục con (tùy chọn) --</option>
-            {subCategories.map((subcategory) => (
-              <option key={subcategory._id} value={subcategory._id}>
-                {subcategory.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Giá sản phẩm (₫)
-            {variants.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-sky-600">(tự động lấy từ giá thấp nhất của biến thể)</span>
-            )}
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₫</span>
-            <input
-              onChange={(event) => setPrice(formatPriceInput(event.target.value))}
-              value={price}
-              type="text"
-              inputMode="numeric"
-              className="admin-input pl-8"
-              placeholder="0"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="bestseller"
-            checked={bestseller}
-            onChange={(event) => setBestseller(event.target.checked)}
-            className="h-4 w-4 cursor-pointer accent-pink-500"
-          />
-          <label htmlFor="bestseller" className="cursor-pointer select-none text-sm font-medium text-slate-700">
-            Đánh dấu là Bestseller
-            <span className="ml-1 text-xs text-slate-400">(hiển thị nổi bật trên storefront)</span>
-          </label>
-        </div>
-
-        <div className="lg:col-span-2">
-          <AttributesManager attributes={attributes} setAttributes={setAttributes} />
-        </div>
-
-        <div className="lg:col-span-2">
-          <VariantsManager attributes={attributes} variants={variants} onChange={setVariants} />
-        </div>
-
-        <div className="lg:col-span-2">
-          <button type="submit" className="admin-btn-primary w-full py-2.5">
-            Thêm sản phẩm
-          </button>
         </div>
       </form>
     </section>

@@ -41,8 +41,12 @@ export const getMessages = async (req, res) => {
 export const sendMessage = async (req, res) => {
     try {
         const { id } = req.params;
-        const { content } = req.body;
-        const message = await sendMessageService(id, req.body.userId, content);
+        const { content, productId } = req.body;
+        const message = await sendMessageService(id, req.body.userId, content, productId);
+
+        if (productId) {
+            await message.populate("productId", "name price image vendorId");
+        }
 
         const io = req.app.get("io");
         if (io) {
@@ -52,6 +56,7 @@ export const sendMessage = async (req, res) => {
                 senderId: message.senderId,
                 senderRole: message.senderRole,
                 content: message.content,
+                productId: message.productId,
                 read: message.read,
                 createdAt: message.createdAt,
             });

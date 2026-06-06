@@ -94,8 +94,43 @@ const FloatingChatButton = () => {
   }, [loadConversations, normalizeId, setActiveId]);
 
   const onSend = async () => {
-    const success = await sendMessageContent(text);
-    if (success) setText("");
+    const prodId = activeProductContext?.id || null;
+    const success = await sendMessageContent(text, prodId);
+    if (success) {
+      setText("");
+      if (prodId) {
+        setConversationContexts((previous) => {
+          const next = { ...previous };
+          delete next[normalizeId(activeId)];
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleSendQuickOption = async (option) => {
+    const prodId = activeProductContext?.id || null;
+    const success = await sendMessageContent(option, prodId);
+    if (success && prodId) {
+      setConversationContexts((previous) => {
+        const next = { ...previous };
+        delete next[normalizeId(activeId)];
+        return next;
+      });
+    }
+  };
+
+  const handleSendProductOnly = async () => {
+    if (!activeProductContext) return;
+    const prodId = activeProductContext.id;
+    const success = await sendMessageContent(`[Sản phẩm] ${activeProductContext.name}`, prodId);
+    if (success) {
+      setConversationContexts((previous) => {
+        const next = { ...previous };
+        delete next[normalizeId(activeId)];
+        return next;
+      });
+    }
   };
 
   const onOpenChat = async () => {
@@ -203,6 +238,13 @@ const FloatingChatButton = () => {
                               {formatPrice(activeProductContext.price || 0)}
                             </p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={handleSendProductOnly}
+                            className="rounded bg-orange-500 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-orange-600 flex-shrink-0"
+                          >
+                            Gửi link sản phẩm
+                          </button>
                         </div>
                         {activeQuickOptions.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
@@ -210,7 +252,7 @@ const FloatingChatButton = () => {
                               <button
                                 key={option}
                                 type="button"
-                                onClick={() => sendMessageContent(option)}
+                                onClick={() => handleSendQuickOption(option)}
                                 className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-600 hover:bg-blue-100"
                               >
                                 {option}
@@ -225,11 +267,36 @@ const FloatingChatButton = () => {
                       return (
                         <div key={message._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                           <div
-                            className={`max-w-[85%] rounded px-2 py-1.5 text-xs ${
+                            className={`max-w-[85%] rounded px-2.5 py-2 text-xs ${
                               mine ? "bg-orange-500 text-white" : "bg-white text-gray-800 border border-gray-100"
                             }`}
                           >
-                            {message.content}
+                            {message.productId && (
+                              <div className={`mb-1.5 rounded p-1.5 flex items-center gap-2 border text-left ${
+                                mine ? "bg-orange-600 border-orange-400 text-white" : "bg-gray-50 border-gray-100 text-gray-800"
+                              }`}>
+                                <img
+                                  src={formatImageUrl(message.productId.image, {
+                                    variant: "thumb",
+                                    width: 64,
+                                    height: 64,
+                                    fit: "cover",
+                                    quality: 70,
+                                    format: "webp",
+                                  })}
+                                  alt={message.productId.name}
+                                  className="h-9 w-9 rounded object-cover bg-white flex-shrink-0"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[10px] font-medium">{message.productId.name}</p>
+                                  <p className={`text-[11px] font-bold ${mine ? "text-orange-100" : "text-orange-600"}`}>
+                                    {formatPrice(message.productId.price || 0)}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            <div>{message.content}</div>
                           </div>
                         </div>
                       );

@@ -43,6 +43,11 @@ const messageSchema = new mongoose.Schema(
             required: true,
         },
         content: { type: String, required: true, trim: true },
+        productId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "product",
+            index: true,
+        },
         read: { type: Boolean, default: false },
     },
     { timestamps: true }

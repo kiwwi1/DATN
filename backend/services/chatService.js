@@ -54,9 +54,9 @@ const getSenderRole = (conversation, senderId) => {
     return conversation.vendorId.toString() === sid ? "vendor" : "buyer";
 };
 
-export const sendMessageService = async (conversationId, senderId, content) => {
+export const sendMessageService = async (conversationId, senderId, content, productId = null) => {
     const text = String(content || "").trim();
-    if (!text) throw badRequest("Message cannot be empty");
+    if (!text && !productId) throw badRequest("Message cannot be empty");
 
     const conversation = await conversationModel.findById(conversationId);
     if (!conversation) {
@@ -71,6 +71,7 @@ export const sendMessageService = async (conversationId, senderId, content) => {
         senderId,
         senderRole,
         content: text,
+        productId: productId ? asObjectId(productId) : null,
         read: false,
     });
 
@@ -78,7 +79,7 @@ export const sendMessageService = async (conversationId, senderId, content) => {
     await conversationModel.updateOne(
         { _id: conversation._id },
         {
-            $set: { lastMessage: text, updatedAt: new Date() },
+            $set: { lastMessage: text || "[Sản phẩm]", updatedAt: new Date() },
             $inc: { [unreadField]: 1 },
         }
     );
@@ -142,6 +143,7 @@ export const getMessagesService = async (conversationId, userId) => {
 
     const messages = await messageModel
         .find({ conversationId: conversation._id })
+        .populate("productId", "name price image vendorId")
         .sort({ createdAt: 1 })
         .lean();
 

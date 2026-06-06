@@ -124,15 +124,15 @@ export const useChatInbox = ({
   );
 
   const sendMessageContent = useCallback(
-    async (rawContent) => {
+    async (rawContent, productId = null) => {
       const content = String(rawContent || "").trim();
-      if (!token || !normalizedActiveId || !content) return false;
+      if (!token || !normalizedActiveId || (!content && !productId)) return false;
 
       setSending(true);
       try {
         const response = await axios.post(
           `${backendUrl}/api/chat/${normalizedActiveId}/send`,
-          { content },
+          { content, productId },
           { headers: { token } }
         );
         if (!response.data.success) {

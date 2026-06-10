@@ -1,0 +1,51 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Tong quan kien truc trien khai he thong marketplace
+
+actor Buyer
+actor Vendor
+
+rectangle "Frontend Shop\nReact 19 + Vite" as Shop
+rectangle "Vendor Dashboard\nReact 19 + Vite" as Admin
+
+rectangle "Backend API\nExpress 5 + Node.js" as Backend {
+  component "REST Routes" as Routes
+  component "Controllers" as Controllers
+  component "Services" as Services
+  component "Socket.IO Chat" as Chat
+  component "SSE Notification\nStream" as SSE
+  component "Reservation Sweep" as Sweep
+}
+
+database "MongoDB\nMongoose" as Mongo
+rectangle "Redis\nRate limit + Auth session" as Redis
+cloud "Stripe" as Stripe
+cloud "VNPay" as VNPay
+cloud "Cloudflare R2\nImage storage" as R2
+
+Buyer --> Shop : browse, cart,\ncheckout
+Vendor --> Admin : manage products,\norders, stats
+
+Shop --> Routes : HTTPS / REST
+Admin --> Routes : HTTPS / REST
+Shop --> Chat : websocket
+Admin --> Chat : websocket
+Admin --> SSE : event stream
+
+Routes --> Controllers
+Controllers --> Services
+Services --> Mongo
+Services --> Redis
+Services --> Stripe
+Services --> VNPay
+Services --> R2
+Chat --> Mongo : conversations,\nmessages
+SSE --> Mongo : notifications
+Sweep --> Services : expire pending\nreservations
+
+@enduml

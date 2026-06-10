@@ -1,0 +1,63 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam ParticipantPadding 12
+skinparam BoxPadding 8
+skinparam maxMessageSize 42
+skinparam sequence {
+  ArrowColor #3A78C2
+  LifeLineBorderColor #7AA7E0
+  LifeLineBackgroundColor #F8FBFF
+  ParticipantBorderColor #3A78C2
+  ParticipantBackgroundColor white
+}
+
+title Biểu đồ tuần tự thanh toán trực tuyến và xác nhận kết quả
+
+actor "Khách hàng" as Buyer
+participant "Client (React)" as Client
+participant "Backend (Node.js)" as BE
+database "Database\n(MongoDB/Redis)" as DB
+participant "Cổng thanh toán\n(Stripe/VNPay)" as PG
+participant "Reservation Sweeper" as Sweeper
+
+== Stripe ==
+Client -> BE: Yêu cầu thanh toán Stripe\ncho order đã tạo
+BE -> PG: Create Checkout Session
+PG --> BE: sessionUrl
+BE -> DB: Lưu stripeSessionId,\nstripeSessionUrl
+BE --> Client: orderId, sessionUrl
+Client -> PG: Redirect sang Stripe
+Buyer -> PG: Xác nhận thanh toán
+PG --> BE: Stripe webhook\ncheckout.session.completed
+BE -> DB: Mark payment = true
+BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+BE --> PG: HTTP 200
+PG --> Client: Redirect /verify?success=true&orderId=...
+Client --> Buyer: Hiển thị thanh toán thành công
+
+== VNPay ==
+Client -> BE: Yêu cầu thanh toán VNPay\ncho order đã tạo
+BE -> PG: Tạo VNPay URL
+PG --> BE: paymentUrl
+BE -> DB: Lưu vnpPaymentUrl
+BE --> Client: orderId, paymentUrl
+Client -> PG: Redirect sang VNPay
+Buyer -> PG: Xác nhận thanh toán
+PG --> BE: GET /api/order/vnpay-return?... (signed)
+BE -> DB: Xác minh chữ ký,\nmark payment = true
+BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+BE --> PG: Redirect /verify?vnpay=1&success=true&orderId=...
+PG --> Client: Trả kết quả về frontend
+Client --> Buyer: Hiển thị kết quả thanh toán
+
+== Quá hạn thanh toán ==
+loop Định kỳ
+  Sweeper -> DB: Tìm đơn chưa thanh toán\nquá reservationExpiresAt
+  DB --> Sweeper: Danh sách đơn quá hạn
+  Sweeper -> DB: Chuyển status = "Cancelled"
+  Sweeper -> DB: releaseStockByUnits()
+  Sweeper -> DB: releaseVoucherUsage()
+end
+
+@enduml

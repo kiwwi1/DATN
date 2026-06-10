@@ -1,14 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 
-const RECOMMENDATION_LIMIT = 40;
 const DEBOUNCED_REFRESH_INTERACTIONS = new Set(["viewed", "clicked", "timeSpent"]);
 const IMMEDIATE_REFRESH_INTERACTIONS = new Set(["purchased", "addedToCart", "wishlisted", "rated", "reviewed"]);
 const REFRESH_DEBOUNCE_MS = 800;
+const MIN_RECOMMENDATION_LIMIT = 20;
+const MAX_RECOMMENDATION_LIMIT = 100;
+const RECOMMENDATION_CATALOG_RATIO = 0.15;
 
-export const useRecommendations = ({ backendUrl, token }) => {
+const getRecommendationLimit = (productCount) => {
+  if (!Number.isFinite(productCount) || productCount <= 0) {
+    return MIN_RECOMMENDATION_LIMIT;
+  }
+
+  const scaledLimit = Math.ceil(productCount * RECOMMENDATION_CATALOG_RATIO);
+  return Math.min(MAX_RECOMMENDATION_LIMIT, Math.max(MIN_RECOMMENDATION_LIMIT, scaledLimit));
+};
+
+export const useRecommendations = ({ backendUrl, productCount, token }) => {
   const [recommendations, setRecommendations] = useState([]);
   const refreshTimerRef = useRef(null);
+  const recommendationLimit = getRecommendationLimit(productCount);
 
   const clearRefreshTimer = useCallback(() => {
     if (!refreshTimerRef.current) return;
@@ -20,7 +32,7 @@ export const useRecommendations = ({ backendUrl, token }) => {
     if (!token) return;
     try {
       const response = await axios.post(
-        `${backendUrl}/api/interaction/recommendations?limit=${RECOMMENDATION_LIMIT}`,
+        `${backendUrl}/api/interaction/recommendations?limit=${recommendationLimit}`,
         {},
         { headers: { token } }
       );
@@ -30,7 +42,7 @@ export const useRecommendations = ({ backendUrl, token }) => {
     } catch {
       // non-critical
     }
-  }, [token, backendUrl]);
+  }, [token, backendUrl, recommendationLimit]);
 
   const scheduleRecommendationsRefresh = useCallback(
     (delayMs = REFRESH_DEBOUNCE_MS) => {

@@ -1,0 +1,54 @@
+@startuml
+top to bottom direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title Bieu do goi chinh cua he thong
+
+package "frontend" {
+  [pages]
+  [components]
+  [context]
+  [services/api]
+}
+
+package "admin" {
+  [pages]
+  [components]
+  [services/api]
+}
+
+package "backend" {
+  package "routes" as routes
+  package "middleware" as middleware
+  package "controllers" as controllers
+  package "services" as services
+  package "models" as models
+  package "config" as config
+  package "utils" as utils
+}
+
+database "MongoDB" as mongo
+rectangle "Redis" as redis
+cloud "Stripe / VNPay / R2" as external
+
+[pages] --> [components]
+[pages] --> [context]
+[pages] --> [services/api]
+
+[services/api] --> routes
+routes --> middleware
+routes --> controllers
+controllers --> services
+controllers --> utils
+services --> models
+services --> config
+middleware --> config
+models --> mongo
+config --> redis
+services --> external
+
+[services/api] ..> middleware : JWT / cookie
+
+@enduml

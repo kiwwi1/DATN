@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -164,8 +164,14 @@ const ShopContextProvider = (props) => {
     markAllNotificationsRead,
   } = useNotifications({ backendUrl, token });
 
+  const activeProductCount = useMemo(
+    () => products.filter((item) => item?.isActive !== false).length,
+    [products]
+  );
+
   const { recommendations, getRecommendations, trackInteraction } = useRecommendations({
     backendUrl,
+    productCount: activeProductCount,
     token,
   });
 

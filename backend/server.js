@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import 'dotenv/config';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import connectDB from './config/mongodb.js';
 import { initRedis } from './config/redis.js';
 import userRouter from './routes/userRoute.js';
@@ -27,6 +26,7 @@ import { getImageProxy } from './controllers/imageProxyController.js';
 import { expirePendingReservationsService } from './services/orderService.js';
 import { stripeWebhook } from './controllers/orderController.js';
 import { conversationModel } from './models/chatModel.js';
+import { verifyAccessToken } from './services/authSessionService.js';
 
 
 const parseAllowedOrigins = () => {
@@ -125,17 +125,14 @@ app.use('/api/voucher', voucherRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/return', returnRouter);
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
     try {
         const authToken = socket.handshake.auth?.token;
         const token = authToken || '';
         if (!token) {
             return next(new Error('Unauthorized'));
         }
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.id || (decoded?.type && decoded.type !== 'access')) {
-            return next(new Error('Unauthorized'));
-        }
+        const decoded = await verifyAccessToken(token);
         socket.data.userId = String(decoded.id);
         return next();
     } catch {

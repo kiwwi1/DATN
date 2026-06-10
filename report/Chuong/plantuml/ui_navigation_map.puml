@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+title So do dieu huong giao dien chinh
+
+package "Shop UI" {
+  rectangle "Home /\nCollection" as Home
+  rectangle "Product Detail" as Product
+  rectangle "Cart" as Cart
+  rectangle "Place Order" as Checkout
+  rectangle "Verify Payment" as Verify
+  rectangle "Orders" as Orders
+  rectangle "Profile /\nAddress /\nVouchers" as Profile
+  rectangle "Chat /\nNotifications" as UserComm
+
+  Home --> Product
+  Product --> Cart
+  Cart --> Checkout
+  Checkout --> Verify : Stripe / VNPay
+  Checkout --> Orders : COD
+  Verify --> Orders
+  Orders --> Profile
+  Orders --> UserComm
+}
+
+package "Vendor Dashboard UI" {
+  rectangle "Product List" as VList
+  rectangle "Add / Edit Product" as VAdd
+  rectangle "Orders" as VOrders
+  rectangle "Vouchers" as VVouchers
+  rectangle "Stats" as VStats
+  rectangle "Chat" as VChat
+
+  VList --> VAdd
+  VList --> VOrders
+  VOrders --> VStats
+  VOrders --> VChat
+  VList --> VVouchers
+}
+
+@enduml

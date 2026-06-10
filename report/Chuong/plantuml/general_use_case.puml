@@ -1,0 +1,53 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #3A78C2
+}
+
+actor "Khách hàng\n(Buyer)" as Buyer
+actor "Đối tác bán hàng\n(Vendor)" as Vendor
+actor "Vận hành hệ thống" as Ops
+
+rectangle "Sàn thương mại điện tử đa nhà bán hàng" {
+  package "Quản lý tài khoản\nvà bảo mật" {
+    usecase "Quản lý tài khoản,\nđăng nhập và xác thực" as UC_Auth
+  }
+
+  package "Mua hàng và thanh toán" {
+    usecase "Xem gợi ý\ncá nhân hóa" as UC_Rec
+    usecase "Mua sắm, đặt hàng\nvà thanh toán" as UC_Shopping
+  }
+
+  package "Quản lý gian hàng" {
+    usecase "Quản lý sản phẩm,\nshop voucher và đơn hàng" as UC_Merchant
+    usecase "Xem thống kê\ndoanh thu" as UC_Stats
+  }
+
+  package "Vận hành dữ liệu\nvà cấu hình nền tảng" {
+    usecase "Quản lý danh mục,\nvoucher nền tảng" as UC_OpsData
+    usecase "Theo dõi hoạt động\nchung" as UC_Monitor
+  }
+}
+
+UC_Auth -[hidden]right-> UC_Rec
+UC_Rec -[hidden]right-> UC_Merchant
+UC_Merchant -[hidden]right-> UC_OpsData
+UC_Shopping -[hidden]right-> UC_Stats
+UC_Stats -[hidden]right-> UC_Monitor
+
+Buyer --> UC_Auth
+Buyer --> UC_Rec
+Buyer --> UC_Shopping
+
+Vendor --> UC_Auth
+Vendor --> UC_Merchant
+Vendor --> UC_Stats
+
+Ops --> UC_OpsData
+Ops --> UC_Monitor
+
+@enduml

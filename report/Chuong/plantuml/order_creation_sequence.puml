@@ -1,0 +1,81 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam ParticipantPadding 12
+skinparam BoxPadding 8
+skinparam maxMessageSize 42
+skinparam sequence {
+  ArrowColor #3A78C2
+  LifeLineBorderColor #7AA7E0
+  LifeLineBackgroundColor #F8FBFF
+  ParticipantBorderColor #3A78C2
+  ParticipantBackgroundColor white
+}
+
+title Biểu đồ tuần tự tạo đơn hàng và giữ kho nguyên tử
+
+actor "Khách hàng" as Buyer
+participant "Client (React)" as Client
+participant "Backend (Node.js)" as BE
+database "Database\n(MongoDB/Redis)" as DB
+
+== Preview hóa đơn ==
+Buyer -> Client: Chọn sản phẩm, voucher\nvà bấm Checkout
+Client -> BE: POST /api/order/preview
+BE -> DB: Tải sản phẩm,\nbiến thể, voucher
+DB --> BE: Dữ liệu định giá
+BE -> BE: computeOrderPricing()
+BE --> Client: Bảng kê giá,\nvoucher hợp lệ / bị từ chối
+
+== Tạo đơn và giữ kho ==
+Buyer -> Client: Chọn phương thức thanh toán\nvà xác nhận đặt hàng
+
+alt COD
+  Client -> BE: POST /api/order/place-order
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed"
+    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
+    BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+    BE --> Client: orderId, success
+    Client --> Buyer: Hiển thị đơn đã tạo
+  end
+
+else Stripe
+  Client -> BE: POST /api/order/place-order-stripe
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed",\npayment = false
+    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
+    BE --> Client: orderId,\nchuẩn bị tạo Stripe Session
+  end
+
+else VNPay
+  Client -> BE: POST /api/order/place-order-vnpay
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed",\npayment = false
+    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
+    BE --> Client: orderId,\nchuẩn bị tạo VNPay URL
+  end
+end
+
+@enduml

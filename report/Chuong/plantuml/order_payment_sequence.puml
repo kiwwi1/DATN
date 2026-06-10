@@ -1,0 +1,110 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam ParticipantPadding 12
+skinparam BoxPadding 8
+skinparam maxMessageSize 45
+skinparam sequence {
+  ArrowColor #3A78C2
+  LifeLineBorderColor #7AA7E0
+  LifeLineBackgroundColor #F8FBFF
+  ParticipantBorderColor #3A78C2
+  ParticipantBackgroundColor white
+}
+
+title Biểu đồ tuần tự quy trình Đặt hàng, Giữ kho nguyên tử và Thanh toán
+
+actor "Khách hàng" as Buyer
+participant "Client (React)" as Client
+participant "Backend (Node.js)" as BE
+database "Database\n(MongoDB/Redis)" as DB
+participant "Cổng thanh toán\n(Stripe/VNPay)" as PG
+participant "Reservation Sweeper" as Sweeper
+
+== Preview hóa đơn ==
+Buyer -> Client: Chọn sản phẩm, voucher\nvà bấm Checkout
+Client -> BE: POST /api/order/preview
+BE -> DB: Tải sản phẩm,\nbiến thể, voucher
+DB --> BE: Dữ liệu định giá
+BE -> BE: computeOrderPricing()
+BE --> Client: Bảng kê giá,\nvoucher hợp lệ / bị từ chối
+
+== Tạo đơn và giữ kho ==
+Buyer -> Client: Chọn phương thức thanh toán\nvà xác nhận đặt hàng
+
+alt COD
+  Client -> BE: POST /api/order/place-order
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed"
+    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
+    BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+    BE --> Client: orderId, success
+    Client --> Buyer: Hiển thị đơn đã tạo
+  end
+
+else Stripe
+  Client -> BE: POST /api/order/place-order-stripe
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed", payment = false
+    BE -> PG: Create Checkout Session
+    PG --> BE: sessionUrl
+    BE -> DB: Lưu stripeSessionId,\nstripeSessionUrl
+    BE --> Client: orderId, sessionUrl
+    Client -> PG: Redirect sang trang thanh toán
+    PG --> BE: Stripe webhook\ncheckout.session.completed
+    BE -> DB: Mark payment = true
+    BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+    BE --> PG: HTTP 200
+    PG --> Client: Redirect /verify?success=true&orderId=...
+    Client --> Buyer: Hiển thị thanh toán thành công
+  end
+
+else VNPay
+  Client -> BE: POST /api/order/place-order-vnpay
+  BE -> DB: Kiểm tra idempotencyKey
+  BE -> DB: reserveStockByUnits()
+  alt Hết hàng
+    DB --> BE: Không đủ tồn kho
+    BE --> Client: OUT_OF_STOCK
+    Client --> Buyer: Thông báo hết hàng
+  else Giữ kho thành công
+    DB --> BE: Giữ kho thành công
+    BE -> DB: Tạo order\nstatus = "Order Placed", payment = false
+    BE -> PG: Tạo VNPay URL
+    PG --> BE: paymentUrl
+    BE -> DB: Lưu vnpPaymentUrl
+    BE --> Client: orderId, paymentUrl
+    Client -> PG: Redirect sang VNPay
+    PG --> BE: GET /api/order/vnpay-return?... (signed)
+    BE -> DB: Xác minh chữ ký\nmark payment = true
+    BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+    BE --> PG: Redirect /verify?vnpay=1&success=true&orderId=...
+    PG --> Client: Trả kết quả về frontend
+    Client --> Buyer: Hiển thị kết quả thanh toán
+  end
+end
+
+== Đơn online quá hạn ==
+loop Định kỳ
+  Sweeper -> DB: Tìm đơn chưa thanh toán\nquá reservationExpiresAt
+  DB --> Sweeper: Danh sách đơn quá hạn
+  Sweeper -> DB: Chuyển status = "Cancelled"
+  Sweeper -> DB: releaseStockByUnits()
+  Sweeper -> DB: releaseVoucherUsage()
+end
+
+@enduml

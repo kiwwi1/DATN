@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #E67E22
+}
+
+title Biểu đồ ca sử dụng phân hệ Mua hàng và Thanh toán
+
+actor "Khách hàng\n(Buyer)" as Buyer
+actor "Cổng thanh toán\n(Stripe/VNPay)" as Gateway
+
+rectangle "Phân hệ Mua hàng và Thanh toán" {
+  usecase "Xem sản phẩm\ncá nhân hóa" as UC_Rec
+  usecase "Tính điểm\nInteraction Score" as UC_Score
+  usecase "Đặt hàng" as UC_Order
+  usecase "Tính giá và áp dụng\nvoucher nhiều lớp" as UC_Pricing
+  usecase "Giữ kho nguyên tử" as UC_Reserve
+  usecase "Thanh toán\ntrực tuyến" as UC_Pay
+  usecase "Khởi tạo Stripe Session\nhoặc VNPay URL" as UC_PayInit
+  usecase "Xác nhận kết quả thanh toán\n(Stripe webhook / VNPay callback)" as UC_PayConfirm
+}
+
+Buyer --> UC_Rec
+Buyer --> UC_Order
+Buyer --> UC_Pay
+Gateway --> UC_PayConfirm
+
+UC_Rec .> UC_Score : <<include>>
+UC_Order .> UC_Pricing : <<include>>
+UC_Order .> UC_Reserve : <<include>>
+UC_Pay .> UC_PayInit : <<include>>
+UC_Pay .> UC_PayConfirm : <<include>>
+
+@enduml

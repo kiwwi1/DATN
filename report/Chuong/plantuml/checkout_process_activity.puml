@@ -1,0 +1,50 @@
+@startuml
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor white
+  BorderColor #4A90E2
+  DiamondBackgroundColor white
+}
+
+title Biểu đồ hoạt động quy trình Đặt hàng - Giữ kho - Thanh toán
+
+start
+
+:Khách hàng bắt đầu checkout;
+:Gọi API preview hóa đơn;
+:Backend tải sản phẩm, voucher\nvà tính bảng giá nhiều lớp;
+:Hiển thị kết quả preview cho người dùng;
+:Khách hàng chọn phương thức thanh toán\nvà xác nhận đặt hàng;
+:Kiểm tra idempotencyKey;
+:Giữ kho nguyên tử\n(reserveStockByUnits);
+
+if (Đủ hàng trong kho?) then (Có)
+  :Tạo đơn với thông tin giữ kho\nstockReservedAt, reservationExpiresAt;
+
+  if (Phương thức thanh toán?) then (COD)
+    :Đặt trạng thái đơn = "Order Placed";
+    :Cập nhật sold,\nxóa giỏ hàng,\ngửi thông báo vendor;
+    stop
+  else (Stripe/VNPay)
+    :Giữ payment = false;
+    :Tạo Stripe Session hoặc VNPay URL;
+    :Điều hướng khách hàng đến\ncổng thanh toán;
+
+    if (Thanh toán thành công?) then (Có)
+      :Nhận Stripe webhook hoặc\nVNPay callback hợp lệ;
+      :Cập nhật payment = true;
+      :Cập nhật sold,\nxóa giỏ hàng,\ngửi thông báo vendor;
+      stop
+    else (Không / quá hạn)
+      :Tác vụ nền phát hiện đơn quá hạn;
+      :Chuyển trạng thái đơn = "Cancelled";
+      :Hoàn kho và hoàn lượt voucher;
+      stop
+    endif
+  endif
+else (Không)
+  :Trả lỗi OUT_OF_STOCK;
+  stop
+endif
+
+@enduml

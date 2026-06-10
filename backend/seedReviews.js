@@ -1,200 +1,391 @@
-import mongoose from 'mongoose';
-import 'dotenv/config';
-import bcrypt from 'bcrypt';
-import connectDB from './config/mongodb.js';
-import reviewModel from './models/reviewModel.js';
-import productModel from './models/productModel.js';
-import userModel from './models/userModel.js';
+import mongoose from "mongoose";
+import "dotenv/config";
+import bcrypt from "bcrypt";
+import connectDB from "./config/mongodb.js";
+import reviewModel from "./models/reviewModel.js";
+import productModel from "./models/productModel.js";
+import userModel from "./models/userModel.js";
 
-// ── Fake reviewers ─────────────────────────────────────────────────────────────
-const FAKE_USERS = [
-    { name: 'Nguyễn Thị Lan',     email: 'reviewer.lan@fake.com'     },
-    { name: 'Trần Văn Minh',      email: 'reviewer.minh@fake.com'    },
-    { name: 'Lê Thị Hương',       email: 'reviewer.huong@fake.com'   },
-    { name: 'Phạm Đức Anh',       email: 'reviewer.anh@fake.com'     },
-    { name: 'Hoàng Thị Mai',      email: 'reviewer.mai@fake.com'     },
-    { name: 'Vũ Quốc Huy',        email: 'reviewer.huy@fake.com'     },
-    { name: 'Đặng Thị Thu',       email: 'reviewer.thu@fake.com'     },
-    { name: 'Bùi Văn Nam',        email: 'reviewer.nam@fake.com'     },
-    { name: 'Ngô Thị Linh',       email: 'reviewer.linh@fake.com'    },
-    { name: 'Đinh Quang Khải',    email: 'reviewer.khai@fake.com'    },
-    { name: 'Trịnh Thị Ngọc',    email: 'reviewer.ngoc@fake.com'    },
-    { name: 'Lý Văn Tùng',        email: 'reviewer.tung@fake.com'    },
-    { name: 'Phan Thị Bích',      email: 'reviewer.bich@fake.com'    },
-    { name: 'Cao Minh Đức',       email: 'reviewer.duc@fake.com'     },
-    { name: 'Dương Thị Hoa',      email: 'reviewer.hoa@fake.com'     },
-    { name: 'Lưu Văn Thắng',      email: 'reviewer.thang@fake.com'   },
-    { name: 'Tống Thị Thanh',     email: 'reviewer.thanh@fake.com'   },
-    { name: 'Hà Đình Phúc',       email: 'reviewer.phuc@fake.com'    },
-    { name: 'Mai Thị Yến',        email: 'reviewer.yen@fake.com'     },
-    { name: 'Nguyễn Văn Tuấn',   email: 'reviewer.tuan@fake.com'    },
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FAKE_USER_COUNT = Number(process.env.SEED_REVIEW_USER_COUNT || 480);
+const MIN_REVIEWS_PER_PRODUCT = Number(process.env.SEED_REVIEW_MIN_PER_PRODUCT || 4);
+const MAX_REVIEWS_PER_PRODUCT = Number(process.env.SEED_REVIEW_MAX_PER_PRODUCT || 60);
+const COMMENTLESS_REVIEW_RATE = Number(process.env.SEED_REVIEW_EMPTY_RATIO || 0.12);
+const REPLACE_OLD_FAKE_REVIEWS = String(process.env.SEED_REVIEW_REPLACE_OLD ?? "true").toLowerCase() !== "false";
+const FAKE_USER_EMAIL_DOMAIN = "seed.review.local";
+const FAKE_USER_EMAIL_PREFIX = "seed.reviewer";
+
+const LAST_NAMES = [
+    "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ",
+    "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý",
 ];
 
-// ── Review comment pools by star rating ───────────────────────────────────────
-const COMMENTS = {
+const MIDDLE_NAMES = [
+    "Thị", "Văn", "Gia", "Minh", "Khánh", "Quốc", "Thanh", "Bảo",
+    "Đức", "Ngọc", "Hải", "Thu", "Anh", "Phương", "Tường", "Mai",
+];
+
+const FIRST_NAMES = [
+    "An", "Anh", "Bình", "Châu", "Duy", "Giang", "Hà", "Hân",
+    "Hiếu", "Hùng", "Khải", "Lan", "Linh", "Long", "Mai", "Minh",
+    "My", "Nam", "Ngân", "Ngọc", "Nhung", "Phúc", "Quân", "Quỳnh",
+    "Sơn", "Thảo", "Trang", "Trinh", "Tuấn", "Uyên", "Vy", "Yến",
+];
+
+const COMMENT_OPENERS = {
     5: [
-        'Sản phẩm quá tuyệt vời! Chất lượng vượt kỳ vọng, đóng gói cẩn thận, giao hàng nhanh. Sẽ quay lại mua thêm.',
-        'Mình đã dùng nhiều thương hiệu khác nhau nhưng cái này thật sự tốt nhất. Đáng tiền lắm, rất hài lòng!',
-        'Chất lượng y như mô tả, màu sắc đẹp, không bị phai sau khi giặt. Shop tư vấn nhiệt tình, đóng gói chắc chắn.',
-        'Mua lần đầu nhưng ưng lắm. Sản phẩm đẹp hơn ảnh, dùng thấy ngay sự khác biệt so với hàng rẻ tiền.',
-        'Tuyệt vời! Mình đặt hôm qua hôm nay đã nhận được. Sản phẩm đúng như mô tả, chất lượng rất ổn.',
-        'Đây là lần thứ 3 mình mua item này. Luôn giữ chất lượng ổn định, không lo hàng kém. Five stars!',
-        'Giao hàng siêu tốc, chỉ 1 ngày đã nhận được. Sản phẩm đóng gói kỹ lưỡng, không trầy xước gì cả.',
-        'Rất hài lòng với chất lượng. Đúng size, màu đẹp y ảnh, dùng thoải mái. Recommend cho mọi người.',
-        'Shop phản hồi nhanh, giải đáp thắc mắc nhiệt tình. Sản phẩm đúng chuẩn chính hãng. Cảm ơn shop!',
-        'Mình mua làm quà tặng, người nhận thích lắm. Bao bì sang trọng, quà cáp đẹp. Rất đáng tiền.',
-        'Sản phẩm vượt xa kỳ vọng. Dùng thử thấy ngay chất lượng hơn hẳn hàng tầm giá này. Cực kỳ hài lòng!',
-        'Đặt lúc 8 giờ tối, sáng hôm sau đã nhận. Logistic nhanh, sản phẩm không bị móp méo gì. Hài lòng 100%.',
-        'Chất liệu rất tốt, nhìn là biết hàng xịn. Dùng đã 2 tuần vẫn như mới, không bị xuống cấp hay bạc màu.',
-        'Shop uy tín, giao đúng sản phẩm như mô tả. Mình đã giới thiệu cho cả gia đình cùng mua.',
-        'Sản phẩm hoàn hảo, không có điểm nào để chê. Đây chắc chắn là shop mình sẽ quay lại.',
+        "{product} đúng như mong đợi.",
+        "Nhận hàng xong dùng thử thấy rất ưng.",
+        "Mua lần đầu nhưng trải nghiệm rất tốt.",
+        "Sản phẩm này làm mình khá bất ngờ theo hướng tích cực.",
     ],
     4: [
-        'Sản phẩm tốt, chất lượng ổn. Chỉ trừ 1 sao vì giao hàng hơi chậm, mất 3 ngày mới nhận được.',
-        'Nhìn chung khá ưng. Sản phẩm đúng như mô tả, dùng tốt. Nhưng đóng gói bên ngoài hơi đơn giản.',
-        'Chất lượng ok, giá tốt trong phân khúc này. Sẽ cân nhắc mua thêm nếu có deal tốt hơn.',
-        'Mua về dùng thấy ổn. Chỉ có điều màu thực tế hơi khác với ảnh một chút nhưng vẫn đẹp.',
-        'Sản phẩm dùng được, đúng công năng. Chất liệu ổn, không quá xuất sắc nhưng xứng đáng với giá tiền.',
-        'Mình thấy tốt, phù hợp nhu cầu. Giao hàng nhanh. Trừ 1 sao vì hướng dẫn sử dụng không rõ ràng.',
-        'Hàng ổn, dùng được ngay. Thiết kế đẹp, nhưng chất liệu có thể cải thiện hơn ở mức giá này.',
-        'Nhìn chung hài lòng. Sản phẩm chắc chắn, dùng thuận tiện. Hộp đựng sạch sẽ, giao hàng đúng hẹn.',
-        'Tốt so với giá tiền. Đã dùng được 1 tháng, chưa thấy vấn đề gì. Recommend cho ai cần.',
-        'Sản phẩm đúng như quảng cáo. Trừ 1 sao vì khâu xử lý đơn hàng hơi lâu, phải chờ 1 ngày.',
+        "{product} nhìn chung khá ổn.",
+        "Dùng thực tế thấy đáp ứng tốt nhu cầu.",
+        "Chất lượng ổn trong tầm giá.",
+        "Mình khá hài lòng sau vài ngày sử dụng.",
     ],
     3: [
-        'Sản phẩm tạm ổn, dùng được nhưng không ấn tượng. Chất lượng trung bình, xứng đáng với mức giá.',
-        'Giao hàng chậm, mất gần 1 tuần mới nhận. Sản phẩm ổn nhưng trải nghiệm mua hàng không tốt.',
-        'Chất lượng tầm trung, không tệ nhưng cũng không xuất sắc. Mua về dùng được, không hối hận.',
-        'Màu thực tế khác với ảnh khá nhiều. Sản phẩm không xấu nhưng không đúng kỳ vọng ban đầu.',
-        'Mua về cũng được nhưng thấy không bằng sản phẩm cùng giá của hãng khác đã dùng trước.',
-        'Bình thường, không có gì đặc biệt. Dùng được, không tệ. Sẽ không mua lại vì có lựa chọn tốt hơn.',
+        "Sản phẩm ở mức tạm ổn.",
+        "Dùng được nhưng chưa thật sự nổi bật.",
+        "{product} không tệ nhưng cũng chưa xuất sắc.",
+        "Trải nghiệm tổng thể ở mức trung bình khá.",
     ],
     2: [
-        'Không hài lòng. Sản phẩm không như mô tả, chất lượng kém hơn nhiều so với ảnh quảng cáo.',
-        'Hàng bị lỗi nhỏ, có vài chỗ không như ý. Shop đã xử lý nhưng trải nghiệm không tốt lắm.',
-        'Chất liệu kém hơn kỳ vọng. Nhìn ảnh đẹp nhưng cầm tay thấy ngay chất lượng không ổn.',
+        "Trải nghiệm của mình chưa tốt lắm.",
+        "{product} có vài điểm chưa như kỳ vọng.",
+        "Nhận hàng xong thấy chất lượng chưa ổn.",
+        "Mình hơi thất vọng khi dùng thực tế.",
     ],
     1: [
-        'Sản phẩm không đúng như mô tả. Rất thất vọng, sẽ không mua lại.',
-        'Hàng kém chất lượng. Đã liên hệ shop nhưng không được hỗ trợ đầy đủ.',
+        "Sản phẩm không giống kỳ vọng ban đầu.",
+        "Trải nghiệm khá tệ so với mô tả.",
+        "{product} làm mình thất vọng.",
+        "Mình không hài lòng với lần mua này.",
     ],
 };
 
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const POSITIVE_DETAILS = [
+    "Đóng gói cẩn thận, nhận hàng nguyên vẹn.",
+    "Hoàn thiện ổn, cầm trên tay chắc chắn.",
+    "Màu sắc và hình thức khá sát ảnh.",
+    "Dùng hàng ngày thấy ổn định và tiện.",
+    "Shop xử lý đơn nhanh, giao đúng mẫu đã đặt.",
+    "Tổng thể rất đáng tiền trong phân khúc.",
+];
 
-// Sinh rating có xác suất cao về 4-5 sao (giống thực tế)
-const generateRating = (productRating) => {
-    const base = Math.round(productRating || 4.5);
-    const rand = Math.random();
-    // 60% đúng base, 25% base-1, 10% base+1 (nếu <5), 5% thấp hơn
-    if (rand < 0.60) return Math.min(5, Math.max(1, base));
-    if (rand < 0.85) return Math.min(5, Math.max(1, base - 1));
-    if (rand < 0.95) return Math.min(5, Math.max(1, base + 1));
-    return Math.floor(Math.random() * 3) + 1;
+const NEUTRAL_DETAILS = [
+    "Dùng đúng công năng nhưng chưa tạo khác biệt lớn.",
+    "Hoàn thiện ở mức chấp nhận được.",
+    "Phù hợp nếu cần một lựa chọn cơ bản.",
+    "Chất lượng tương xứng với mức giá hiện tại.",
+];
+
+const NEGATIVE_DETAILS = [
+    "Hoàn thiện chưa thật sự chắc chắn.",
+    "Thực tế có vài chi tiết chưa giống kỳ vọng.",
+    "Trải nghiệm sử dụng chưa mượt như mong muốn.",
+    "Cảm giác chất lượng chưa tương xứng giá tiền.",
+];
+
+const POSITIVE_CLOSERS = [
+    "Sẽ cân nhắc mua lại nếu cần.",
+    "Mình sẽ giới thiệu thêm cho bạn bè.",
+    "Nói chung khá hài lòng với lần mua này.",
+    "Nếu shop giữ chất lượng như vậy thì rất ổn.",
+];
+
+const MIXED_CLOSERS = [
+    "Nếu shop tối ưu thêm một chút thì sẽ tốt hơn.",
+    "Tạm thời mình vẫn dùng được.",
+    "Có thể mua nếu không quá khắt khe.",
+    "Mình mong đợi phiên bản sau chỉn chu hơn.",
+];
+
+const NEGATIVE_CLOSERS = [
+    "Hiện tại mình chưa muốn mua lại.",
+    "Hy vọng shop cải thiện chất lượng ở các lô sau.",
+    "Mình không đánh giá cao lần mua này.",
+    "Nếu được chọn lại thì mình sẽ cân nhắc sản phẩm khác.",
+];
+
+const PRODUCT_HINTS = [
+    { test: /(iphone|samsung|xiaomi|oppo|vivo|macbook|laptop|monitor|router|camera|tv|console|headphone|earbud|speaker)/i, details: [
+        "Hiệu năng và độ ổn định nhìn chung khá tốt.",
+        "Thiết bị hoạt động mượt, không gặp lỗi vặt.",
+        "Cảm giác sử dụng thực tế ổn hơn mình nghĩ.",
+    ] },
+    { test: /(powerbank|sạc|charger|usb|pd|magsafe|cable|pin dự phòng)/i, details: [
+        "Khả năng sạc và kết nối ổn định.",
+        "Công suất thực tế đủ dùng cho nhu cầu hàng ngày.",
+        "Dùng vài lần đầu thấy sạc khá đều và không nóng nhiều.",
+    ] },
+    { test: /(áo|quần|shirt|dress|hoodie|jacket|jeans|skirt|fashion|sneaker|sandal|giày|túi|handbag|backpack)/i, details: [
+        "Form và chất liệu ở ngoài khá ổn.",
+        "Mặc lên thấy thoải mái, không bị cứng.",
+        "Kiểu dáng dễ phối và lên form gọn.",
+    ] },
+    { test: /(serum|kem|skincare|makeup|lipstick|perfume|beauty|haircare)/i, details: [
+        "Kết cấu và cảm giác sử dụng khá dễ chịu.",
+        "Mùi và texture ở mức ổn, không bị gắt.",
+        "Dùng vài lần đầu thấy tương đối lành tính.",
+    ] },
+    { test: /(kitchen|bottle|lamp|bedding|decor|home|appliance|coffee|storage)/i, details: [
+        "Hoàn thiện gọn gàng, dùng đúng nhu cầu.",
+        "Lắp đặt và sử dụng khá đơn giản.",
+        "Kích thước và công năng đúng như mình cần.",
+    ] },
+];
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const pick = (items) => items[Math.floor(Math.random() * items.length)];
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const shuffle = (items) => {
+    const cloned = [...items];
+    for (let index = cloned.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [cloned[index], cloned[swapIndex]] = [cloned[swapIndex], cloned[index]];
+    }
+    return cloned;
 };
 
-// Số lượng review cho từng sản phẩm dựa trên sold
-const reviewCountFor = (sold) => {
-    if (sold > 10000) return Math.floor(Math.random() * 8) + 8;   // 8-15
-    if (sold > 3000)  return Math.floor(Math.random() * 6) + 5;   // 5-10
-    if (sold > 500)   return Math.floor(Math.random() * 5) + 3;   // 3-7
-    return Math.floor(Math.random() * 3) + 2;                      // 2-4
+const buildFakeUserProfiles = (count) => {
+    const profiles = [];
+    for (let index = 0; index < count; index += 1) {
+        const lastName = LAST_NAMES[index % LAST_NAMES.length];
+        const middleName = MIDDLE_NAMES[Math.floor(index / LAST_NAMES.length) % MIDDLE_NAMES.length];
+        const firstName =
+            FIRST_NAMES[
+                Math.floor(index / (LAST_NAMES.length * MIDDLE_NAMES.length)) % FIRST_NAMES.length
+            ];
+        profiles.push({
+            name: `${lastName} ${middleName} ${firstName}`,
+            email: `${FAKE_USER_EMAIL_PREFIX}.${String(index + 1).padStart(4, "0")}@${FAKE_USER_EMAIL_DOMAIN}`,
+        });
+    }
+    return profiles;
 };
 
-const updateProductRating = async (productId) => {
-    const objectId = new mongoose.Types.ObjectId(productId);
+const deriveTargetReviewCount = (product) => {
+    const reviewCount = Math.max(0, Number(product.reviewCount || 0));
+    const sold = Math.max(0, Number(product.sold || 0));
+    if (reviewCount <= 0 && sold <= 0) return 0;
+
+    const fromExistingCount = reviewCount > 0 ? Math.round(Math.sqrt(reviewCount) * 2.4) : 0;
+    const fromSold = sold > 0 ? Math.round(Math.log10(sold + 10) * 8) : 0;
+    const target = Math.max(fromExistingCount, fromSold, sold > 0 ? MIN_REVIEWS_PER_PRODUCT : 0);
+    return clamp(target, MIN_REVIEWS_PER_PRODUCT, MAX_REVIEWS_PER_PRODUCT);
+};
+
+const generateRating = (targetRating) => {
+    const target = clamp(Number(targetRating || 4.5), 1, 5);
+    const weights = [1, 2, 3, 4, 5].map((star) => {
+        const distance = Math.abs(star - target);
+        const baseWeight = 1 / (1 + distance * 1.25);
+        const favorPositive = target >= 4.5 && star >= 4 ? 0.25 : 0;
+        return baseWeight + favorPositive;
+    });
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    let cursor = Math.random() * totalWeight;
+    for (let index = 0; index < weights.length; index += 1) {
+        cursor -= weights[index];
+        if (cursor <= 0) return index + 1;
+    }
+    return Math.round(target);
+};
+
+const buildProductDetail = (product, rating) => {
+    const haystack = `${product.name || ""} ${product.brand || ""} ${(product.tags || []).join(" ")}`;
+    const hints = PRODUCT_HINTS.flatMap((entry) => (entry.test.test(haystack) ? entry.details : []));
+
+    if (product.attributes?.length) {
+        const attribute = pick(product.attributes);
+        const value = attribute?.values?.length ? pick(attribute.values) : "";
+        if (attribute?.name && value) {
+            hints.push(`${attribute.name} ${value} đúng như mô tả.`);
+        }
+    }
+
+    if (rating >= 4) {
+        hints.push(...POSITIVE_DETAILS);
+    } else if (rating === 3) {
+        hints.push(...NEUTRAL_DETAILS);
+    } else {
+        hints.push(...NEGATIVE_DETAILS);
+    }
+
+    return pick(hints);
+};
+
+const buildComment = (product, rating) => {
+    if (Math.random() < COMMENTLESS_REVIEW_RATE) return "";
+
+    const productLabel = Math.random() < 0.45
+        ? `${product.brand ? `${product.brand} ` : ""}${product.name}`.trim()
+        : "Sản phẩm";
+
+    const opener = pick(COMMENT_OPENERS[rating]).replace("{product}", productLabel);
+    const detail = buildProductDetail(product, rating);
+    const closer =
+        rating >= 4
+            ? pick(POSITIVE_CLOSERS)
+            : rating === 3
+                ? pick(MIXED_CLOSERS)
+                : pick(NEGATIVE_CLOSERS);
+
+    return [opener, detail, closer].join(" ").trim();
+};
+
+const buildCreatedAt = () => {
+    const daysAgo = randomInt(2, 240);
+    const hourOffset = randomInt(0, 23);
+    const minuteOffset = randomInt(0, 59);
+    return new Date(Date.now() - daysAgo * DAY_MS - hourOffset * 60 * 60 * 1000 - minuteOffset * 60 * 1000);
+};
+
+const ensureFakeUsers = async () => {
+    const profiles = buildFakeUserProfiles(FAKE_USER_COUNT);
+    const hashedPassword = await bcrypt.hash("Reviewer@123", 10);
+
+    await userModel.bulkWrite(
+        profiles.map((profile) => ({
+            updateOne: {
+                filter: { email: profile.email },
+                update: {
+                    $set: {
+                        name: profile.name,
+                        emailVerified: true,
+                        role: "user",
+                    },
+                    $setOnInsert: {
+                        email: profile.email,
+                        password: hashedPassword,
+                    },
+                    $unset: {
+                        emailVerificationToken: "",
+                        emailVerificationExpires: "",
+                    },
+                },
+                upsert: true,
+            },
+        })),
+        { ordered: false }
+    );
+
+    return userModel
+        .find({ email: { $in: profiles.map((profile) => profile.email) } })
+        .select("_id email")
+        .lean();
+};
+
+const loadReviewStats = async (productIds) => {
     const stats = await reviewModel.aggregate([
-        { $match: { product: objectId } },
-        { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+        { $match: { product: { $in: productIds } } },
+        { $group: { _id: "$product", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
     ]);
-    const rating = stats[0] ? Math.round(stats[0].avg * 10) / 10 : 0;
-    const reviewCount = stats[0] ? stats[0].count : 0;
-    await productModel.findByIdAndUpdate(productId, { rating, reviewCount });
+
+    return new Map(
+        stats.map((entry) => [
+            String(entry._id),
+            {
+                count: Number(entry.count || 0),
+                avg: Number(entry.avg || 0),
+            },
+        ])
+    );
+};
+
+const syncProductRatings = async (products) => {
+    const productIds = products.map((product) => product._id);
+    const statsMap = await loadReviewStats(productIds);
+
+    await productModel.bulkWrite(
+        products.map((product) => {
+            const stats = statsMap.get(String(product._id));
+            const rating = stats ? Math.round(stats.avg * 10) / 10 : 0;
+            const reviewCount = stats ? stats.count : 0;
+            return {
+                updateOne: {
+                    filter: { _id: product._id },
+                    update: { $set: { rating, reviewCount } },
+                },
+            };
+        }),
+        { ordered: false }
+    );
 };
 
 const seedReviews = async () => {
     try {
         await connectDB();
 
-        // 1. Tạo/lấy fake users
-        const hashed = await bcrypt.hash('Reviewer@123', 10);
-        const userIds = [];
-        for (const u of FAKE_USERS) {
-            let user = await userModel.findOne({ email: u.email });
-            if (!user) {
-                user = await userModel.create({ name: u.name, email: u.email, password: hashed, role: 'user' });
-            }
-            userIds.push(user._id);
-        }
-        console.log(`👥 ${userIds.length} fake reviewers ready`);
+        const fakeUsers = await ensureFakeUsers();
+        const fakeUserIds = fakeUsers.map((user) => user._id);
+        console.log(`👥 Reviewer pool ready: ${fakeUsers.length} users`);
 
-        // 2. Xoá review cũ của fake users
-        const removed = await reviewModel.deleteMany({ user: { $in: userIds } });
-        if (removed.deletedCount > 0) {
-            console.log(`🗑  Removed ${removed.deletedCount} old fake reviews`);
+        if (REPLACE_OLD_FAKE_REVIEWS) {
+            const removed = await reviewModel.deleteMany({ user: { $in: fakeUserIds } });
+            console.log(`🗑 Removed ${removed.deletedCount || 0} old seeded reviews`);
         }
 
-        // 3. Lấy tất cả sản phẩm
-        const products = await productModel.find({ isActive: true }).lean();
-        console.log(`📦 Seeding reviews for ${products.length} products...`);
+        const products = await productModel
+            .find({ isActive: true })
+            .select("_id name brand sold rating reviewCount tags attributes")
+            .lean();
 
-        let totalInserted = 0;
+        console.log(`📦 Backfilling reviews for ${products.length} active products...`);
+
+        const existingStats = await loadReviewStats(products.map((product) => product._id));
         const reviewDocs = [];
+        let productsUpdated = 0;
+        let preservedRealReviews = 0;
 
         for (const product of products) {
-            const count = reviewCountFor(product.sold || 0);
-            const usedUserIndices = new Set();
+            const currentStats = existingStats.get(String(product._id));
+            const existingCount = currentStats?.count || 0;
+            const targetCount = deriveTargetReviewCount(product);
+            preservedRealReviews += existingCount;
 
-            for (let i = 0; i < count; i++) {
-                // Chọn user không trùng cho cùng 1 sản phẩm
-                let userIndex;
-                let attempts = 0;
-                do {
-                    userIndex = Math.floor(Math.random() * userIds.length);
-                    attempts++;
-                } while (usedUserIndices.has(userIndex) && attempts < 50);
-                if (usedUserIndices.has(userIndex)) continue;
-                usedUserIndices.add(userIndex);
+            const needed = clamp(targetCount - existingCount, 0, fakeUserIds.length);
+            if (needed <= 0) continue;
 
-                const rating = generateRating(product.rating);
-                const comment = Math.random() > 0.15 ? pick(COMMENTS[rating] || COMMENTS[4]) : ''; // 15% không có comment
+            productsUpdated += 1;
+            const reviewers = shuffle(fakeUserIds).slice(0, needed);
 
-                // Ngày tạo ngẫu nhiên trong 6 tháng gần đây
-                const daysAgo = Math.floor(Math.random() * 180);
-                const createdAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-
+            for (const reviewerId of reviewers) {
+                const rating = generateRating(product.rating || 4.5);
+                const createdAt = buildCreatedAt();
                 reviewDocs.push({
-                    user: userIds[userIndex],
+                    user: reviewerId,
                     product: product._id,
-                    orderId: new mongoose.Types.ObjectId(), // fake orderId
+                    orderId: new mongoose.Types.ObjectId(),
                     rating,
-                    comment,
+                    comment: buildComment(product, rating),
                     images: [],
                     createdAt,
                     updatedAt: createdAt,
                 });
-                totalInserted++;
             }
         }
 
-        // 4. Insert tất cả reviews
-        await reviewModel.insertMany(reviewDocs, { ordered: false });
-        console.log(`✅ Inserted ${totalInserted} reviews`);
-
-        // 5. Cập nhật rating + reviewCount cho từng product
-        console.log('📊 Updating product ratings...');
-        for (const product of products) {
-            await updateProductRating(product._id.toString());
+        if (reviewDocs.length > 0) {
+            await reviewModel.insertMany(reviewDocs, { ordered: false });
         }
-        console.log('✅ Product ratings updated');
 
-        // 6. Thống kê
-        const avgReviews = (totalInserted / products.length).toFixed(1);
-        console.log(`\n🎉 Done! ${totalInserted} reviews across ${products.length} products (~${avgReviews}/product)`);
+        await syncProductRatings(products);
+
+        const finalStats = await loadReviewStats(products.map((product) => product._id));
+        const totalReviews = [...finalStats.values()].reduce((sum, stat) => sum + stat.count, 0);
+        const averagePerProduct = products.length > 0 ? (totalReviews / products.length).toFixed(1) : "0.0";
+
+        console.log(`✅ Seeded ${reviewDocs.length} new reviews`);
+        console.log(`🔒 Preserved ${preservedRealReviews} existing reviews already in DB`);
+        console.log(`🛍 Products updated: ${productsUpdated}/${products.length}`);
+        console.log(`📊 Final total reviews: ${totalReviews} (~${averagePerProduct}/product)`);
 
         process.exit(0);
-    } catch (err) {
-        console.error('❌ Error:', err);
+    } catch (error) {
+        console.error("❌ seedReviews failed:", error);
         process.exit(1);
     }
 };

@@ -3,20 +3,14 @@ import userModel from "../models/userModel.js";
 import { sanitizeCartData } from "./cartService.js";
 import validator from "validator";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/sendResetEmail.js";
 import { ensureUserDeletable } from "./deletionGuardService.js";
 import { uploadToR2 } from "../utils/r2Upload.js";
-
-const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "15m";
-const REFRESH_TOKEN_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
-
-const createAccessToken = (id) =>
-    jwt.sign({ id, type: "access" }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
-
-const createRefreshToken = (id) =>
-    jwt.sign({ id, type: "refresh" }, process.env.JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES });
+import {
+    issueAuthSessionTokens,
+    refreshAuthSessionTokens,
+} from "./authSessionService.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -32,10 +26,7 @@ export const loginUserService = async (email, password) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new Error("Invalid credentials");
     if (!user.emailVerified) throw new Error("Email chưa được xác minh. Vui lòng kiểm tra hộp thư và nhập mã OTP.");
-    return {
-        accessToken: createAccessToken(user._id),
-        refreshToken: createRefreshToken(user._id),
-    };
+    return issueAuthSessionTokens(user._id);
 };
 
 export const loginWithGoogleService = async (credential) => {
@@ -56,10 +47,7 @@ export const loginWithGoogleService = async (credential) => {
         user.googleId = googleId;
         await user.save();
     }
-    return {
-        accessToken: createAccessToken(user._id),
-        refreshToken: createRefreshToken(user._id),
-    };
+    return issueAuthSessionTokens(user._id);
 };
 
 const OTP_EXPIRE_MS = 15 * 60 * 1000; // 15 phút
@@ -136,10 +124,7 @@ export const verifyEmailService = async (email, otp) => {
         }
     );
 
-    return {
-        accessToken: createAccessToken(user._id),
-        refreshToken: createRefreshToken(user._id),
-    };
+    return issueAuthSessionTokens(user._id);
 };
 
 export const registerVendorService = async (userId, shopName, shopAddress, phone) => {
@@ -195,22 +180,10 @@ export const updateUserProfileService = async (userId, { name, email, phone }, a
 
 export const refreshAccessTokenService = async (refreshToken) => {
     if (!refreshToken) throw new Error("Unauthorized");
-
-    let decoded;
-    try {
-        decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-    } catch {
-        throw new Error("Invalid refresh token");
-    }
-
-    if (decoded?.type !== "refresh" || !decoded?.id) {
-        throw new Error("Invalid refresh token");
-    }
-
-    const user = await userModel.findById(decoded.id).select("_id");
+    const tokens = await refreshAuthSessionTokens(refreshToken);
+    const user = await userModel.findById(tokens.userId).select("_id");
     if (!user) throw new Error("User not found");
-
-    return createAccessToken(user._id);
+    return tokens;
 };
 
 const RESET_EXPIRE_MS = 60 * 60 * 1000; // 1 giờ

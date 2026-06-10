@@ -1,0 +1,39 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #4D8F5A
+}
+
+title Biểu đồ ca sử dụng phân hệ Quản lý tài khoản và Bảo mật
+
+actor "Khách hàng\n(Buyer)" as Buyer
+actor "Đối tác bán hàng\n(Vendor)" as Vendor
+
+rectangle "Phân hệ Quản lý tài khoản và Bảo mật" {
+  usecase "Đăng ký tài khoản" as UC_Register
+  usecase "Xác minh mã OTP\n6 số qua email" as UC_OTP
+  usecase "Đăng nhập hệ thống" as UC_Login
+  usecase "Kiểm tra rate-limit" as UC_RateLimit
+  usecase "Đăng nhập qua\nGoogle OAuth" as UC_Google
+  usecase "Đăng ký gian hàng\n(Vendor Register)" as UC_VendorRegister
+  usecase "Khôi phục mật khẩu" as UC_Forgot
+  usecase "Gửi token reset\nqua email" as UC_ResetToken
+}
+
+Buyer --> UC_Register
+Buyer --> UC_Login
+Buyer --> UC_VendorRegister
+Buyer --> UC_Forgot
+
+Vendor --> UC_Login
+Vendor --> UC_Forgot
+
+UC_Register .> UC_OTP : <<include>>
+UC_Login .> UC_RateLimit : <<include>>
+UC_Google .> UC_Login : <<extend>>
+UC_Forgot .> UC_ResetToken : <<include>>
+
+@enduml

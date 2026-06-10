@@ -196,11 +196,11 @@ export const placeOrderStripeService = async ({
     }
 
     const { finalTotal } = pricingResult.pricing;
-    const STRIPE_VND_LIMIT = 99_999_999;
+    const STRIPE_VND_LIMIT = 999_000_000;
     if (currency === "vnd" && finalTotal > STRIPE_VND_LIMIT) {
         await releaseStockByItems(normalizedItems).catch(() => {});
         await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
-        throw new Error("Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫99,999,999). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng.");
+        throw new Error("Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫999,000,000). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng.");
     }
 
     const now = Date.now();
@@ -545,3 +545,4 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
 export const allOrdersService = async () => orderModel.find({}).sort({ date: -1 });
 
 export const userOrdersService = async (userId) => orderModel.find({ userId }).sort({ date: -1 });
+

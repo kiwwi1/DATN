@@ -8,7 +8,7 @@ import {
 } from "../utils/checkoutOrderUtils";
 
 const FREE_SHIPPING_THRESHOLD = 500000;
-const STRIPE_VND_LIMIT = 99999999;
+const STRIPE_VND_LIMIT = 999000000;
 const VNPAY_LIMIT = 1000000000;
 
 const createCheckoutIdempotencyKey = () => {

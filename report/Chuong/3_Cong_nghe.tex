@@ -2,7 +2,7 @@
 \begin{document}
 
 
-Chương 3 tập trung trình bày hệ thống cơ sở lý thuyết khoa học và các công nghệ cốt lõi được áp dụng để giải quyết triệt để các bài toán kỹ thuật thực tiễn đã đặt ra trong Chương 2. Nội dung chương sẽ phân tích sâu sắc nguyên nhân lựa chọn từng thành phần trong hệ sinh thái công nghệ của đồ án, so sánh đối chiếu chi tiết với các giải pháp công nghệ thay thế tương đương và chứng minh tính nhất quán vượt trội của bộ giải pháp MERN Stack kết hợp bộ đệm Redis, Socket.IO, hệ thống thanh toán tự động cùng thuật toán khuyến nghị lai cá nhân hóa.
+Chương 3 tập trung trình bày cơ sở lý thuyết và các công nghệ cốt lõi được sử dụng để giải quyết các bài toán kỹ thuật đã nêu trong Chương 2. Nội dung chương phân tích lý do lựa chọn từng thành phần trong hệ sinh thái công nghệ của đồ án, đối chiếu với một số giải pháp thay thế tương đương và làm rõ mức độ phù hợp của bộ giải pháp MERN Stack kết hợp Redis, Socket.IO, các cổng thanh toán trực tuyến và cơ chế khuyến nghị sản phẩm cá nhân hóa.
 
 \section{Nền tảng cơ sở dữ liệu và Cơ chế giữ kho nguyên tử}
 \label{section:3.1}
@@ -23,7 +23,7 @@ db.products.updateOne(
   { $inc: { "variants.$.stock": -quantity, "totalStock": -quantity } }
 )
 \end{verbatim}
-Câu lệnh này bảo đảm việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ xung nhịp DB duy nhất, triệt tiêu hoàn toàn nguy cơ tranh chấp dữ liệu gây ra bởi lỗi \textit{Overselling} dưới tải cao.
+Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
@@ -46,30 +46,30 @@ Câu lệnh này bảo đảm việc kiểm tra tồn kho và trừ kho diễn r
 Node.js là một môi trường chạy JavaScript mã nguồn mở hoạt động trên nền bộ máy V8 Engine của Google Chrome. Node.js áp dụng kiến trúc hướng sự kiện (\textit{Event-driven}) và mô hình vào/ra không chặn (\textit{Non-blocking I/O}) hoạt động trên một luồng duy nhất (\textit{Single-thread}) thông qua vòng lặp sự kiện (\textit{Event Loop}).
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Hệ thống sàn đa nhà bán hàng đòi hỏi backend phải xử lý hàng nghìn kết nối đồng thời từ khách hàng và đối tác bán hàng mà không làm suy giảm thời gian phản hồi (cam kết phản hồi dưới $200$ms). Node.js tận dụng hiệu quả cơ chế bất đồng bộ giúp máy chủ tiếp nhận yêu cầu thanh toán, cập nhật kho, gửi thông báo mà không bị khóa luồng (\textit{Thread blocking}) như các kiến trúc đa luồng truyền thống. Express framework gọn nhẹ giúp thiết lập hệ thống RESTful API bảo mật và phân chia định tuyến rõ ràng.
+Hệ thống sàn đa nhà bán hàng đòi hỏi backend phải xử lý nhiều kết nối đồng thời từ khách hàng và đối tác bán hàng mà vẫn duy trì thời gian phản hồi ổn định. Node.js tận dụng cơ chế bất đồng bộ giúp máy chủ tiếp nhận yêu cầu thanh toán, cập nhật kho, gửi thông báo mà không bị khóa luồng (\textit{Thread blocking}) như một số kiến trúc đa luồng truyền thống. Express framework gọn nhẹ giúp thiết lập hệ thống RESTful API và phân chia định tuyến rõ ràng.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
     \item \textbf{Giải pháp thay thế:} Java Spring Boot hoặc Python Django \cite{springboot-vs-nodejs}.
     \item \textbf{So sánh đối chiếu:}
     \begin{itemize}
-        \item \textbf{Java Spring Boot:} Rất mạnh mẽ và an toàn cho doanh nghiệp lớn, nhưng tiêu tốn tài nguyên RAM khởi động cực kỳ lớn. Mô hình đa luồng truyền thống (\textit{Thread-per-request}) sẽ nhanh chóng làm cạn kiệt tài nguyên máy chủ khi số lượng kết nối đồng thời tăng vọt vượt ngưỡng giới hạn của Thread Pool.
+        \item \textbf{Java Spring Boot:} Là nền tảng mạnh cho hệ thống doanh nghiệp, nhưng thường yêu cầu cấu hình vận hành và bộ nhớ lớn hơn. Mô hình đa luồng truyền thống (\textit{Thread-per-request}) cũng cần được điều chỉnh cẩn thận khi số lượng kết nối đồng thời tăng cao.
         \item \textbf{Python Django:} Hỗ trợ nhiều thư viện mạnh mẽ nhưng hiệu năng xử lý tác vụ I/O đồng thời kém hơn do bị giới hạn bởi khóa GIL (Global Interpreter Lock).
     \end{itemize}
-    \item \textbf{Lý do chọn lựa:} Node.js là sự lựa chọn tối ưu nhất cho bài toán I/O-intensive của sàn thương mại điện tử, mang lại thông lượng xử lý API vượt trội trên một cấu hình phần cứng tối thiểu, giúp tiết kiệm chi phí vận hành hạ tầng mà vẫn đáp ứng tốt yêu cầu chịu tải cao.
+    \item \textbf{Lý do chọn lựa:} Node.js phù hợp với bài toán I/O-intensive của sàn thương mại điện tử, cho phép xây dựng backend thống nhất bằng JavaScript và đáp ứng tốt các yêu cầu kết nối đồng thời, giao tiếp thời gian thực và tích hợp thanh toán.
 \end{itemize}
 
 \subsection{Kênh truyền thông thời gian thực Socket.IO}
 Socket.IO là một thư viện JavaScript cho phép giao tiếp hai chiều, thời gian thực và dựa trên sự kiện giữa trình duyệt và máy chủ. Nó hoạt động trên nền tảng giao thức WebSocket nhưng bổ sung các cơ chế dự phòng an toàn.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân (Chat Real-time), đồng thời tự động đẩy thông báo trạng thái thanh toán thành công lập tức lên màn hình Dashboard của Vendor ngay khi hệ thống nhận được tín hiệu Webhook từ Stripe/VNPay.
+Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân trong phân hệ chat, đồng thời phục vụ các luồng thông báo thời gian thực tại phía client khi backend phát sinh sự kiện mới. Ở tầng kết nối, máy chủ kiểm tra access token được gửi trong phần handshake để gắn socket với người dùng hợp lệ trước khi tham gia phòng chat hoặc nhận sự kiện.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
     \item \textbf{Giải pháp thay thế:} HTTP Long Polling hoặc Server-Sent Events (SSE) \cite{websocket-standard}.
     \item \textbf{So sánh đối chiếu:} HTTP Long Polling liên tục gửi yêu cầu kéo (\textit{Pull}) dữ liệu làm nghẽn băng thông mạng và quá tải CPU máy chủ. SSE chỉ hỗ trợ truyền tải dữ liệu một chiều từ Server về Client. Socket.IO thiết lập kết nối TCP toàn song công (\textit{Full-duplex}) duy nhất, giảm thiểu tối đa kích thước header gói tin và hỗ trợ cơ chế tự động kết nối lại (\textit{Auto-reconnection}) thông minh.
-    \item \textbf{Lý do chọn lựa:} Socket.IO bảo đảm trải nghiệm tương tác thời gian thực mượt mà nhất cho người dùng, thiết lập kênh bảo mật thời gian thực qua cơ chế chứng thực JWT handshake chặt chẽ.
+    \item \textbf{Lý do chọn lựa:} Socket.IO phù hợp với yêu cầu chat và cập nhật trạng thái theo thời gian thực của hệ thống, đồng thời cho phép tích hợp xác thực access token ở bước handshake và quản lý room thuận tiện cho bài toán nhiều người dùng, nhiều cuộc hội thoại.
 \end{itemize}
 
 \section{Lớp đệm bộ nhớ cache và Cơ chế bảo mật đa tầng Redis}
@@ -79,20 +79,20 @@ Hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân (Chat
 Redis (Remote Dictionary Server) là một hệ thống lưu trữ dữ liệu dạng Key-Value trong bộ nhớ RAM (\textit{In-memory Database}) có mã nguồn mở, hỗ trợ nhiều cấu trúc dữ liệu đa dạng và đạt tốc độ đọc ghi cực cao (dưới $1$ mili-giây).
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Redis được tích hợp chặt chẽ tại tầng backend để giải quyết hai vấn đề cốt lõi:
+Redis được tích hợp tại tầng backend để giải quyết hai nhóm vấn đề cốt lõi:
 \begin{itemize}
-    \item \textbf{Bảo mật Rate-limiting:} Sử dụng cấu trúc dữ liệu để theo dõi tần suất gửi yêu cầu của từng địa chỉ IP hoặc tài khoản (sử dụng thuật toán Token Bucket), ngăn chặn các cuộc tấn công Brute-force đăng nhập và spam gửi mã OTP qua email.
-    \item \textbf{Refresh Token Rotation (RTR) & Deny-list:} Lưu giữ danh sách đen các khóa Refresh Token đã bị thu hồi hiệu lực trước thời hạn do nghi ngờ bị đánh cắp, bảo vệ phiên đăng nhập an toàn mà không cần truy vấn liên tục vào MongoDB.
+    \item \textbf{Bảo mật Rate-limiting:} Theo dõi số lần gửi yêu cầu của từng địa chỉ IP hoặc email trong các khoảng thời gian cấu hình sẵn, từ đó giới hạn các API nhạy cảm như đăng nhập, xác minh email, quên mật khẩu, refresh token hoặc truy vấn thống kê vendor.
+    \item \textbf{Quản lý phiên xác thực phía server:} Lưu bản ghi phiên theo \texttt{sid} cùng \texttt{currentRefreshJti} để hỗ trợ refresh token rotation, xác minh access token còn gắn với phiên hợp lệ và thu hồi toàn bộ phiên đăng nhập khi người dùng đăng xuất hoặc khi refresh token không còn khớp.
 \end{itemize}
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
     \item \textbf{Giải pháp thay thế:} Lưu trữ bộ nhớ cache trực tiếp trong RAM nội bộ của Node.js (\textit{In-memory Node.js Cache}) hoặc sử dụng Memcached \cite{redis-vs-memcached}.
     \item \textbf{So sánh đối chiếu:} RAM nội bộ của Node.js sẽ bị xóa hoàn toàn khi khởi động lại máy chủ và không thể chia sẻ dữ liệu giữa các tiến trình khi scale-up hệ thống bằng PM2. Memcached tuy nhanh nhưng chỉ hỗ trợ kiểu dữ liệu chuỗi đơn giản, thiếu các cấu trúc dữ liệu nâng cao như Set, Sorted Set của Redis.
-    \item \textbf{Lý do chọn lựa:} Redis cung cấp giải pháp lưu trữ bộ nhớ ngoài phân tán hoàn hảo, hỗ trợ các lệnh nguyên tử phức tạp cùng hiệu năng vượt trội, đóng vai trò là lá chắn bảo vệ an toàn cho hệ thống dữ liệu MongoDB cốt lõi phía sau.
+    \item \textbf{Lý do chọn lựa:} Redis cung cấp lớp lưu trữ bộ nhớ ngoài có độ trễ thấp, phù hợp cho các thao tác đếm theo cửa sổ thời gian và lưu trạng thái phiên xác thực ngắn hạn. Cách tiếp cận này giúp giảm tải cho MongoDB và tách biệt rõ dữ liệu giao dịch lâu dài với dữ liệu phiên ngắn hạn.
 \end{itemize}
 
-\section{Thuật toán khuyến nghị cá nhân hóa lai có suy hao thời gian}
+\section{Cơ chế khuyến nghị cá nhân hóa lai có suy hao thời gian}
 \label{section:3.4}
 
 \subsection{Cơ sở lý thuyết hệ thống gợi ý cá nhân hóa}
@@ -102,23 +102,32 @@ Hệ thống khuyến nghị sản phẩm đóng vai trò then chốt trong vi�
     \item \textbf{Lọc cộng tác (Collaborative Filtering):} Tìm kiếm các hành vi tương đồng giữa những người dùng có chung sở thích để đưa ra gợi ý sản phẩm phù hợp.
 \end{itemize}
 
-\subsection{Thuật toán khuyến nghị lai Hybrid kết hợp suy hao theo thời gian}
-Để triệt tiêu nhược điểm lớn nhất là lỗi khởi đầu lạnh (\textit{Cold Start}) - khi người dùng mới hoặc sản phẩm mới chưa có lịch sử tương tác đủ nhiều để chạy mô hình lọc cộng tác, đồ án áp dụng mô hình lai **Hybrid Recommendation Engine** tích hợp công thức tính toán điểm tương tác (\textit{Interaction Score}) kết hợp hệ số suy hao thời gian thực tế (\textit{Time Decay Factor}).
+\subsection{Khuyến nghị lai dựa trên tương tác người dùng và suy hao theo thời gian}
+Để giảm ảnh hưởng của bài toán khởi đầu lạnh (\textit{Cold Start}) và vẫn tận dụng được lịch sử hành vi người dùng, đồ án sử dụng cơ chế khuyến nghị lai gồm ba bước chính:
+\begin{itemize}
+    \item \textbf{Bước 1 - Ghi nhận tương tác:} Mỗi lần người dùng xem, nhấp, thêm vào giỏ, thêm yêu thích, đánh giá, mua hàng hoặc dành thời gian trên sản phẩm, hệ thống cập nhật hồ sơ tương tác tương ứng.
+    \item \textbf{Bước 2 - Tính điểm tương tác có suy hao thời gian:} Mỗi hồ sơ người dùng - sản phẩm được quy đổi thành một \textit{interactionScore} dựa trên trọng số hành vi và hệ số suy hao theo thời gian.
+    \item \textbf{Bước 3 - Sinh danh sách gợi ý lai:} Backend kết hợp hai nguồn gợi ý chính là \textit{item-based collaborative filtering} và \textit{content-based filtering}; nếu số lượng sản phẩm chưa đủ, hệ thống bổ sung thêm các sản phẩm phổ biến đang hoạt động như một lớp fallback.
+\end{itemize}
 
-Công thức tính toán điểm gợi ý của sản phẩm $p$ đối với người dùng $u$ tại thời điểm hiện tại được biểu diễn dưới dạng toán học như sau:
+Trong cài đặt hiện tại, điểm tương tác của một cặp người dùng - sản phẩm được tính theo dạng:
 \begin{equation}
-    Score_{final}(u, p) = \left( w_1 \cdot Score_{content}(u, p) + w_2 \cdot Score_{collaborative}(u, p) \right) \times e^{-\lambda \cdot \Delta t}
+    Score_{interaction} = Score_{raw} \times e^{- \Delta t / 30}
 \end{equation}
 Trong đó:
 \begin{itemize}
-    \item $Score_{content}(u, p)$: Điểm tương thích thuộc tính nội dung sản phẩm.
-    \item $Score_{collaborative}(u, p)$: Điểm gợi ý từ hành vi tương đồng của cộng đồng người dùng.
-    \item $w_1, w_2$: Các trọng số cấu hình hệ thống ($w_1 + w_2 = 1$).
-    \item $\lambda$: Hệ số suy hao thời gian (\textit{Time Decay Rate}), điều chỉnh tốc độ giảm tầm quan trọng của các tương tác cũ.
-    \item $\Delta t$: Khoảng thời gian tính bằng ngày kể từ lần tương tác cuối cùng của người dùng với sản phẩm hoặc danh mục sản phẩm đó.
+    \item $Score_{raw}$ là tổng điểm thô từ các hành vi như mua hàng, đánh giá, thêm vào giỏ, yêu thích, xem hoặc nhấp chuột.
+    \item $\Delta t$ là số ngày tính từ lần tương tác gần nhất.
 \end{itemize}
 
-\textbf{Lý do chọn lựa:} Việc chèn thêm hệ số suy hao thời gian thực tế $e^{-\lambda \cdot \Delta t}$ bảo đảm các sản phẩm thịnh hành gần đây sẽ được đẩy lên trước, tránh việc hệ thống liên tục gợi ý những mặt hàng người dùng đã mất đi sự quan tâm từ lâu, từ đó cải thiện đáng kể tỷ lệ click chuột và tăng trải nghiệm mua sắm động.
+\textbf{Giải quyết yêu cầu Chương 2:}
+\begin{itemize}
+    \item \textbf{Lọc dựa trên nội dung (Content-based):} Hệ thống lấy các sản phẩm mà người dùng đã tương tác mạnh, sau đó mở rộng sang các sản phẩm cùng danh mục hoặc danh mục con.
+    \item \textbf{Lọc cộng tác dựa trên sản phẩm (Item-based Collaborative):} Hệ thống tìm các người dùng có giao cắt hành vi với sản phẩm tương tự, sau đó cộng dồn \textit{interactionScore} để xếp hạng ứng viên.
+    \item \textbf{Fallback theo độ phổ biến:} Khi dữ liệu cá nhân hóa chưa đủ, hệ thống bổ sung sản phẩm đang hoạt động theo các tiêu chí như số bán, điểm đánh giá và thời điểm tạo.
+\end{itemize}
+
+\textbf{Lý do chọn lựa:} Cách tiếp cận này bám sát dữ liệu hành vi thực tế đang được thu thập trong hệ thống, vừa hỗ trợ cá nhân hóa cho người dùng có lịch sử tương tác, vừa giữ được khả năng fallback ổn định khi dữ liệu còn ít.
 
 \section{Công cụ giao dịch tài chính và Giao diện tương tác nâng cao}
 \label{section:3.5}
@@ -127,23 +136,23 @@ Trong đó:
 Cổng thanh toán điện tử đóng vai trò trung gian bảo mật luồng giao dịch tài chính giữa tài khoản khách hàng, sàn thương mại điện tử và tài khoản ngân hàng của thương nhân.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Hệ thống tích hợp hai cổng thanh toán lớn: Stripe phục vụ cho các thanh toán thẻ tín dụng quốc tế bảo mật theo chuẩn PCI-DSS; VNPay cung cấp phương thức quét mã QR qua ứng dụng Mobile Banking nội địa cực kỳ phổ biến tại Việt Nam. Trạng thái thanh toán được đồng bộ hóa tuyệt đối thông qua cơ chế kiểm tra chữ ký mã hóa (\textit{Cryptographic Webhook Signature Verification}) an toàn từ máy chủ cổng thanh toán gọi về API backend của sàn.
+Hệ thống tích hợp hai cổng thanh toán lớn: Stripe phục vụ cho các thanh toán thẻ tín dụng quốc tế theo chuẩn PCI-DSS; VNPay cung cấp phương thức thanh toán nội địa thông qua QR và Mobile Banking. Trong cài đặt hiện tại, Stripe xác nhận kết quả bằng webhook ở backend, còn VNPay sử dụng luồng callback hoặc redirect có chữ ký số để backend kiểm tra tính hợp lệ trước khi cập nhật đơn hàng.
 
 \textbf{Phương án thay thế và so sánh:}
 \begin{itemize}
     \item \textbf{Giải pháp thay thế:} Chỉ sử dụng hình thức thanh toán thủ công (Chuyển khoản ngân hàng chụp ảnh hóa đơn gửi Admin duyệt).
-    \item \textbf{Lý do chọn lựa:} Thanh toán thủ công tốn thời gian, dễ gây gian lận dữ liệu và không thể giải phóng tồn kho nguyên tử tự động sau $15$ phút nếu giao dịch thất bại. Tích hợp Stripe và VNPay mang lại giải pháp tự động hóa $100\%$ dòng tiền, bảo vệ an toàn giao dịch cho cả người mua và người bán.
+    \item \textbf{Lý do chọn lựa:} Thanh toán thủ công tốn thời gian, dễ sai lệch dữ liệu và không thuận lợi cho việc giữ kho hoặc hoàn kho tự động theo thời hạn thanh toán. Tích hợp Stripe và VNPay giúp chuẩn hóa luồng thanh toán, đồng bộ kết quả vào backend và hỗ trợ xử lý đơn hàng nhất quán hơn.
 \end{itemize}
 
 \subsection{React.js và Thư viện biểu đồ Recharts dành cho Dashboard Merchant}
 React.js là một thư viện JavaScript mã nguồn mở dùng để xây dựng giao diện người dùng dựa trên cơ chế thành phần (\textit{Component-based}) và sử dụng cây DOM ảo (\textit{Virtual DOM}) tối ưu hóa tốc độ kết xuất dữ liệu. Recharts là một thư viện vẽ biểu đồ chuyên biệt dành riêng cho hệ sinh thái React, hoạt động dựa trên các thành phần đồ họa vector SVG.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-React.js bảo đảm giao diện Single Page Application phản hồi nhanh chóng dưới $1$ giây, tạo trải nghiệm mua sắm mượt mà. Recharts giúp Merchant Console vẽ các biểu đồ phân tích doanh thu động, thống kê đơn hàng theo thời gian thực và cảnh báo sản phẩm sắp hết hàng trực quan, hỗ trợ thiết kế đáp ứng (\textit{Responsive}) linh hoạt trên nhiều kích thước màn hình thiết bị.
+React.js hỗ trợ xây dựng giao diện Single Page Application với khả năng cập nhật trạng thái linh hoạt và tái sử dụng component cao. Recharts giúp Merchant Console vẽ các biểu đồ doanh thu, thống kê đơn hàng và cảnh báo tồn kho dưới dạng trực quan, đồng thời hỗ trợ hiển thị đáp ứng (\textit{Responsive}) trên nhiều kích thước màn hình.
 
-\textbf{Lý do chọn lựa:} Recharts vượt trội hoàn toàn so với Chart.js truyền thống nhờ khả năng tích hợp sâu sắc dưới dạng các React Component độc lập, vẽ trực tiếp bằng SVG nên không bị nhòe hình khi thu phóng và có hiệu ứng hiển thị micro-animation cực kỳ mượt mà, phù hợp với tiêu chí xây dựng Dashboard phân tích tài chính chuyên nghiệp cho thương nhân.
+\textbf{Lý do chọn lựa:} Recharts phù hợp với hệ sinh thái React của đồ án, có cách sử dụng theo component rõ ràng và thuận tiện cho việc xây dựng dashboard bán hàng. Việc dùng SVG cũng giúp biểu đồ hiển thị tốt khi thay đổi kích thước hoặc nhúng vào các layout quản trị khác nhau.
 
 \section*{Kết chương}
-Chương 3 đã hoàn thành việc thảo luận chuyên sâu về cơ sở lý thuyết khoa học và bộ giải pháp công nghệ hiện đại được áp dụng cho sàn thương mại điện tử đa nhà bán hàng hiệu năng cao. Thông qua phân tích các yêu cầu kỹ thuật từ Chương 2, đồ án đã chứng minh sự nhất quán vượt trội khi kết hợp hệ cơ sở dữ liệu phi quan hệ MongoDB hỗ trợ cập nhật nguyên tử, nền tảng Node.js bất đồng bộ chịu tải cao, lá chắn bảo mật đa tầng Redis, kênh truyền Socket.IO thời gian thực, cổng Stripe/VNPay tự động hóa giao dịch và động cơ gợi ý lai cá nhân hóa. Để hiện thực hóa toàn bộ các nền tảng lý thuyết này thành kiến trúc phần mềm chi tiết, biểu đồ gói UML, thiết kế lớp phần mềm cụ thể và lược đồ thực thể cơ sở dữ liệu ở tầng vật lý, nội dung chi tiết sẽ được trình bày trong chương tiếp theo – Chương 4.
+Chương 3 đã trình bày cơ sở lý thuyết và các công nghệ chính được áp dụng trong đồ án, bao gồm MongoDB cho lưu trữ dữ liệu tài liệu và cập nhật nguyên tử, Node.js và Express cho backend bất đồng bộ, Redis cho rate-limit và quản lý phiên xác thực, Socket.IO cho giao tiếp thời gian thực, Stripe và VNPay cho thanh toán trực tuyến, cùng cơ chế khuyến nghị sản phẩm dựa trên tương tác người dùng. Từ nền tảng này, chương tiếp theo sẽ chuyển sang kiến trúc phần mềm chi tiết, thiết kế lớp, mô hình dữ liệu và hiện thực hệ thống ở mức cụ thể hơn.
 
 \end{document}

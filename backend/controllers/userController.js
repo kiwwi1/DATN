@@ -14,6 +14,7 @@ import {
     updateNotificationPrefsService,
     changePasswordService,
 } from "../services/userService.js";
+import { revokeAuthSession } from "../services/authSessionService.js";
 
 const toBoolean = (value, fallback = false) => {
     if (value === undefined || value === null || value === "") return fallback;
@@ -163,19 +164,20 @@ const deleteUser = async (req, res) => {
 const refreshAuth = async (req, res) => {
     try {
         const refreshToken = req.cookies?.refreshToken;
-        const accessToken = await refreshAccessTokenService(refreshToken);
-        res.cookie("accessToken", accessToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000),
-        });
-        res.json({ success: true, accessToken });
+        const tokens = await refreshAccessTokenService(refreshToken);
+        attachAuthCookies(res, tokens);
+        res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
         clearAuthCookies(res);
         res.status(401).json({ success: false, message: error.message });
     }
 };
 
-const logoutUser = async (_req, res) => {
+const logoutUser = async (req, res) => {
+    await revokeAuthSession({
+        accessToken: req.cookies?.accessToken || req.headers?.token,
+        refreshToken: req.cookies?.refreshToken,
+    }).catch(() => {});
     clearAuthCookies(res);
     res.json({ success: true, message: "Logged out successfully" });
 };

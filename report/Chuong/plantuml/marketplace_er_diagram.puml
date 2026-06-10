@@ -1,0 +1,123 @@
+@startuml
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+
+title Mo hinh du lieu chinh cua he thong marketplace
+
+entity "User" as User {
+  * _id : ObjectId
+  --
+  email : string
+  role : user|vendor
+  shopName : string
+  emailVerified : bool
+}
+
+entity "Product" as Product {
+  * _id : ObjectId
+  --
+  vendorId : ObjectId
+  category : ObjectId
+  price : number
+  stock : number
+  rating : number
+  sold : number
+}
+
+entity "Voucher" as Voucher {
+  * _id : ObjectId
+  --
+  code : string
+  type : SHOP|PLATFORM|SHIPPING
+  vendorId : ObjectId?
+  discountType : PERCENT|FIXED
+  usedCount : number
+}
+
+entity "Order" as Order {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  amount : number
+  paymentMethod : string
+  payment : bool
+  status : string
+  idempotencyKey : string
+}
+
+entity "OrderItem" as OrderItem {
+  * productId : string
+  --
+  vendorId : ObjectId
+  quantity : number
+  price : number
+  variantKey : string
+}
+
+entity "AppliedVoucher" as AppliedVoucher {
+  * voucherId : ObjectId
+  --
+  code : string
+  type : string
+  discount : number
+}
+
+entity "Review" as Review {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  productId : ObjectId
+  rating : number
+}
+
+entity "UserInteraction" as Interaction {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  productId : ObjectId
+  interactionScore : number
+  lastInteraction : Date
+}
+
+entity "Conversation" as Conversation {
+  * _id : ObjectId
+  --
+  buyerId : ObjectId
+  vendorId : ObjectId
+  lastMessage : string
+}
+
+entity "Message" as Message {
+  * _id : ObjectId
+  --
+  conversationId : ObjectId
+  senderId : ObjectId
+  content : string
+}
+
+entity "Notification" as Notification {
+  * _id : ObjectId
+  --
+  userId : ObjectId
+  audience : user|vendor
+  type : string
+  orderId : ObjectId?
+}
+
+User ||--o{ Product : owns
+User ||--o{ Order : places
+Order ||--|{ OrderItem : contains
+Product ||--o{ OrderItem : referenced
+Order ||--o{ AppliedVoucher : records
+Voucher ||--o{ AppliedVoucher : applies
+User ||--o{ Review : writes
+Product ||--o{ Review : receives
+User ||--o{ Interaction : creates
+Product ||--o{ Interaction : targets
+User ||--o{ Conversation : buyer/vendor
+Conversation ||--o{ Message : includes
+User ||--o{ Notification : receives
+Voucher }o--|| User : vendor scope
+
+@enduml

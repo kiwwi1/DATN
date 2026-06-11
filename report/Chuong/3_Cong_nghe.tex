@@ -10,7 +10,7 @@ Chương 3 tập trung trình bày cơ sở lý thuyết và các công nghệ c
 \subsection{Cơ sở lý thuyết về nhất quán dữ liệu và tranh chấp tài nguyên tải cao}
 Trong các hệ thống thương mại điện tử quy mô lớn, tính nhất quán dữ liệu ở tầng lưu trữ là yếu tố sống còn quyết định sự thành bại của doanh nghiệp. Vấn đề tranh chấp dữ liệu khi có hàng nghìn người cùng thực hiện mua một sản phẩm tại cùng một thời điểm (kịch bản Flash Sale) thường phát sinh lỗi nghiêm trọng về bán quá mức tồn kho thực tế (\textit{Overselling}).
 
-Về mặt lý thuyết, lỗi này xảy ra do mô hình xử lý giao dịch cổ điển áp dụng kỹ thuật đọc - chỉnh sửa - ghi (\textit{Read-Modify-Write}). Khi hai luồng yêu cầu đồng thời kiểm tra số lượng tồn kho của một sản phẩm (ví dụ còn $1$ sản phẩm), cả hai đều nhận được kết quả còn hàng và cùng tiến hành thực hiện trừ kho và tạo đơn, dẫn đến số lượng tồn kho thực tế bị âm ($-1$). Để giải quyết bài toán này từ Chương 2, hệ thống bắt buộc phải thực hiện thao tác kiểm tra điều kiện và cập nhật số lượng tồn kho một cách nguyên tử (\textit{Atomic Database Reservation}) kết hợp với cơ chế chống trùng lặp giao dịch bằng khóa \texttt{idempotencyKey} ở tầng ứng dụng \cite{nosql-performance}.
+Về mặt lý thuyết, lỗi này xảy ra do mô hình xử lý giao dịch cổ điển áp dụng kỹ thuật đọc - chỉnh sửa - ghi (\textit{Read-Modify-Write}). Khi hai luồng yêu cầu đồng thời kiểm tra số lượng tồn kho của một sản phẩm (ví dụ còn $1$ sản phẩm), cả hai đều nhận được kết quả còn hàng và cùng tiến hành thực hiện trừ kho và tạo đơn, dẫn đến số lượng tồn kho thực tế bị âm ($-1$). Để giải quyết bài toán này từ Chương 2, hệ thống bắt buộc phải thực hiện thao tác kiểm tra điều kiện và cập nhật số lượng tồn kho một cách nguyên tử (\textit{Atomic Database Reservation}) kết hợp với cơ chế chống trùng lặp giao dịch bằng khóa \texttt{idempotencyKey} ở tầng ứng dụng.
 
 \subsection{Cơ sở dữ liệu tài liệu MongoDB và thư viện Mongoose ORM}
 MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệu (\textit{Document-oriented}) lưu trữ dữ liệu dưới định dạng JSON/BSON linh hoạt. Thư viện Mongoose đóng vai trò là lớp ánh xạ đối tượng dữ liệu (Object Document Mapper - ODM) giúp định nghĩa Schema chặt chẽ và quản lý các kết nối tối ưu.
@@ -23,40 +23,40 @@ db.products.updateOne(
   { $inc: { "variants.$.stock": -quantity, "totalStock": -quantity } }
 )
 \end{verbatim}
-Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao.
+Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao \cite{nosql-performance}.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Hệ quản trị cơ sở dữ liệu quan hệ truyền thống (RDBMS) như MySQL hoặc PostgreSQL \cite{rdbms-vs-nosql}.
+    \item \textbf{Giải pháp thay thế:} Hệ quản trị cơ sở dữ liệu quan hệ truyền thống (RDBMS) như MySQL hoặc PostgreSQL.
     \item \textbf{So sánh đối chiếu:}
     \begin{longtable}{|p{3cm}|p{5.5cm}|p{6cm}|}
     \hline
     \textbf{Tiêu chí} & \textbf{RDBMS (MySQL / PostgreSQL)} & \textbf{MongoDB (Đề xuất trong đồ án)} \\ \hline
     \textbf{Mô hình dữ liệu} & Lược đồ tĩnh, yêu cầu liên kết nhiều bảng (\textit{JOIN}) phức tạp để biểu diễn biến thể. & Lược đồ động, lưu trữ biến thể lồng nhau (\textit{Nested Document}) trực quan, không cần JOIN. \\ \hline
-    \textbf{Cơ chế khóa tải cao} & Sử dụng cơ chế khóa dòng vật lý (\textit{Pessimistic Locking} qua \texttt{SELECT FOR UPDATE}) gây tắc nghẽn luồng xử lý. & Cơ chế khóa lạc quan không chặn ở cấp độ tài liệu kèm toán tử nguyên tử \texttt{\$inc} cho hiệu năng ghi vượt trội. \\ \hline
+    \textbf{Cơ chế khóa tải cao} & Sử dụng cơ chế khóa dòng vật lý (\textit{Pessimistic Locking} qua \texttt{SELECT FOR UPDATE}) gây tắc nghẽn luồng xử lý khi nhiều giao dịch tranh chấp cùng hàng. & Toán tử \texttt{\$inc} kết hợp điều kiện lọc thực hiện kiểm tra và cập nhật tồn kho trong một thao tác nguyên tử duy nhất ở cấp tài liệu, bao phủ cả tổng kho lẫn kho biến thể mà không cần \textit{JOIN} \cite{rdbms-vs-nosql}. \\ \hline
     \textbf{Khả năng mở rộng} & Mở rộng theo chiều dọc (\textit{Scaling Up}) tốn kém phần cứng; phân mảnh dữ liệu phức tạp. & Hỗ trợ phân mảnh tự động (\textit{Sharding}) mở rộng theo chiều ngang (\textit{Scaling Out}) dễ dàng. \\ \hline
     \end{longtable}
-    \item \textbf{Lý do chọn lựa:} MongoDB không chỉ giúp cấu trúc dữ liệu sản phẩm đa nhà bán hàng trở nên gọn nhẹ, tự nhiên hơn mà còn bảo đảm thông lượng giao dịch ghi ở tải cao lớn hơn nhiều lần so với các hệ cơ sở dữ liệu quan hệ truyền thống nhờ cơ chế cập nhật nguyên tử gọn nhẹ, không gây trễ khóa luồng.
+    \item \textbf{Lý do chọn lựa:} MongoDB không chỉ giúp cấu trúc dữ liệu sản phẩm đa nhà bán hàng với các biến thể lồng nhau trở nên gọn nhẹ, tự nhiên hơn so với mô hình bảng quan hệ, mà còn cho phép kiểm tra và cập nhật tồn kho trong một thao tác nguyên tử duy nhất ở cấp tài liệu mà không cần khóa nhiều bảng. Cần lưu ý rằng PostgreSQL cũng hỗ trợ câu lệnh \texttt{UPDATE ... WHERE stock >= qty} tương tự ở cấp hàng; tuy nhiên, lợi thế đặc trưng của MongoDB trong đồ án này là khả năng lưu biến thể sản phẩm dưới dạng mảng nhúng (\textit{embedded array}), cho phép một thao tác \texttt{\$inc} duy nhất cập nhật đồng thời cả tổng kho và kho biến thể mà không cần \textit{JOIN} hay nhiều câu truy vấn riêng biệt.
 \end{itemize}
 
 \section{Nền tảng lập trình Backend hiệu năng cao và Real-time Communication}
 \label{section:3.2}
 
 \subsection{Nền tảng Node.js và Express Framework}
-Node.js là một môi trường chạy JavaScript mã nguồn mở hoạt động trên nền bộ máy V8 Engine của Google Chrome. Node.js áp dụng kiến trúc hướng sự kiện (\textit{Event-driven}) và mô hình vào/ra không chặn (\textit{Non-blocking I/O}) hoạt động trên một luồng duy nhất (\textit{Single-thread}) thông qua vòng lặp sự kiện (\textit{Event Loop}).
+Node.js là một môi trường chạy JavaScript mã nguồn mở hoạt động trên nền bộ máy V8 Engine của Google Chrome. Node.js áp dụng kiến trúc hướng sự kiện (\textit{Event-driven}) và mô hình vào/ra không chặn (\textit{Non-blocking I/O}) hoạt động trên một luồng duy nhất (\textit{Single-thread}) thông qua vòng lặp sự kiện (\textit{Event Loop}) \cite{nodejs-eventloop}.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
 Hệ thống sàn đa nhà bán hàng đòi hỏi backend phải xử lý nhiều kết nối đồng thời từ khách hàng và đối tác bán hàng mà vẫn duy trì thời gian phản hồi ổn định. Node.js tận dụng cơ chế bất đồng bộ giúp máy chủ tiếp nhận yêu cầu thanh toán, cập nhật kho, gửi thông báo mà không bị khóa luồng (\textit{Thread blocking}) như một số kiến trúc đa luồng truyền thống. Express framework gọn nhẹ giúp thiết lập hệ thống RESTful API và phân chia định tuyến rõ ràng.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Java Spring Boot hoặc Python Django \cite{springboot-vs-nodejs}.
+    \item \textbf{Giải pháp thay thế:} Java Spring Boot hoặc Python Django.
     \item \textbf{So sánh đối chiếu:}
     \begin{itemize}
         \item \textbf{Java Spring Boot:} Là nền tảng mạnh cho hệ thống doanh nghiệp, nhưng thường yêu cầu cấu hình vận hành và bộ nhớ lớn hơn. Mô hình đa luồng truyền thống (\textit{Thread-per-request}) cũng cần được điều chỉnh cẩn thận khi số lượng kết nối đồng thời tăng cao.
         \item \textbf{Python Django:} Hỗ trợ nhiều thư viện mạnh mẽ nhưng hiệu năng xử lý tác vụ I/O đồng thời kém hơn do bị giới hạn bởi khóa GIL (Global Interpreter Lock).
     \end{itemize}
-    \item \textbf{Lý do chọn lựa:} Node.js phù hợp với bài toán I/O-intensive của sàn thương mại điện tử, cho phép xây dựng backend thống nhất bằng JavaScript và đáp ứng tốt các yêu cầu kết nối đồng thời, giao tiếp thời gian thực và tích hợp thanh toán.
+    \item \textbf{Lý do chọn lựa:} Node.js phù hợp với bài toán I/O-intensive của sàn thương mại điện tử, cho phép xây dựng backend thống nhất bằng JavaScript và đáp ứng tốt các yêu cầu kết nối đồng thời, giao tiếp thời gian thực và tích hợp thanh toán \cite{springboot-vs-nodejs}.
 \end{itemize}
 
 \subsection{Kênh truyền thông thời gian thực Socket.IO}
@@ -76,7 +76,7 @@ Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa 
 \label{section:3.3}
 
 \subsection{Công nghệ lưu trữ bộ nhớ đệm Redis}
-Redis (Remote Dictionary Server) là một hệ thống lưu trữ dữ liệu dạng Key-Value trong bộ nhớ RAM (\textit{In-memory Database}) có mã nguồn mở, hỗ trợ nhiều cấu trúc dữ liệu đa dạng và đạt tốc độ đọc ghi cực cao (dưới $1$ mili-giây).
+Redis (Remote Dictionary Server) là một hệ thống lưu trữ dữ liệu dạng Key-Value trong bộ nhớ RAM (\textit{In-memory Database}) có mã nguồn mở, hỗ trợ nhiều cấu trúc dữ liệu đa dạng bao gồm String, Hash, List, Set và Sorted Set, đồng thời đạt tốc độ đọc ghi cực cao (dưới $1$ mili-giây) \cite{redis-vs-memcached}.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
 Redis được tích hợp tại tầng backend để giải quyết hai nhóm vấn đề cốt lõi:
@@ -87,7 +87,7 @@ Redis được tích hợp tại tầng backend để giải quyết hai nhóm v
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 \begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Lưu trữ bộ nhớ cache trực tiếp trong RAM nội bộ của Node.js (\textit{In-memory Node.js Cache}) hoặc sử dụng Memcached \cite{redis-vs-memcached}.
+    \item \textbf{Giải pháp thay thế:} Lưu trữ bộ nhớ cache trực tiếp trong RAM nội bộ của Node.js (\textit{In-memory Node.js Cache}) hoặc sử dụng Memcached.
     \item \textbf{So sánh đối chiếu:} RAM nội bộ của Node.js sẽ bị xóa hoàn toàn khi khởi động lại máy chủ và không thể chia sẻ dữ liệu giữa các tiến trình khi scale-up hệ thống bằng PM2. Memcached tuy nhanh nhưng chỉ hỗ trợ kiểu dữ liệu chuỗi đơn giản, thiếu các cấu trúc dữ liệu nâng cao như Set, Sorted Set của Redis.
     \item \textbf{Lý do chọn lựa:} Redis cung cấp lớp lưu trữ bộ nhớ ngoài có độ trễ thấp, phù hợp cho các thao tác đếm theo cửa sổ thời gian và lưu trạng thái phiên xác thực ngắn hạn. Cách tiếp cận này giúp giảm tải cho MongoDB và tách biệt rõ dữ liệu giao dịch lâu dài với dữ liệu phiên ngắn hạn.
 \end{itemize}
@@ -119,6 +119,8 @@ Trong đó:
     \item $Score_{raw}$ là tổng điểm thô từ các hành vi như mua hàng, đánh giá, thêm vào giỏ, yêu thích, xem hoặc nhấp chuột.
     \item $\Delta t$ là số ngày tính từ lần tương tác gần nhất.
 \end{itemize}
+
+Hằng số thời gian $\tau = 30$ ngày được tham khảo từ nghiên cứu về hệ thống lọc cộng tác có suy hao theo thời gian \cite{time-decay-cf}, cho thấy tín hiệu tương tác trong vòng một tháng có tính dự báo cao hơn đáng kể so với tương tác cũ hơn. Trong triển khai thực tế, giá trị này có thể được tinh chỉnh khi hệ thống tích lũy đủ dữ liệu hành vi người dùng để đánh giá lại.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
 \begin{itemize}

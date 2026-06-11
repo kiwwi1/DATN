@@ -202,7 +202,8 @@ const cancelOrder = async (req, res) => {
 };
 const vendorStats = async (req, res) => {
     try {
-        const stats = await vendorStatsService(req.vendorId);
+        const { startDate, endDate } = req.query;
+        const stats = await vendorStatsService(req.vendorId, { startDate, endDate });
         res.json({ success: true, stats });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });

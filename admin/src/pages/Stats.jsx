@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import {
@@ -52,14 +53,18 @@ const RevenueTooltip = ({ active, payload, label }) => {
   return (
     <div className="rounded-xl border border-slate-150 bg-white/95 backdrop-blur-sm px-3.5 py-2.5 text-xs shadow-md">
       <p className="mb-1.5 font-bold text-slate-800">{label}</p>
-      {payload.map((item, index) => (
-        <p key={index} style={{ color: item.color }} className="flex items-center gap-1.5 py-0.5">
-          <span className="font-medium text-slate-500">
-            {item.name === 'revenue' ? 'Doanh thu:' : item.name === 'orders' ? 'Đơn hàng:' : `${item.name}:`}
-          </span>
-          <span className="font-bold">{item.name === 'revenue' ? formatPrice(item.value) : item.value}</span>
-        </p>
-      ))}
+      {payload.map((item, index) => {
+        let nameLabel = item.name
+        if (item.name === 'revenue' || item.name === 'gross') nameLabel = 'Doanh thu thô'
+        else if (item.name === 'netRevenue' || item.name === 'net') nameLabel = 'Doanh thu thực nhận'
+        else if (item.name === 'orders') nameLabel = 'Đơn hàng'
+        return (
+          <p key={index} style={{ color: item.color }} className="flex items-center gap-1.5 py-0.5">
+            <span className="font-medium text-slate-500">{nameLabel}:</span>
+            <span className="font-bold">{item.name === 'orders' ? item.value : formatPrice(item.value)}</span>
+          </p>
+        )
+      })}
     </div>
   )
 }
@@ -78,12 +83,22 @@ const PieTooltip = ({ active, payload }) => {
   )
 }
 
-const StatCard = ({ label, value, sub, icon, bg }) => (
-  <div className="admin-card p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-in-out">
+const StatCard = ({ label, value, sub, netValue, icon, bg, onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`admin-card p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ease-in-out ${
+      onClick ? 'cursor-pointer hover:border-pink-300' : ''
+    }`}
+  >
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
         <p className="truncate text-xl font-bold text-slate-800 mt-1">{value}</p>
+        {netValue && (
+          <p className="text-[11px] font-bold text-emerald-600 mt-1.5">
+            Thực nhận: <span className="font-extrabold">{netValue}</span>
+          </p>
+        )}
         {sub && <p className="text-xs font-semibold text-slate-400 mt-2 flex items-center gap-1">{sub}</p>}
       </div>
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm border border-slate-100 ${bg}`}>
@@ -102,16 +117,29 @@ const ChartCard = ({ title, subtitle, children }) => (
 )
 
 const Stats = ({ token }) => {
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
   const [productRankMode, setProductRankMode] = useState('top')
 
-  const fetchStats = useCallback(async () => {
+  const [startDateInput, setStartDateInput] = useState('')
+  const [endDateInput, setEndDateInput] = useState('')
+  const [activeDateRange, setActiveDateRange] = useState({ start: '', end: '' })
+
+  const fetchStats = useCallback(async (customRange) => {
     if (!token) return
     setLoading(true)
     try {
-      const response = await axios.get(`${backendUrl}/api/order/vendor-stats`, { headers: { token } })
+      const params = {}
+      const range = customRange || activeDateRange
+      if (range.start) params.startDate = new Date(range.start).getTime()
+      if (range.end) params.endDate = new Date(range.end).getTime() + (24 * 60 * 60 * 1000 - 1)
+
+      const response = await axios.get(`${backendUrl}/api/order/vendor-stats`, {
+        headers: { token },
+        params,
+      })
       if (response.data.success) {
         setStats(response.data.stats)
       } else {
@@ -122,11 +150,74 @@ const Stats = ({ token }) => {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, activeDateRange])
 
   useEffect(() => {
     fetchStats()
-  }, [fetchStats])
+  }, [token])
+
+  const handleApplyFilter = () => {
+    if (startDateInput && endDateInput && new Date(startDateInput) > new Date(endDateInput)) {
+      toast.error('Ngày bắt đầu không thể lớn hơn ngày kết thúc')
+      return
+    }
+    const newRange = { start: startDateInput, end: endDateInput }
+    setActiveDateRange(newRange)
+    fetchStats(newRange)
+  }
+
+  const handleClearFilter = () => {
+    setStartDateInput('')
+    setEndDateInput('')
+    const newRange = { start: '', end: '' }
+    setActiveDateRange(newRange)
+    fetchStats(newRange)
+  }
+
+  const exportToCSV = (data, headers, filename) => {
+    const csvRows = []
+    csvRows.push(headers.join(","))
+    for (const row of data) {
+      csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+    }
+    const csvContent = "\uFEFF" + csvRows.join("\n")
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleExportSalesReport = () => {
+    if (!stats?.revenue?.chart) return
+    const headers = ['Ngay', 'Doanh thu tho (VND)', 'Doanh thu thuc nhan (VND)']
+    const data = stats.revenue.chart.map((point) => [
+      point.date,
+      point.revenue,
+      point.netRevenue || 0,
+    ])
+    exportToCSV(data, headers, `bao_cao_doanh_thu_${activeDateRange.start || 'all'}_den_${activeDateRange.end || 'all'}.csv`)
+  }
+
+  const handleExportProductReport = () => {
+    if (!stats?.products?.topSelling && !stats?.products?.slowSelling) return
+    const headers = ['Ten san pham', 'So luong da ban', 'Doanh thu tho (VND)', 'Doanh thu thuc nhan (VND)']
+    const productsMap = new Map()
+    const addProduct = (p) => {
+      const id = p._id || p.name
+      if (!productsMap.has(id)) {
+        productsMap.set(id, [p.name, p.sold || 0, p.revenue || 0, p.netRevenue || 0])
+      }
+    }
+    ;(stats.products.topSelling || []).forEach(addProduct)
+    ;(stats.products.slowSelling || []).forEach(addProduct)
+    const data = Array.from(productsMap.values())
+    exportToCSV(data, headers, 'bao_cao_hieu_suat_san_pham.csv')
+  }
 
   if (loading) {
     return (
@@ -148,7 +239,7 @@ const Stats = ({ token }) => {
         <p className="text-sm font-medium text-slate-500">Không tìm thấy dữ liệu thống kê của cửa hàng</p>
         <button
           type="button"
-          onClick={fetchStats}
+          onClick={() => fetchStats()}
           className="mt-3 inline-flex items-center gap-1 px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
         >
           Tải lại dữ liệu
@@ -163,6 +254,14 @@ const Stats = ({ token }) => {
     month: stats.revenue.month,
     total: stats.revenue.total,
   }
+
+  const periodNetRevenue = {
+    today: stats.revenue.todayNet || 0,
+    week: stats.revenue.weekNet || 0,
+    month: stats.revenue.monthNet || 0,
+    total: stats.revenue.totalNet || 0,
+  }
+
   const periodLabel = {
     today: 'Hôm nay',
     week: '7 ngày',
@@ -192,30 +291,85 @@ const Stats = ({ token }) => {
   return (
     <section className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 bg-white p-5 rounded-2xl border border-slate-150 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="admin-page-title text-2xl font-bold tracking-tight text-slate-800">Thống kê cửa hàng</h1>
-          <p className="admin-page-subtitle text-xs text-slate-400 mt-1 font-medium">Tổng quan doanh thu, tồn kho và các đơn hàng phát sinh.</p>
+          <p className="admin-page-subtitle text-xs text-slate-400 mt-1 font-medium">Tổng quan doanh thu thô, thực nhận, tồn kho và các đơn hàng phát sinh.</p>
         </div>
-        <button
-          type="button"
-          onClick={fetchStats}
-          className="admin-btn-secondary self-start sm:self-auto flex items-center gap-1.5 py-2 px-3.5 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H19c0 .72-.11 1.405-.316 2.052m-1.785-5.18L19 9h-5" />
-          </svg>
-          Làm mới
-        </button>
+        
+        {/* Date Filter Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Từ ngày</span>
+              <input
+                type="date"
+                value={startDateInput}
+                onChange={(e) => setStartDateInput(e.target.value)}
+                className="admin-input py-1.5 px-2.5 rounded-lg border border-slate-200 focus:border-pink-500 text-xs"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Đến ngày</span>
+              <input
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+                className="admin-input py-1.5 px-2.5 rounded-lg border border-slate-200 focus:border-pink-500 text-xs"
+              />
+            </div>
+          </div>
+          <div className="flex gap-1.5 mt-auto pt-4 sm:pt-0">
+            <button
+              type="button"
+              onClick={handleApplyFilter}
+              className="admin-btn-primary py-1.5 px-3 text-xs font-bold rounded-lg shadow-sm"
+            >
+              Lọc
+            </button>
+            {(activeDateRange.start || activeDateRange.end) && (
+              <button
+                type="button"
+                onClick={handleClearFilter}
+                className="admin-btn-secondary py-1.5 px-3 text-xs font-bold rounded-lg hover:bg-slate-50"
+              >
+                Xóa lọc
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => fetchStats()}
+              className="admin-btn-secondary flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-50 shadow-sm"
+              title="Làm mới"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H19c0 .72-.11 1.405-.316 2.052m-1.785-5.18L19 9h-5" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Revenue Statistics Grid */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Hiệu suất doanh thu</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Hiệu suất doanh thu</h2>
+          <button
+            type="button"
+            onClick={handleExportSalesReport}
+            className="text-[11px] font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 bg-pink-50/50 hover:bg-pink-50 border border-pink-100 px-2.5 py-1 rounded-lg shadow-xs"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Xuất báo cáo doanh số
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="Hôm nay"
             value={formatPrice(stats.revenue.today)}
+            netValue={formatPrice(stats.revenue.todayNet || 0)}
             icon={
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -226,6 +380,7 @@ const Stats = ({ token }) => {
           <StatCard
             label="7 ngày qua"
             value={formatPrice(stats.revenue.week)}
+            netValue={formatPrice(stats.revenue.weekNet || 0)}
             icon={
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -236,6 +391,7 @@ const Stats = ({ token }) => {
           <StatCard
             label="Tháng này"
             value={formatPrice(stats.revenue.month)}
+            netValue={formatPrice(stats.revenue.monthNet || 0)}
             icon={
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -246,6 +402,7 @@ const Stats = ({ token }) => {
           <StatCard
             label="Tổng doanh thu"
             value={formatPrice(stats.revenue.total)}
+            netValue={formatPrice(stats.revenue.totalNet || 0)}
             icon={
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -269,12 +426,19 @@ const Stats = ({ token }) => {
               </svg>
             }
             bg="bg-indigo-50 text-indigo-500"
+            onClick={() => navigate('/list?visibility=visible')}
             sub={
               stats.products.lowStock > 0 ? (
-                <>
+                <span 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/list?stock=low_stock');
+                  }}
+                  className="flex items-center gap-1 cursor-pointer hover:text-amber-700 hover:underline"
+                >
                   <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                   <span className="text-amber-600 font-semibold">{stats.products.lowStock} sắp hết hàng</span>
-                </>
+                </span>
               ) : (
                 'Kho ổn định'
               )
@@ -289,6 +453,7 @@ const Stats = ({ token }) => {
               </svg>
             }
             bg="bg-cyan-50 text-cyan-500"
+            onClick={() => navigate('/list')}
           />
           <StatCard
             label="Tổng số đơn hàng"
@@ -300,6 +465,7 @@ const Stats = ({ token }) => {
             }
             bg="bg-orange-50 text-orange-500"
             sub={`${stats.orders.byStatus?.Delivered || 0} đã giao thành công`}
+            onClick={() => navigate('/orders')}
           />
           <StatCard
             label="Đơn đã hủy bỏ"
@@ -311,18 +477,27 @@ const Stats = ({ token }) => {
             }
             bg="bg-rose-50 text-rose-500"
             sub="Hủy toàn thời gian"
+            onClick={() => navigate('/orders?status=Cancelled')}
           />
         </div>
       </div>
 
       {/* Revenue Line Chart Card */}
-      <ChartCard title="Xu hướng doanh thu theo ngày" subtitle="30 ngày gần nhất (không bao gồm các đơn hàng đã bị hủy)">
+      <ChartCard title="Xu hướng doanh thu theo ngày" subtitle="Phân tích doanh thu thô và doanh thu thực nhận (không bao gồm các đơn hàng đã bị hủy)">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-xs font-semibold text-slate-500">{periodLabel[period]}: </span>
-            <span className="text-sm font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-xs">
-              {formatPrice(periodRevenue[period])}
-            </span>
+          <div className="flex items-center gap-4 px-1 text-xs">
+            <div>
+              <span className="font-semibold text-slate-500">{periodLabel[period]} (Thô): </span>
+              <span className="text-sm font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-xs ml-1">
+                {formatPrice(periodRevenue[period])}
+              </span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-500">{periodLabel[period]} (Thực nhận): </span>
+              <span className="text-sm font-bold text-emerald-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-xs ml-1">
+                {formatPrice(periodNetRevenue[period])}
+              </span>
+            </div>
           </div>
           <div className="flex gap-1 bg-slate-200/60 p-1 rounded-lg">
             {['today', 'week', 'month', 'total'].map((item) => (
@@ -355,7 +530,7 @@ const Stats = ({ token }) => {
               tickLine={false}
               axisLine={false}
               dy={8}
-              interval={4}
+              interval={stats.revenue.chart.length > 30 ? 6 : stats.revenue.chart.length > 15 ? 3 : 1}
             />
             <YAxis
               tickFormatter={fmtK}
@@ -366,14 +541,27 @@ const Stats = ({ token }) => {
               width={42}
             />
             <Tooltip content={<RevenueTooltip />} />
+            <Legend 
+              formatter={(value) => (value === 'revenue' || value === 'gross' ? 'Doanh thu thô' : 'Doanh thu thực nhận')} 
+              wrapperStyle={{ fontSize: 11, fontWeight: 600, pt: 10 }} 
+            />
             <Line
               type="monotone"
               dataKey="revenue"
-              name="revenue"
+              name="gross"
               stroke="#ec4899"
               strokeWidth={3}
               dot={false}
               activeDot={{ r: 6, fill: '#ec4899', stroke: '#fff', strokeWidth: 2 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="netRevenue"
+              name="net"
+              stroke="#10b981"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -406,7 +594,7 @@ const Stats = ({ token }) => {
             />
             <Tooltip content={<RevenueTooltip />} />
             <Legend 
-              formatter={(value) => (value === 'orders' ? 'Số lượng đơn' : 'Doanh thu phát sinh')} 
+              formatter={(value) => (value === 'orders' ? 'Số lượng đơn' : 'Doanh thu thô')} 
               wrapperStyle={{ fontSize: 11, fontWeight: 600, pt: 10 }} 
             />
             <Bar yAxisId="left" dataKey="orders" name="orders" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={20} />
@@ -443,8 +631,13 @@ const Stats = ({ token }) => {
                     labelLine={false}
                     label={renderPieLabel}
                   >
-                    {pieData.map((_, index) => (
-                      <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    {pieData.map((item, index) => (
+                      <Cell 
+                        key={index} 
+                        fill={PIE_COLORS[index % PIE_COLORS.length]} 
+                        onClick={() => item.id && navigate(`/list?category=${item.id}`)}
+                        className="cursor-pointer outline-none"
+                      />
                     ))}
                   </Pie>
                   <Tooltip content={<PieTooltip />} />
@@ -453,9 +646,13 @@ const Stats = ({ token }) => {
 
               <div className="flex min-w-0 flex-1 flex-col gap-2.5 text-xs w-full">
                 {pieData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+                  <div 
+                    key={index} 
+                    onClick={() => item.id && navigate(`/list?category=${item.id}`)}
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
                     <span className="h-3 w-3 flex-shrink-0 rounded-md" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                    <span className="flex-1 truncate font-semibold text-slate-600">{item.name}</span>
+                    <span className="flex-1 truncate font-semibold text-slate-600 hover:text-pink-650 transition-colors">{item.name}</span>
                     <span className="font-bold text-slate-800">{item.value} sp</span>
                     <span className="w-10 text-right text-slate-450 font-bold">{item.pct}%</span>
                   </div>
@@ -474,28 +671,43 @@ const Stats = ({ token }) => {
               : 'Sản phẩm có hiệu suất bán hàng thấp nhất trong các sản phẩm đang hiển thị'
           }
         >
-          <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 flex-1 sm:flex-none">
+              <button
+                key="top-btn"
+                type="button"
+                onClick={() => setProductRankMode('top')}
+                className={`flex-1 rounded-md py-1.5 px-3 text-xs font-bold transition-all duration-150 ${
+                  productRankMode === 'top' 
+                    ? 'bg-white text-pink-600 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Bán chạy
+              </button>
+              <button
+                key="slow-btn"
+                type="button"
+                onClick={() => setProductRankMode('slow')}
+                className={`flex-1 rounded-md py-1.5 px-3 text-xs font-bold transition-all duration-150 ${
+                  productRankMode === 'slow' 
+                    ? 'bg-white text-amber-700 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Bán chậm
+              </button>
+            </div>
+            
             <button
               type="button"
-              onClick={() => setProductRankMode('top')}
-              className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all duration-150 ${
-                productRankMode === 'top' 
-                  ? 'bg-white text-pink-600 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+              onClick={handleExportProductReport}
+              className="text-[11px] font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 bg-pink-50/50 hover:bg-pink-50 border border-pink-100 px-2 py-1 rounded-lg shadow-xs"
             >
-              Bán chạy
-            </button>
-            <button
-              type="button"
-              onClick={() => setProductRankMode('slow')}
-              className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all duration-150 ${
-                productRankMode === 'slow' 
-                  ? 'bg-white text-amber-700 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Bán chậm
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Xuất sản phẩm
             </button>
           </div>
 
@@ -524,7 +736,8 @@ const Stats = ({ token }) => {
                   return (
                     <div 
                       key={product._id?.toString?.() ?? `${productRankMode}-${product.name}-${index}`} 
-                      className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-50/80 transition-colors duration-150"
+                      className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-50/80 transition-colors duration-150 cursor-pointer"
+                      onClick={() => navigate(`/list?q=${encodeURIComponent(product.name)}`)}
                     >
                       <span className={`flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${rankBadge}`}>
                         {index + 1}
@@ -536,8 +749,13 @@ const Stats = ({ token }) => {
                         <p className="truncate text-sm font-semibold text-slate-700">{product.name}</p>
                         <p className="text-xs text-slate-450 mt-0.5 font-medium">
                           {productRankMode === 'slow'
-                            ? `Tồn: ${product.stock ?? 0} · Doanh thu: ${formatPrice(product.revenue)}`
-                            : `Doanh thu: ${formatPrice(product.revenue)}`}
+                            ? `Tồn: ${product.stock ?? 0} · Doanh thu thô: ${formatPrice(product.revenue)}`
+                            : `Doanh thu thô: ${formatPrice(product.revenue)}`}
+                          {product.netRevenue > 0 && (
+                            <span className="block text-emerald-600 font-bold mt-0.5">
+                              Thực nhận: {formatPrice(product.netRevenue)}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -570,7 +788,8 @@ const Stats = ({ token }) => {
             {(stats.products.lowStockItems ?? []).map((product) => (
               <div
                 key={product._id?.toString?.() ?? product.name}
-                className="flex items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-3 hover:bg-amber-50/50 transition-colors duration-150"
+                className="flex items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-3 hover:bg-amber-50/50 transition-colors duration-150 cursor-pointer"
+                onClick={() => navigate(`/list?q=${encodeURIComponent(product.name)}`)}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {product.image && (
@@ -595,7 +814,7 @@ const Stats = ({ token }) => {
       </ChartCard>
 
       {/* Recent Orders Table Card */}
-      <ChartCard title="Các đơn hàng phát sinh gần đây" subtitle="Danh sách 5 đơn hàng mới nhận gần nhất cần theo dõi">
+      <ChartCard title="Các đơn hàng phát sinh gần đây" subtitle="Danh sách 5 đơn hàng mới nhận gần nhất cần theo dõi (Bấm vào đơn hàng để xem chi tiết)">
         {stats.orders.recent.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-slate-450 bg-slate-50/50 border border-slate-100 rounded-xl p-4">
             <svg className="w-8 h-8 text-slate-350 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -611,19 +830,25 @@ const Stats = ({ token }) => {
                   <th className="pb-3 text-left font-bold">Mã đơn hàng</th>
                   <th className="pb-3 text-left font-bold">Ngày đặt</th>
                   <th className="pb-3 text-left font-bold">Số lượng</th>
-                  <th className="pb-3 text-right font-bold">Thành tiền</th>
+                  <th className="pb-3 text-right font-bold">Doanh thu thô</th>
+                  <th className="pb-3 text-right font-bold">Thực nhận</th>
                   <th className="pb-3 text-right font-bold">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {stats.orders.recent.map((order) => (
-                  <tr key={order._id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr 
+                    key={order._id} 
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/orders?orderId=${order._id}`)}
+                  >
                     <td className="py-3 pr-3 font-mono text-xs font-bold text-slate-500">
                       #{order._id.toString().slice(-6).toUpperCase()}
                     </td>
                     <td className="py-3 pr-3 text-xs font-medium text-slate-650">{new Date(order.date).toLocaleDateString('vi-VN')}</td>
                     <td className="py-3 pr-3 text-xs font-medium text-slate-650">{order.itemCount} sản phẩm</td>
                     <td className="py-3 pr-3 text-right font-bold text-slate-800">{formatPrice(order.amount)}</td>
+                    <td className="py-3 pr-3 text-right font-bold text-emerald-600">{formatPrice(order.netAmount || 0)}</td>
                     <td className="py-3 text-right">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase ${STATUS_STYLE[order.status] || 'bg-slate-100 text-slate-600'}`}>
                         {STATUS_LABEL[order.status] || order.status}

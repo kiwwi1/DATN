@@ -46,8 +46,9 @@ const RETURN_REASON_LABELS = {
 }
 
 const Orders = ({ token }) => {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const focusOrderId = searchParams.get('orderId') || ''
+  const filterStatus = searchParams.get('status') || 'all'
   const [orders, setOrders] = useState([])
   const [trackingInputs, setTrackingInputs] = useState({})
   const [loading, setLoading] = useState(true)
@@ -57,24 +58,29 @@ const Orders = ({ token }) => {
   const [returnNotes, setReturnNotes] = useState({})
   const [processingReturn, setProcessingReturn] = useState(null)
 
+  const filteredOrders = useMemo(() => {
+    if (!filterStatus || filterStatus === 'all') return orders
+    return orders.filter((order) => order.status === filterStatus)
+  }, [orders, filterStatus])
+
   const visibleOrders = useMemo(
-    () => orders.slice(0, Math.min(visibleCount, orders.length)),
-    [orders, visibleCount]
+    () => filteredOrders.slice(0, Math.min(visibleCount, filteredOrders.length)),
+    [filteredOrders, visibleCount]
   )
-  const hasMoreOrders = visibleCount < orders.length
+  const hasMoreOrders = visibleCount < filteredOrders.length
 
   useEffect(() => {
-    if (!focusOrderId || orders.length === 0) {
+    if (!focusOrderId || filteredOrders.length === 0) {
       setVisibleCount(INITIAL_VISIBLE_ORDERS)
       return
     }
-    const targetIndex = orders.findIndex((order) => String(order._id) === String(focusOrderId))
+    const targetIndex = filteredOrders.findIndex((order) => String(order._id) === String(focusOrderId))
     if (targetIndex === -1) {
       setVisibleCount(INITIAL_VISIBLE_ORDERS)
       return
     }
     setVisibleCount(Math.max(INITIAL_VISIBLE_ORDERS, targetIndex + 1))
-  }, [orders, focusOrderId])
+  }, [filteredOrders, focusOrderId])
 
   useEffect(() => {
     if (!focusOrderId || visibleOrders.length === 0) return
@@ -92,14 +98,14 @@ const Orders = ({ token }) => {
       (entries) => {
         const entry = entries[0]
         if (!entry?.isIntersecting) return
-        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, orders.length))
+        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, filteredOrders.length))
       },
       { root: null, rootMargin: '220px 0px', threshold: 0.01 }
     )
 
     observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [loading, hasMoreOrders, orders.length])
+  }, [loading, hasMoreOrders, filteredOrders.length])
 
   const fetchAllOrders = async () => {
     if (!token) return
@@ -262,8 +268,51 @@ const Orders = ({ token }) => {
           <p className="text-sm font-semibold text-slate-500">Chưa có đơn hàng nào được đặt</p>
           <p className="mt-1 text-xs text-slate-400 font-medium">Hệ thống sẽ cập nhật ngay khi khách hàng thực hiện giao dịch mua sắm.</p>
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="space-y-4">
+          {filterStatus !== 'all' && (
+            <div className="flex items-center justify-between bg-pink-50 border border-pink-100 rounded-xl p-3.5 text-xs text-pink-700 font-bold shadow-xs">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Đang lọc theo trạng thái đơn hàng: <span className="bg-pink-100 border border-pink-200 px-2 py-0.5 rounded-md text-pink-850 uppercase">{STATUS_LABELS[filterStatus] || filterStatus}</span>
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setSearchParams({})} 
+                className="hover:text-pink-905 text-[10px] font-extrabold uppercase tracking-wider bg-white border border-pink-200 px-2.5 py-1 rounded-lg shadow-2xs hover:bg-pink-100 transition-colors"
+              >
+                Hiển thị tất cả
+              </button>
+            </div>
+          )}
+          <div className="admin-card flex flex-col items-center justify-center py-20 text-slate-400 bg-white text-center">
+            <svg className="w-12 h-12 text-slate-350 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm font-semibold text-slate-500">Không tìm thấy đơn hàng nào ở trạng thái này</p>
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
+          {filterStatus !== 'all' && (
+            <div className="flex items-center justify-between bg-pink-50 border border-pink-100 rounded-xl p-3.5 text-xs text-pink-700 font-bold shadow-xs">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Đang lọc theo trạng thái đơn hàng: <span className="bg-pink-100 border border-pink-200 px-2 py-0.5 rounded-md text-pink-850 uppercase">{STATUS_LABELS[filterStatus] || filterStatus}</span>
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setSearchParams({})} 
+                className="hover:text-pink-905 text-[10px] font-extrabold uppercase tracking-wider bg-white border border-pink-200 px-2.5 py-1 rounded-lg shadow-2xs hover:bg-pink-100 transition-colors"
+              >
+                Hiển thị tất cả
+              </button>
+            </div>
+          )}
           {visibleOrders.map((order, index) => {
             const addressMeta = getOrderAddressMeta(order.address)
             const isFocused = String(order._id) === String(focusOrderId)

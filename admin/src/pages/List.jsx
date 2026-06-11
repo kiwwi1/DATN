@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { backendUrl } from '../App'
@@ -171,7 +172,9 @@ const List = ({ token }) => {
   const [loadingCategories, setLoadingCategories] = useState(true)
   const [categoryMap, setCategoryMap] = useState({})
 
-  const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSearch = searchParams.get('q') || ''
+  const [search, setSearch] = useState(initialSearch)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [currentPage, setCurrentPage] = useState(1)
   const [draggedImageIndex, setDraggedImageIndex] = useState(null)
@@ -428,6 +431,39 @@ const List = ({ token }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const q = searchParams.get('q') || ''
+    setSearch(q)
+
+    setFilters((prev) => {
+      const next = { ...DEFAULT_FILTERS }
+      for (const key of Object.keys(DEFAULT_FILTERS)) {
+        const val = searchParams.get(key)
+        if (val !== null) {
+          next[key] = val
+        }
+      }
+      if (JSON.stringify(prev) === JSON.stringify(next)) return prev
+      return next
+    })
+  }, [searchParams])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const q = searchParams.get('q') || ''
+      if (search !== q) {
+        const nextParams = new URLSearchParams(searchParams)
+        if (search.trim()) {
+          nextParams.set('q', search)
+        } else {
+          nextParams.delete('q')
+        }
+        setSearchParams(nextParams, { replace: true })
+      }
+    }, 300)
+    return () => clearTimeout(timeoutId)
+  }, [search, searchParams, setSearchParams])
+
   const availableSubCategoryFilters = useMemo(() => {
     if (filters.category === 'all') return []
     return allCategories.filter(
@@ -511,18 +547,18 @@ const List = ({ token }) => {
   }, [currentPage, totalPages])
 
   const updateFilter = (key, value) => {
-    setFilters((prev) => {
-      if (key === 'category') {
-        return { ...prev, category: value, subCategory: 'all' }
-      }
-      return { ...prev, [key]: value }
-    })
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set(key, value)
+    if (key === 'category') {
+      nextParams.set('subCategory', 'all')
+    }
+    setSearchParams(nextParams, { replace: true })
     setCurrentPage(1)
   }
 
   const clearFilters = () => {
     setSearch('')
-    setFilters(DEFAULT_FILTERS)
+    setSearchParams({}, { replace: true })
     setCurrentPage(1)
   }
 

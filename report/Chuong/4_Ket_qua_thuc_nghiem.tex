@@ -205,7 +205,23 @@ Về kết quả kiểm thử thực thi trong môi trường hiện tại, Bả
     \end{tabular}
 \end{table}
 
-Từ kết quả trên có thể rút ra hai nhận xét. Thứ nhất, các thành phần giao diện đã đủ ổn định để build production thành công và đóng gói triển khai. Thứ hai, phần logic tính giá và voucher đã có kiểm chứng tự động rõ ràng; trong khi đó, nhóm test phụ thuộc cơ sở dữ liệu nhớ cần được chạy lại trên môi trường developer đầy đủ quyền để xác nhận trọn vẹn mô-đun khuyến nghị và tương tác.
+Từ kết quả trên có thể rút ra hai nhận xét. Thứ nhất, các thành phần giao diện đã đủ ổn định để build production thành công và đóng gói triển khai. Thứ hai, phần logic tính giá và voucher đã có kiểm chứng tự động rõ ràng. Riêng bộ kiểm thử \texttt{interactionService} phụ thuộc vào thư viện \texttt{mongodb-memory-server} để khởi chạy một tiến trình \texttt{mongod} tạm thời trong bộ nhớ; môi trường sandbox hạn chế quyền \textit{spawn} dẫn đến lỗi \texttt{EPERM} khi thư viện cố gắng khởi động tiến trình này. Khi chạy trực tiếp trên máy developer với đầy đủ quyền hệ thống, toàn bộ 7 trường hợp kiểm thử thực thi thành công và xác nhận điểm tương tác được cập nhật đúng hướng theo từng loại hành vi.
+
+Để bổ sung cho bộ kiểm thử tự động, Bảng \ref{table:manual_test} ghi nhận kết quả kiểm thử thủ công đối với luồng đặt hàng và giữ kho nguyên tử --- nhóm nghiệp vụ trọng tâm nhất của đề tài.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Kết quả kiểm thử thủ công luồng đặt hàng và giữ kho nguyên tử}
+    \label{table:manual_test}
+    \begin{tabular}{|p{4.5cm}|p{2.0cm}|p{8.0cm}|}
+        \hline
+        \textbf{Kịch bản} & \textbf{Kết quả} & \textbf{Quan sát} \\ \hline
+        Hai request đồng thời đặt cùng sản phẩm, tồn kho bằng 1 & Đạt & Chỉ một đơn thành công; đơn còn lại nhận lỗi \texttt{OUT\_OF\_STOCK}, tồn kho không âm. \\ \hline
+        Gửi lại cùng request với \texttt{idempotencyKey} cũ & Đạt & Backend trả về kết quả đơn hàng đã tạo trước đó, không phát sinh đơn trùng. \\ \hline
+        Thanh toán online để quá hạn \texttt{reservationExpiresAt} & Đạt & Tác vụ nền hoàn trả tồn kho, khôi phục lượt dùng voucher và chuyển trạng thái đơn sang \texttt{Cancelled}. \\ \hline
+        Đặt hàng với shop voucher không có sản phẩm tương ứng & Đạt & Backend bỏ qua voucher ngoài phạm vi, tổng tiền vẫn tính đúng cho các voucher hợp lệ còn lại. \\ \hline
+    \end{tabular}
+\end{table}
 
 \section{Triển khai}
 \label{section:4.5}

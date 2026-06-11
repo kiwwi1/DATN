@@ -492,7 +492,7 @@ const seedProducts = async () => {
                 subCategory: subCat?._id || undefined,
                 bestseller: (tpl.sold ?? 0) > 5000,
                 date: now - Math.floor(Math.random() * 180 * 24 * 60 * 60 * 1000), // up to 6 months ago
-                sold: jitter(tpl.sold ?? 0, 0.15),
+                sold: 0,
                 vendorId: vendor._id,
                 vendorShopName: vendor.shopName,
                 stock: totalStock,

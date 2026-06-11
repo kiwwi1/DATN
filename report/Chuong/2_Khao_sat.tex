@@ -10,7 +10,7 @@ Khảo sát chi tiết hiện trạng kỹ thuật và nghiệp vụ được t�
 
 (i) Từ phía người dùng và thương nhân: Người mua mong muốn một hệ thống thanh toán mượt mà, minh bạch về giá, áp dụng được nhiều lớp mã giảm giá cùng lúc và giao tiếp tức thời với người bán. Thương nhân cần bảng số liệu trực quan, cập nhật nhanh để quản trị dòng tiền, hàng tồn kho và các chương trình khuyến mãi riêng biệt.
 
-(ii) Từ các hệ thống sẵn có: Nhiều nền tảng thương mại điện tử phổ biến hiện nay hỗ trợ tốt mô hình một cửa hàng (Single-shop), nhưng khi mở rộng sang mô hình đa nhà bán hàng (Multi-vendor) thường phải phụ thuộc vào plugin hoặc các lớp mở rộng phức tạp. Điều này làm tăng chi phí tích hợp và gây khó khăn khi cần tách đơn hàng theo nhà bán, tính phí vận chuyển riêng hoặc áp dụng voucher theo từng cấp độ.
+(ii) Từ các hệ thống sẵn có: Các nền tảng thương mại điện tử phổ biến như WooCommerce (với extension \textit{Product Vendors}) hay Shopify (với mô hình \textit{Marketplace Apps}) hỗ trợ mô hình đa nhà bán hàng thông qua các lớp mở rộng bổ sung \cite{woocommerce-multivendor}\cite{shopify-marketplace}. Cách tiếp cận này làm tăng chi phí tích hợp và gây khó khăn khi cần tách đơn hàng theo nhà bán, tính phí vận chuyển riêng hoặc áp dụng voucher theo từng cấp độ một cách nhất quán từ tầng nghiệp vụ.
 
 (iii) Đánh giá hiệu năng dưới tải cao: Các hệ thống cũ thường áp dụng kỹ thuật đọc-sửa-ghi (Read-Modify-Write) ở tầng dữ liệu, dẫn đến thời gian phản hồi tăng mạnh khi nhiều người cùng đặt hàng. Hệ quả dễ gặp là lỗi bán vượt quá số lượng tồn kho thực tế (overselling), tình trạng tạo đơn lặp khi người dùng thao tác nhiều lần và rủi ro quá tải đối với các API xác thực nếu thiếu lớp giới hạn tần suất truy cập.
 

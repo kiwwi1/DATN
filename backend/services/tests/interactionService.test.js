@@ -21,14 +21,15 @@ afterEach(async () => {
     await productModel.deleteMany({});
 });
 
-const createProduct = (id) => productModel.create({
+const createProduct = (id, date = Date.now()) => productModel.create({
     _id: id,
     name: "Test Product",
     description: "Test",
     price: 100,
     image: [],
     category: new mongoose.Types.ObjectId(),
-    date: Date.now(),
+    date,
+    isActive: true,
     vendorId: new mongoose.Types.ObjectId(),
 });
 
@@ -67,8 +68,8 @@ describe("trackInteractionService", () => {
 describe("getRecommendationsService", () => {
     it("tra ve san pham theo thu tu score giam dan", async () => {
         const productId2 = new mongoose.Types.ObjectId();
-        await createProduct(productId);
-        await createProduct(productId2);
+        await createProduct(productId, 1000);
+        await createProduct(productId2, 500);
         await trackInteractionService(userId, productId, "purchased");   // score cao
         await trackInteractionService(userId, productId2, "viewed");     // score thap
         const results = await getRecommendationsService(userId, 10);
@@ -77,8 +78,8 @@ describe("getRecommendationsService", () => {
 
     it("giu nguyen thu tu score giam dan", async () => {
         const productId2 = new mongoose.Types.ObjectId();
-        await createProduct(productId);
-        await createProduct(productId2);
+        await createProduct(productId, 1000);
+        await createProduct(productId2, 500);
         await trackInteractionService(userId, productId, "purchased");   // score cao hon
         await trackInteractionService(userId, productId2, "viewed");     // score thap hon
         const results = await getRecommendationsService(userId, 10);

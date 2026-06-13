@@ -8,6 +8,7 @@
     "server": "nodemon --exec \"node --dns-result-order=ipv4first\" server.js",
     "tunnel:quick": "cloudflared tunnel --protocol http2 --edge-ip-version 4 --url http://localhost:4000",
     "tunnel:named": "cloudflared tunnel --protocol http2 --edge-ip-version 4 --config ./cloudflared/config.yml run",
+    "fake-orders": "node scripts/fakeOrders.js",
     "seed-categories": "node seedCategories.js",
     "seed-products": "node seedProducts.js",
     "seed-reviews": "node seedReviews.js",

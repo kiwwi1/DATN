@@ -39,27 +39,55 @@ const isCorruptedText = (value) => {
 };
 
 const buildFallbackByType = ({ type, order }) => {
+  const orderCode = order?._id ? String(order._id).slice(-6).toUpperCase() : "";
+  const codeStr = orderCode ? ` #${orderCode}` : "";
+  const itemNames = Array.isArray(order?.items) && order.items.length > 0
+    ? order.items.map((i) => i.name).join(", ")
+    : "";
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
+
   if (type === "order_status") {
     const status = order?.status;
     const label = ORDER_STATUS_LABEL[status] || status || "Đang xử lý";
     return {
-      title: "Cập nhật đơn hàng",
-      message: `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
+      title: `Cập nhật đơn hàng${codeStr}`,
+      message: `Đơn hàng${codeStr}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
     };
   }
 
   if (type === "order_placed") {
     return {
-      title: "Đơn hàng mới",
-      message: "Bạn có đơn hàng mới.",
+      title: `Đơn hàng mới${codeStr}`,
+      message: `Bạn có đơn hàng mới${codeStr}${itemStr}.`,
     };
   }
 
   if (type === "order_cancelled") {
     const reason = order?.cancelReason ? ` Lý do: ${order.cancelReason}` : "";
     return {
-      title: "Đơn hàng đã bị hủy",
-      message: `Đơn hàng của bạn đã bị hủy.${reason}`,
+      title: `Đơn hàng đã bị hủy${codeStr}`,
+      message: `Đơn hàng${codeStr}${itemStr} của bạn đã bị hủy.${reason}`,
+    };
+  }
+
+  if (type === "return_approved") {
+    return {
+      title: `Yêu cầu trả hàng được chấp nhận${codeStr}`,
+      message: `Người bán đã chấp nhận yêu cầu trả hàng cho đơn hàng${codeStr}${itemStr}. Vui lòng gửi lại hàng theo hướng dẫn.`,
+    };
+  }
+
+  if (type === "return_rejected") {
+    return {
+      title: `Yêu cầu trả hàng bị từ chối${codeStr}`,
+      message: `Người bán đã từ chối yêu cầu trả hàng cho đơn hàng${codeStr}${itemStr}.`,
+    };
+  }
+
+  if (type === "return_refunded") {
+    return {
+      title: `Hoàn tiền thành công${codeStr}`,
+      message: `Đơn hàng${codeStr}${itemStr} của bạn đã được hoàn tiền thành công.`,
     };
   }
 
@@ -191,7 +219,7 @@ export const getNotificationsService = async (userId, audience = "user") => {
 
   const orders =
     orderIds.length > 0
-      ? await orderModel.find({ _id: { $in: orderIds } }).select("_id status cancelReason").lean()
+      ? await orderModel.find({ _id: { $in: orderIds } }).select("_id status cancelReason items").lean()
       : [];
   const orderMap = new Map(orders.map((order) => [String(order._id), order]));
 
@@ -229,7 +257,7 @@ export const markOneReadService = async (notificationId, userId, audience = "use
   const obj = item.toObject();
   const orderMap = new Map();
   if (obj.orderId) {
-    const order = await orderModel.findById(obj.orderId).select("_id status cancelReason").lean();
+    const order = await orderModel.findById(obj.orderId).select("_id status cancelReason items").lean();
     if (order?._id) orderMap.set(String(order._id), order);
   }
 

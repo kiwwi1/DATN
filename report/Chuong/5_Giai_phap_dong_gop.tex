@@ -1,14 +1,268 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Chương này có độ dài tối thiểu 5 trang, tối đa không giới hạn.\footnote{Trong trường hợp phần này dưới 5 trang thì sinh viên nên gộp vào phần kết luận, không tách ra một chương riêng rẽ nữa.} Sinh viên cần trình bày tất cả những nội dung đóng góp mà mình thấy tâm đắc nhất trong suốt quá trình làm ĐATN. Đó có thể là một loạt các vấn đề khó khăn mà sinh viên đã từng bước giải quyết được, là giải thuật cho một bài toán cụ thể, là giải pháp tổng quát cho một lớp bài toán, hoặc là mô hình/kiến trúc hữu hiệu nào đó được sinh viên thiết kế.
+Chương này tập trung trình bày các giải pháp thiết kế hệ thống và đóng góp kỹ thuật nổi bật của đồ án nhằm giải quyết các thách thức đặc trưng trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace). Nội dung chương được chia thành ba mục chính, mỗi mục phân tích sâu một bài toán cụ thể từ giai đoạn đặt vấn đề, thiết kế giải pháp kỹ thuật chi tiết, cho đến kết quả thực nghiệm đạt được:
+\begin{itemize}
+    \item \textbf{Phần \ref{section:5.1}}: Cơ chế giữ kho nguyên tử (Atomic Stock Reservation) kết hợp khóa chống trùng lặp giao dịch (Idempotency Key) để giải quyết tranh chấp tồn kho dưới tải cao và triệt tiêu lỗi tạo đơn hàng trùng.
+    \item \textbf{Phần \ref{section:5.2}}: Hệ thống khuyến nghị sản phẩm lai (Hybrid Recommendation Engine) tích hợp điểm tương tác hành vi và hệ số suy hao thời gian (Time Decay) để tối ưu hóa trải nghiệm cá nhân hóa.
+    \item \textbf{Phần \ref{section:5.3}}: Kiến trúc điều phối giao dịch đa nhà bán hàng (Multi-vendor Order Routing) và bộ tính toán mã giảm giá phân tầng nhiều lớp (Hierarchical Voucher Engine) xử lý an toàn tại backend.
+\end{itemize}
 
-Chương này \textbf{là cơ sở quan trọng} để các thầy cô đánh giá sinh viên. Vì vậy, sinh viên cần phát huy tính sáng tạo, khả năng phân tích, phản biện, lập luận, tổng quát hóa vấn đề và tập trung viết cho thật tốt.
-Mỗi giải pháp hoặc đóng góp của sinh viên cần được trình bày trong một mục độc lập bao gồm ba mục con: (i) dẫn dắt/giới thiệu về bài toán/vấn đề, (ii) giải pháp, và (iii) kết quả đạt được (nếu có).
+\section{Cơ chế giữ kho nguyên tử và chống trùng lặp giao dịch}
+\label{section:5.1}
 
-Sinh viên lưu ý \textbf{không trình bày lặp lại nội dung}. Những nội dung đã trình bày chi tiết trong các chương trước không được trình bày lại trong chương này. Vì vậy, với nội dung hay, mang tính đóng góp/giải pháp, sinh viên chỉ nên tóm lược/mô tả sơ bộ trong các chương trước, đồng thời tạo tham chiếu chéo tới đề mục tương ứng trong Chương 5 này. Chi tiết thông tin về đóng góp/giải pháp được trình bày trong mục đó.
+\subsection{Đặt vấn đề}
+Trong các sự kiện mua sắm lớn (chẳng hạn như Flash Sale), hệ thống thường phải đối mặt với lượng truy cập đồng thời cực kỳ lớn vào cùng một thời điểm. Đối với luồng đặt hàng truyền thống, quy trình nghiệp vụ thường diễn ra theo trình tự:
+\begin{enumerate}
+    \item Đọc số lượng tồn kho hiện tại của sản phẩm từ cơ sở dữ liệu.
+    \item Kiểm tra xem số lượng tồn kho có lớn hơn hoặc bằng số lượng khách hàng yêu cầu mua hay không.
+    \item Nếu thỏa mãn, gửi lệnh cập nhật giảm số lượng tồn kho tương ứng và tạo bản ghi đơn hàng.
+\end{enumerate}
 
-Ví dụ, trong Chương 4, sinh viên có thiết kế được kiến trúc đáng lưu ý gì đó, là sự kết hợp của các kiến trúc MVC, MVP, SOA, v.v. Khi đó, sinh viên sẽ chỉ mô tả ngắn gọn kiến trúc đó ở Chương 4, rồi thêm các câu có dạng: ``Chi tiết về kiến trúc này sẽ được trình bày trong phần 5.1". 
+Quy trình này trong môi trường đa luồng hoặc xử lý bất đồng bộ tải cao sẽ phát sinh lỗi tranh chấp tài nguyên (Race Condition). Nếu hai yêu cầu cùng đọc số lượng tồn kho là $1$, cả hai đều vượt qua bước kiểm tra điều kiện và thực hiện giảm tồn kho, dẫn đến hiện tượng tồn kho bị cập nhật xuống giá trị âm (hoặc số lượng hàng bán ra vượt quá khả năng cung cấp thực tế, gọi là lỗi bán quá mức - \textit{oversell}).
 
+Song song với đó là vấn đề trùng lặp giao dịch (duplicate transactions). Do độ trễ mạng hoặc sự thiếu kiên nhẫn, người mua thường có xu hướng bấm liên tiếp vào nút thanh toán hoặc gửi lại yêu cầu đặt hàng khi API chưa kịp phản hồi. Điều này dễ dẫn đến việc hệ thống khởi tạo nhiều đơn hàng giống hệt nhau cho cùng một giỏ hàng, gây sai lệch nghiêm trọng về dữ liệu tồn kho, doanh thu và trải nghiệm người dùng.
+
+\subsection{Giải pháp kỹ thuật đề xuất}
+Để giải quyết triệt để hai thách thức trên, đồ án đề xuất giải pháp tích hợp kết hợp giữa cơ chế giữ kho nguyên tử và kiểm tra tính duy nhất thông qua khóa chống trùng lặp (Idempotency Key) tại tầng cơ sở dữ liệu.
+
+\subsubsection{Cơ chế giữ kho nguyên tử (Atomic Stock Reservation)}
+Thay vì thực hiện kiểm tra tồn kho ở tầng ứng dụng và cập nhật ở tầng dữ liệu thông qua hai truy vấn riêng biệt, đồ án chuyển toàn bộ logic kiểm tra và trừ kho thành một thao tác ghi nguyên tử duy nhất (Atomic Write) tại MongoDB bằng cách nhúng điều kiện ràng buộc tồn kho trực tiếp vào bộ lọc tìm kiếm của câu lệnh cập nhật:
+\begin{equation}
+    \text{UpdateFilter} = \{ \text{\_id}: \text{productId}, \text{stock}: \{ \$gte: \text{requestedQuantity} \} \}
+\end{equation}
+\begin{equation}
+    \text{UpdateAction} = \{ \$inc: \{ \text{stock}: -\text{requestedQuantity} \} \}
+\end{equation}
+
+Nếu tồn kho hiện tại nhỏ hơn số lượng yêu cầu, bộ lọc sẽ không khớp với bất kỳ tài liệu nào trong cơ sở dữ liệu, câu lệnh cập nhật trả về số lượng bản ghi thay đổi (\texttt{modifiedCount}) bằng $0$. Hệ thống lập tức nhận biết trạng thái hết hàng và trả về mã lỗi \texttt{OUT\_OF\_STOCK} cho client. Quy trình này bảo đảm không bao giờ xảy ra tình trạng tồn kho bị cập nhật xuống giá trị âm, hoạt động tương tự cơ chế khóa lạc quan (Optimistic Locking) nhưng không phát sinh chi phí quản lý phiên bản phức tạp.
+
+Để hỗ trợ các cổng thanh toán trực tuyến (như Stripe hoặc VNPay) cần thời gian chờ người dùng hoàn tất giao dịch ở trang ngoài, đồ án thiết lập cơ chế đặt chỗ tồn kho có thời hạn (Stock Reservation with TTL). Khi đơn hàng được khởi tạo, tồn kho tạm thời bị trừ đi và đơn hàng được gắn một mốc thời gian hết hạn \texttt{reservationExpiresAt} (mặc định là 10 phút). Một tiến trình chạy nền (background cron job) được thiết lập để liên tục truy quét cơ sở dữ liệu theo chu kỳ 1 phút:
+\begin{lstlisting}
+// Tim cac don hang chua thanh toan va da qua han giu kho
+db.orders.find({
+    status: { $ne: "Cancelled" },
+    payment: false,
+    reservationExpiresAt: { $lt: currentTime }
+})
+\end{lstlisting}
+
+Đối với mỗi đơn hàng quá hạn được tìm thấy, hệ thống sẽ thực hiện tác vụ thu hồi tự động: hoàn trả lại số lượng tồn kho cho các sản phẩm trong đơn hàng thông qua lệnh cập nhật nguyên tử, khôi phục trạng thái sử dụng của mã giảm giá (voucher), và cập nhật trạng thái đơn hàng thành \texttt{Cancelled} (Hủy bởi hệ thống).
+
+\subsubsection{Khóa chống trùng lặp giao dịch (Idempotency Key)}
+Để bảo đảm tính duy nhất của giao dịch thanh toán, mỗi khi người dùng bắt đầu luồng đặt hàng tại giao diện, ứng dụng frontend sẽ tạo ra một chuỗi định danh duy nhất (UUID v4) đóng vai trò là \texttt{idempotencyKey} và gửi kèm trong tiêu đề request hoặc thân của yêu cầu API. 
+
+Tại backend, cơ sở dữ liệu MongoDB thiết lập một chỉ mục duy nhất kết hợp (Compound Unique Index) trên hai trường \texttt{userId} và \texttt{idempotencyKey} trong collection \texttt{orders}:
+\begin{lstlisting}
+orderSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } }
+  }
+);
+\end{lstlisting}
+
+Khi có hai request trùng lặp được gửi đến gần như đồng thời hoặc liên tiếp:
+\begin{itemize}
+    \item \textbf{Yêu cầu thứ nhất} vượt qua lớp kiểm tra độc bản, tiến hành giữ kho, tạo đơn hàng thành công và ghi nhận khóa vào cơ sở dữ liệu.
+    \item \textbf{Yêu cầu thứ hai} khi cố gắng ghi đè hoặc tạo mới tài liệu có cùng cặp \texttt{userId} và \texttt{idempotencyKey} sẽ lập tức bị MongoDB chặn lại và quăng ra lỗi trùng khóa chỉ mục (\texttt{Error Code 11000 - Duplicate Key Error}).
+\end{itemize}
+
+Backend bắt lỗi đặc biệt này, bỏ qua bước tạo mới dữ liệu, và thực hiện truy vấn đơn hàng đã được tạo bởi yêu cầu thứ nhất để trả về cho client. Nhờ đó, phía client vẫn nhận được thông tin phản hồi hợp lệ về đơn hàng mà không có bất kỳ giao dịch thừa hay hao hụt tồn kho ngoài ý muốn nào được sinh ra.
+
+\subsection{Kết quả đạt được}
+Cơ chế giữ kho nguyên tử và chống trùng lặp đã được kiểm thử tải giả lập bằng kịch bản chạy đồng thời nhiều luồng gửi yêu cầu mua hàng với tồn kho giới hạn. Kết quả ghi nhận:
+\begin{itemize}
+    \item Triệt tiêu hoàn toàn lỗi bán quá mức (oversell). Trong trường hợp tồn kho bằng $1$ nhưng có 100 yêu cầu đồng thời, hệ thống chỉ chấp nhận đúng 1 yêu cầu đầu tiên xử lý ghi thành công, 99 yêu cầu còn lại nhận thông báo hết hàng chỉ sau vài mili-giây.
+    \item Ngăn ngừa hoàn toàn đơn hàng rác do thao tác bấm lặp của người dùng hoặc lỗi gửi lại của mạng lưới.
+    \item Tác vụ quét nền chạy ổn định, tự động giải phóng hàng trăm sản phẩm bị giữ kho ảo từ các đơn hàng Stripe/VNPay không hoàn tất thanh toán, trả lại lượng tồn kho thực tế cho các khách hàng khác tiếp cận.
+\end{itemize}
+
+\section{Hệ thống khuyến nghị sản phẩm lai tích hợp suy hao thời gian}
+\label{section:5.2}
+
+\subsection{Đặt vấn đề}
+Một trong những điểm mấu chốt để nâng cao doanh số và giữ chân người dùng trên các sàn thương mại điện tử là khả năng cá nhân hóa trải nghiệm thông qua danh sách gợi ý sản phẩm. Tuy nhiên, việc xây dựng một bộ gợi ý hiệu quả gặp phải ba thách thức lớn:
+\begin{itemize}
+    \item \textbf{Bài toán khởi động lạnh (Cold Start)}: Người dùng mới đăng ký chưa hề có lịch sử mua sắm hay tương tác, khiến các thuật toán lọc cộng tác (Collaborative Filtering) không có cơ sở dữ liệu để đối chiếu và đưa ra gợi ý liên quan.
+    \item \textbf{Độ loãng của dữ liệu (Data Sparsity)}: Số lượng sản phẩm trên sàn rất lớn nhưng mỗi khách hàng chỉ tương tác với một phần cực kỳ nhỏ trong số đó, dẫn đến ma trận tương tác người dùng - sản phẩm bị trống hầu hết các ô dữ liệu.
+    \item \textbf{Sự thay đổi sở thích theo thời gian (Time Decay)}: Hành vi và sở thích của khách hàng không cố định mà biến đổi liên tục. Một sản phẩm công nghệ người dùng đã xem và mua từ 6 tháng trước không còn phản ánh đúng nhu cầu hiện tại bằng một sản phẩm thời trang mà họ mới thêm vào giỏ hàng ngày hôm qua.
+\end{itemize}
+
+\subsection{Giải pháp kỹ thuật đề xuất}
+Đồ án đề xuất giải pháp xây dựng hệ thống khuyến nghị sản phẩm lai (Hybrid Recommendation Engine) kết hợp giữa Lọc theo nội dung (Content-Based Filtering) và Lọc cộng tác (Collaborative Filtering), hoạt động dựa trên điểm tương tác động tích hợp cơ chế suy hao theo thời gian.
+
+\subsubsection{Mô hình chấm điểm tương tác động (Interaction Scoring)}
+Hệ thống không chỉ ghi nhận hành vi mua hàng mà thu thập toàn bộ các loại tương tác của người dùng trên sản phẩm thông qua dịch vụ \texttt{interactionService}. Mỗi loại hành vi được quy đổi thành một điểm số cơ bản (Base Score) phản ánh mức độ quan tâm tăng dần:
+\begin{table}[htbp]
+    \centering
+    \caption{Trọng số điểm tương tác cơ bản theo loại hành vi}
+    \label{table:interaction_weights}
+    \begin{tabular}{|c|c|l|}
+        \hline
+        \textbf{Hành vi} & \textbf{Trọng số cơ bản ($w_{action}$)} & \textbf{Ý nghĩa hành vi} \\ \hline
+        Xem trang (\texttt{view}) & 1 & Người dùng mở xem chi tiết sản phẩm \\ \hline
+        Yêu thích (\texttt{like}) & 2 & Người dùng bấm lưu sản phẩm vào danh sách yêu thích \\ \hline
+        Thêm giỏ (\texttt{cart}) & 3 & Người dùng chọn thuộc tính và đưa vào giỏ hàng \\ \hline
+        Mua hàng (\texttt{purchase}) & 5 & Người dùng hoàn tất giao dịch mua sản phẩm \\ \hline
+    \end{tabular}
+\end{table}
+
+\subsubsection{Áp dụng hệ số suy hao thời gian (Time Decay)}
+Để giải quyết bài toán thay đổi sở thích của người dùng, điểm tương tác của một hành vi xảy ra trong quá khứ sẽ bị giảm trừ giá trị theo quy luật hàm mũ giảm dần dựa trên khoảng thời gian trôi qua. Điểm tương tác suy hao thực tế ($S_{decayed}$) tại thời điểm hiện tại được tính toán theo công thức:
+\begin{equation}
+    S_{decayed} = w_{action} \times e^{-\lambda \cdot \Delta t}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $w_{action}$ là điểm trọng số cơ bản của hành vi thực hiện.
+    \item $\Delta t$ là số ngày đã trôi qua kể từ thời điểm tương tác được ghi nhận đến thời điểm chạy thuật toán gợi ý: $\Delta t = (t_{current} - t_{interaction}) / (24 \times 3600 \times 1000)$.
+    \item $\lambda$ là hệ số suy hao thời gian (decay rate). Trong đồ án này, hệ số được thiết lập là $\lambda = 0.05$, tương ứng với chu kỳ bán rã sở thích khoảng 14 ngày (sau 14 ngày không tương tác lại, độ quan tâm giảm đi một nửa).
+\end{itemize}
+
+Điểm tương tác tổng hợp của một người dùng $u$ đối với sản phẩm $i$ được tính bằng tổng các điểm tương tác suy hao của tất cả các hành vi mà người dùng đó đã thực hiện trên sản phẩm đó:
+\begin{equation}
+    \text{Score}(u, i) = \sum_{action \in \text{Interactions}(u, i)} w_{action} \times e^{-\lambda \cdot \Delta t_{action}}
+\end{equation}
+
+\subsubsection{Kiến trúc bộ khuyến nghị lai (Hybrid Recommendation Engine)}
+Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ thể được mô tả qua các bước sau:
+\begin{enumerate}
+    \item \textbf{Nhánh Lọc theo nội dung (Content-Based Filtering)}:
+        \begin{itemize}
+            \item Xác định danh sách $P_{active}(u)$ gồm các sản phẩm mà người dùng $u$ có điểm tương tác tổng hợp cao nhất trong thời gian gần đây.
+            \item Với mỗi sản phẩm $p \in P_{active}(u)$, backend thực hiện truy vấn các sản phẩm có cùng danh mục phân cấp (\texttt{category}), thương hiệu (\texttt{brand}) hoặc chứa các từ khóa tương đồng trong mảng thẻ (\texttt{tags}).
+            \item Tính toán độ tương đồng giữa sản phẩm gợi ý và sản phẩm gốc, cộng dồn điểm nhân với trọng số tương tác của sản phẩm gốc để tạo ra danh sách ứng viên $L_{content}$.
+        \end{itemize}
+    \item \textbf{Nhánh Lọc cộng tác (Collaborative Filtering)}:
+        \begin{itemize}
+            \item Tìm nhóm $K$ người dùng có hồ sơ tương tác tương đồng nhất với người dùng $u$ dựa trên khoảng cách Cosine giữa các vector điểm tương tác sản phẩm của họ.
+            \item Tổng hợp các sản phẩm mà nhóm người dùng tương đồng này đã tương tác nhiều nhưng người dùng $u$ chưa từng tương tác, tạo ra danh sách ứng viên $L_{collaborative}$.
+        \end{itemize}
+    \item \textbf{Trộn và xếp hạng (Merge \& Rank)}:
+        \begin{itemize}
+            \item Kết hợp hai danh sách ứng viên theo tỷ lệ trọng số cấu hình (mặc định $60\%$ điểm từ lọc nội dung và $40\%$ từ lọc cộng tác) để tạo danh sách gợi ý cá nhân hóa cuối cùng.
+            \item Loại bỏ các sản phẩm người dùng đã mua hoặc đang ẩn (\texttt{isActive: false}).
+        \end{itemize}
+    \item \textbf{Xử lý Khởi động lạnh và Fallback}:
+        \begin{itemize}
+            \item Nếu người dùng là tài khoản mới hoàn toàn và chưa có dữ liệu tương tác trong collection \texttt{userInteraction}, hệ thống sẽ kích hoạt luồng dự phòng (Fallback): Gợi ý các sản phẩm bán chạy nhất (\texttt{bestseller: true}) có điểm đánh giá trung bình cao (\texttt{rating} $\ge 4.0$) và thuộc các danh mục thịnh hành của sàn.
+        \end{itemize}
+\end{enumerate}
+
+\subsection{Kết quả đạt được}
+Hệ thống gợi ý lai đã mang lại những cải thiện rõ rệt về mặt định tính và trải nghiệm sử dụng:
+\begin{itemize}
+    \item \textbf{Trải nghiệm mượt mà}: Phần gợi ý hiển thị tự động trên trang chủ của khách hàng ngay khi đăng nhập, cập nhật động danh sách sản phẩm liên quan chỉ sau vài giây kể từ khi người dùng thực hiện các hành động xem hoặc thêm sản phẩm vào giỏ hàng.
+    \item \textbf{Giải quyết triệt để lỗi đề xuất cũ kỹ}: Nhờ hệ số suy hao thời gian $\lambda = 0.05$, các sản phẩm người dùng tìm kiếm từ nhiều tuần trước sẽ nhanh chóng nhường vị trí ưu tiên cho các mối quan tâm mới nhất của họ.
+    \item \textbf{Tự động tối ưu số lượng hiển thị}: Quy mô gợi ý được điều chỉnh tự động theo thuật toán động ở frontend (ngưỡng tối thiểu 20, tối đa 100 sản phẩm tùy thuộc quy mô danh mục) bảo đảm giao diện luôn đầy đặn và hấp dẫn người xem.
+\end{itemize}
+
+\section{Kiến trúc thanh toán và xử lý voucher đa nhà bán hàng}
+\label{section:5.3}
+
+\subsection{Đặt vấn đề}
+Trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace), giỏ hàng của khách hàng thường chứa đồng thời nhiều sản phẩm từ các cửa hàng (đối tác bán hàng) khác nhau. Sự phức tạp này tạo ra hai bài toán kỹ thuật hóc búa ở luồng đặt hàng và thanh toán:
+\begin{itemize}
+    \item \textbf{Phân tách và điều phối đơn hàng (Order Routing)}: Cổng thanh toán trực tuyến (như Stripe hay VNPay) chỉ xử lý một giao dịch chuyển tiền tổng duy nhất từ phía khách hàng. Tuy nhiên, hệ thống phải tự động chia tách giao dịch tổng đó thành các đơn hàng con riêng biệt cho từng nhà bán hàng để họ có thể quản lý, chuẩn bị hàng và theo dõi vận chuyển độc lập trên dashboard của mình. Ngoài ra, việc tính toán doanh thu, hoa hồng (commission) của sàn cũng phải được bóc tách chi tiết theo từng đơn hàng con này.
+    \item \textbf{Áp dụng mã giảm giá nhiều lớp (Hierarchical Voucher Engine)}: Khách hàng có quyền áp dụng đồng thời ba loại mã giảm giá trong một lần thanh toán: Voucher của shop (chỉ giảm giá cho sản phẩm của shop đó), Voucher của sàn (áp dụng trên tổng giá trị đơn hàng), và Voucher vận chuyển (giảm trừ phí ship). Nếu tính toán không cẩn thận hoặc để client tự gửi số tiền cần thanh toán lên, hệ thống sẽ rất dễ bị tấn công sửa đổi giá trị giao dịch hoặc áp dụng sai lệch quy tắc dẫn đến thất thoát tài chính.
+\end{itemize}
+
+\subsection{Giải pháp kỹ thuật đề xuất}
+Đồ án giải quyết các vấn đề trên bằng cách thiết kế cấu trúc dữ liệu đơn hàng phân cấp tích hợp cùng bộ engine tính toán giá trị hóa đơn nghiêm ngặt hoàn toàn ở phía backend.
+
+\subsubsection{Cấu trúc đơn hàng phân cấp (Hierarchical Order Structure)}
+Thay vì tạo ra các bảng dữ liệu cồng kềnh liên kết qua nhiều khóa ngoại, tài liệu đơn hàng trong collection \texttt{orders} được thiết kế với cấu trúc nhúng (Embedded Documents) tự động phân tách theo vendor ngay tại thời điểm tạo đơn. Cấu trúc lưu trữ chính bao gồm:
+\begin{lstlisting}
+const orderSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+  items: [orderItemSchema], // Toan bo san pham trong don
+  amount: { type: Number },  // Tong tien khach phai tra
+  pricing: {                 // Chi tiet tinh toan gia
+    subtotal: { type: Number },
+    shopDiscount: { type: Number },
+    platformDiscount: { type: Number },
+    shippingFee: { type: Number },
+    finalTotal: { type: Number }
+  },
+  vendors: [ // Mang phan tach don hang con cho tung vendor
+    {
+      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+      vendorShopName: { type: String },
+      items: [vendorItemSchema],
+      subtotal: { type: Number },
+      vendorStatus: { type: String, default: "pending" },
+      commission: { type: Number, default: 10 }, // 10% chiet khau san
+      voucherDiscount: { type: Number, default: 0 }
+    }
+  ]
+});
+\end{lstlisting}
+
+Khi khách hàng thanh toán qua Stripe hoặc VNPay thành công, backend nhận tín hiệu xác thực thông qua Webhook hoặc Callback, lập tức đánh dấu trường \texttt{payment = true} trên đơn hàng tổng. Đồng thời, hệ thống tự động quét mảng \texttt{vendors} để cập nhật trạng thái chuẩn bị hàng cho từng nhà bán hàng và kích hoạt hệ thống gửi thông báo thời gian thực (Server-Sent Events - SSE) lên dashboard quản trị của các nhà bán hàng tương ứng mà không cần thực hiện các câu lệnh truy vấn join phức tạp giữa nhiều bảng.
+
+\subsubsection{Bộ tính toán mã giảm giá phân tầng (Hierarchical Voucher Engine)}
+Quy trình tính giá đơn hàng và áp dụng mã giảm giá được thực hiện nghiêm ngặt ở tầng backend qua 4 bước tuần tự để bảo đảm tính an toàn tài chính (Hình \ref{fig:voucher_calculation_flow}):
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rectangle, rounded corners, minimum width=3.2cm, minimum height=1.2cm, align=center, fill=blue!5, font=\small},
+        arrow/.style={->, >=stealth, thick}
+    ]
+        % Nodes
+        \node (start) [box] {Giỏ hàng đa\\cửa hàng (Cart)};
+        \node (step1) [box, right of=start, node distance=4.2cm] {Bước 1:\\Tính tổng phụ theo Shop\\(Shop Subtotal)};
+        \node (step2) [box, right of=step1, node distance=4.2cm] {Bước 2:\\Áp dụng Shop Voucher\\(Shop Discount)};
+        \node (step3) [box, below of=step2, node distance=2.2cm] {Bước 3:\\Áp dụng Platform Voucher\\(Platform Discount)};
+        \node (step4) [box, left of=step3, node distance=4.2cm] {Bước 4:\\Áp dụng Shipping Voucher\\(Shipping Discount)};
+        \node (end) [box, left of=step4, node distance=4.2cm, fill=green!10] {Tổng hóa đơn\\(Final Total)};
+
+        % Arrows
+        \draw [arrow] (start) -- (step1);
+        \draw [arrow] (step1) -- (step2);
+        \draw [arrow] (step2) -- (step3);
+        \draw [arrow] (step3) -- (step4);
+        \draw [arrow] (step4) -- (end);
+    \end{tikzpicture}
+    \caption{Quy trình tính toán hóa đơn phân tầng nhiều lớp tại backend}
+    \label{fig:voucher_calculation_flow}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Bước 1: Tính tổng phụ theo từng cửa hàng (Shop Subtotal)}:
+        Backend duyệt qua danh sách sản phẩm trong giỏ hàng, nhóm chúng theo \texttt{vendorId} và tính toán tổng tiền tạm tính ban đầu cho từng shop:
+        \begin{equation}
+            \text{Subtotal}_{\text{shop}} = \sum (P_{\text{item}} \times Q_{\text{item}})
+        \end{equation}
+    \item \textbf{Bước 2: Áp dụng Shop Voucher}:
+        Nếu khách hàng nhập mã giảm giá của một cửa hàng cụ thể, hệ thống sẽ xác minh điều kiện của mã đó (giá trị đơn hàng tối thiểu $\text{Subtotal}_{\text{shop}} \ge \text{MinOrderValue}_{\text{voucher}}$). Nếu hợp lệ, tính số tiền được giảm tương ứng với shop đó:
+        \begin{equation}
+            \text{Discount}_{\text{shop}} = \min(\text{CalculatedDiscount}, \text{MaxDiscountCap})
+        \end{equation}
+        Giá trị này được lưu trữ trực tiếp vào thuộc tính \texttt{voucherDiscount} của shop tương ứng trong mảng \texttt{vendors}.
+    \item \textbf{Bước 3: Áp dụng Platform Voucher}:
+        Tổng tiền tạm tính sau khi trừ đi tất cả các mã giảm giá của shop sẽ là cơ sở để áp dụng mã giảm giá của toàn bộ sàn (Platform Voucher):
+        \begin{equation}
+            \text{Subtotal}_{\text{platform}} = \sum (\text{Subtotal}_{\text{shop}} - \text{Discount}_{\text{shop}})
+        \end{equation}
+        Nếu điều kiện đơn hàng tối thiểu của sàn được đáp ứng, số tiền giảm của sàn ($\text{Discount}_{\text{platform}}$) được tính toán và giảm trừ trực tiếp vào tổng tiền giao dịch.
+    \item \textbf{Bước 4: Áp dụng Shipping Voucher và Tính Tổng hóa đơn}:
+        Phí vận chuyển mặc định của đơn hàng ($\text{Fee}_{\text{ship}}$) được tính dựa trên số lượng nhà bán hàng tham gia trong đơn. Nếu áp dụng mã giảm giá vận chuyển, số tiền giảm vận chuyển ($\text{Discount}_{\text{ship}}$) được khấu trừ. Tổng tiền thanh toán cuối cùng khách hàng phải trả là:
+        \begin{equation}
+            \text{FinalTotal} = \text{Subtotal}_{\text{platform}} - \text{Discount}_{\text{platform}} + (\text{Fee}_{\text{ship}} - \text{Discount}_{\text{ship}})
+        \end{equation}
+\end{itemize}
+
+Toàn bộ quy trình trên được tính toán hoàn toàn dựa trên dữ liệu sản phẩm gốc lấy từ cơ sở dữ liệu thay vì tin cậy vào giá tiền gửi lên từ phía giao diện, loại bỏ hoàn toàn khả năng người dùng tấn công thay đổi giá tiền bằng cách chỉnh sửa request payload.
+
+\subsection{Kết quả đạt được}
+Kiến trúc điều phối đơn hàng và bộ voucher phân tầng đã mang lại những kết quả vận hành quan trọng:
+\begin{itemize}
+    \item \textbf{Minh bạch tài chính}: Phân chia chi tiết doanh thu thực nhận của từng shop sau khi đã khấu trừ trực tiếp giá trị voucher của shop đó và phí hoa hồng sàn (mặc định $10\%$). Số liệu này hiển thị trực quan trên màn hình thống kê doanh thu của vendor qua biểu đồ Recharts.
+    \item \textbf{Bảo mật tuyệt đối luồng thanh toán}: Hệ thống đã chặn đứng các thử nghiệm chỉnh sửa thủ công giá tiền ở client. Mọi giao dịch Stripe/VNPay đều được khởi tạo với số tiền chính xác do backend tính toán độc lập và kiểm chứng lại bằng chữ ký số an toàn.
+    \item \textbf{Trải nghiệm đặt hàng đồng bộ}: Người mua chỉ cần thực hiện thao tác nhấn nút và thanh toán một lần duy nhất cho toàn bộ giỏ hàng đa dạng sản phẩm, trong khi hệ thống tự động xử lý tách đơn, gửi thông báo đơn hàng mới tức thời đến từng nhà bán hàng liên quan.
+\end{itemize}
 
 \end{document}

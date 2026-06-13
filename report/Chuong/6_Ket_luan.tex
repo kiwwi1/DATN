@@ -1,12 +1,50 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-\section{Kết luận}
-Sinh viên so sánh kết quả nghiên cứu hoặc sản phẩm của mình với các nghiên cứu hoặc sản phẩm tương tự.
 
-Sinh viên phân tích trong suốt quá trình thực hiện ĐATN, mình đã làm được gì, chưa làm được gì, các đóng góp nổi bật là gì, và tổng hợp những bài học kinh nghiệm rút ra nếu có.
+\section{Kết luận}
+
+Trải qua quá trình nghiên cứu, khảo sát thực tế và triển khai xây dựng hệ thống sàn thương mại điện tử đa cửa hàng (Multi-vendor Marketplace) với thương hiệu \textbf{Lumière}, đồ án tốt nghiệp đã hoàn thành toàn bộ các mục tiêu đặt ra ban đầu. Dưới đây là tổng kết chi tiết các kết quả đạt được, đóng góp kỹ thuật chính cùng một số hạn chế còn tồn tại của hệ thống.
+
+\subsection{Các kết quả đạt được của đồ án}
+
+Về mặt học thuật và thực tiễn kỹ thuật, đồ án đã giải quyết được các bài toán then chốt thông qua các giải pháp cụ thể:
+\begin{itemize}
+    \item \textbf{Xây dựng nền tảng thương mại điện tử đồng bộ}: Hệ thống bao gồm 3 phân hệ tương tác trực tiếp với nhau: Client Web App dành cho người mua, Vendor Portal dành cho nhà bán hàng, và Admin Portal dành cho ban quản trị sàn. Giao diện được thiết kế hiện đại, responsive hoàn toàn trên các thiết bị di động và máy tính cá nhân.
+    \item \textbf{Đảm bảo tính toàn vẹn tồn kho dưới tải cao}: Bằng việc thiết kế và triển khai cơ chế giữ kho nguyên tử (Atomic Stock Reservation) ở tầng cơ sở dữ liệu MongoDB kết hợp khóa chống trùng lặp giao dịch (Idempotency Key), hệ thống đã triệt tiêu hoàn toàn lỗi bán quá mức (oversell) và tạo đơn hàng trùng khi người dùng gửi nhiều yêu cầu đồng thời.
+    \item \textbf{Nâng cao trải nghiệm cá nhân hóa}: Tích hợp công cụ gợi ý sản phẩm lai (Hybrid Recommendation Engine) chấm điểm tương tác động (lượt xem, giỏ hàng, lượt mua, yêu thích) kết hợp hệ số suy hao thời gian (Time Decay), giúp đưa ra những đề xuất sản phẩm chính xác, phù hợp nhất với hành vi mua sắm thay đổi theo thời gian của từng khách hàng.
+    \item \textbf{Điều phối giao dịch đa nhà bán hàng an toàn}: Triển khai bộ tính toán mã giảm giá phân tầng (Hierarchical Voucher Engine) hỗ trợ áp dụng đồng thời cả voucher của từng cửa hàng (Shop Voucher) và voucher của toàn sàn (Platform Voucher), tự động khấu trừ doanh thu và phân tách đơn hàng (Order Routing) một cách chính xác tại backend.
+    \item \textbf{Thông báo và tương tác thời gian thực}: Thiết lập kênh truyền dữ liệu Server-Sent Events (SSE) giúp cập nhật tức thời trạng thái đơn hàng, tin nhắn trò chuyện và thông báo của hệ thống, giảm thiểu tối đa độ trễ tương tác giữa người mua và người bán.
+\end{itemize}
+
+\subsection{Hạn chế còn tồn tại}
+
+Mặc dù hệ thống đã hoạt động ổn định và đáp ứng tốt các yêu cầu chức năng nghiệp vụ, đồ án vẫn có một số mặt hạn chế cần được cải tiến:
+\begin{itemize}
+    \item \textbf{Hiệu năng tính toán gợi ý thời gian thực}: Bộ gợi ý sản phẩm lai hiện tại được thực hiện thông qua các truy vấn aggregation trực tiếp trên MongoDB tại thời điểm người dùng truy cập. Khi quy mô ma trận tương tác tăng lên hàng triệu bản ghi, cách tiếp cận thời gian thực này có thể gây trễ (latency) cho luồng tải trang.
+    \item \textbf{Tính chịu lỗi của kênh thông báo}: Cơ chế đồng bộ hóa Server-Sent Events hiện tại được duy trì trong bộ nhớ đệm (in-memory) của một tiến trình NodeJS duy nhất. Trong tương lai, khi hệ thống cần mở rộng ngang (horizontal scaling) thành nhiều cụm máy chủ (cluster), các tiến trình này sẽ gặp khó khăn trong việc chia sẻ trạng thái kết nối nếu không có một trung gian điều phối tải.
+    \item \textbf{Mô phỏng logistics}: Phần giao nhận hàng và tính toán chi phí vận chuyển của hệ thống đang ở mức mô phỏng (mocking) theo dữ liệu tĩnh của vị trí địa lý Việt Nam, chưa được kết nối trực tiếp với API của các đối tác giao vận thực tế.
+\end{itemize}
 
 \section{Hướng phát triển}
-Trong phần này, sinh viên trình bày định hướng công việc trong tương lai để hoàn thiện sản phẩm hoặc nghiên cứu của mình.
 
-Trước tiên, sinh viên trình bày các công việc cần thiết để hoàn thiện các chức năng/nhiệm vụ đã làm. Sau đó sinh viên phân tích các hướng đi mới cho phép cải thiện và nâng cấp các chức năng/nhiệm vụ đã làm.
+Để khắc phục các hạn chế trên và nâng cấp hệ thống \textbf{Lumière} lên quy mô công nghiệp, định hướng phát triển trong tương lai sẽ tập trung vào ba nhánh công việc chính:
+
+\subsection{Tối ưu hóa hiệu năng và khả năng mở rộng hệ thống}
+\begin{itemize}
+    \item \textbf{Bộ đệm và tính toán bất đồng bộ (Pre-computing \& Caching)}: Chuyển dịch tiến trình chấm điểm tương tác và tính toán danh sách gợi ý sản phẩm thành các tác vụ chạy ngầm bất đồng bộ định kỳ (offline computing). Danh sách gợi ý sau khi tính toán sẽ được lưu trữ vào bộ nhớ đệm phân tán Redis (Redis Cache) để phục vụ người dùng tức thì với độ trễ tối thiểu ($< 10$ ms).
+    \item \textbf{Hàng đợi tin nhắn (Message Queue)}: Tích hợp RabbitMQ hoặc Apache Kafka để tiếp nhận và phân phối bất đồng bộ các tác vụ có độ trễ cao như gửi email xác nhận, cập nhật điểm tương tác khách hàng, đồng bộ hóa dữ liệu phân tích và thông báo đẩy.
+    \item \textbf{Tập trung hóa SSE kết hợp Redis Pub/Sub}: Sử dụng cơ chế Publish/Subscribe của Redis để đồng bộ hóa và phát tán thông báo qua các cụm máy chủ backend khác nhau, bảo đảm truyền tải thông tin thời gian thực chính xác bất kể kết nối của người dùng đang được duy trì ở máy chủ vật lý nào.
+\end{itemize}
+
+\subsection{Nâng cấp thuật toán khuyến nghị thông minh}
+\begin{itemize}
+    \item \textbf{Mô hình học máy nâng cao}: Nghiên cứu và áp dụng các thuật toán Matrix Factorization (như Alternating Least Squares - ALS) hoặc Deep Learning (như Neural Collaborative Filtering - NCF) trên nền tảng Python (TensorFlow/PyTorch) để huấn luyện mô hình gợi ý, kết nối với backend Node.js thông qua REST API hoặc gRPC để đưa ra gợi ý chất lượng cao hơn.
+\end{itemize}
+
+\subsection{Tích hợp dịch vụ thực tế và quản trị thông minh}
+\begin{itemize}
+    \item \textbf{Tích hợp các cổng vận chuyển chính thức}: Liên kết trực tiếp hệ thống với các đơn vị vận chuyển tại Việt Nam (Giao Hàng Nhanh, Giao Hàng Tiết Kiệm, Viettel Post) để tính toán phí vận chuyển thực tế, tạo vận đơn tự động và cập nhật hành trình đơn hàng thời gian thực.
+    \item \textbf{Báo cáo và phân tích thông minh}: Xây dựng hệ thống Business Intelligence (BI) thu nhỏ cho nhà bán hàng, hỗ trợ trực quan hóa biểu đồ doanh thu chi tiết, dự báo lượng hàng cần nhập dựa trên phân tích chuỗi thời gian (time-series analysis) từ lịch sử đơn hàng.
+\end{itemize}
+
 \end{document}

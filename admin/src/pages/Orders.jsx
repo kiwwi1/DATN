@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useSearchParams } from 'react-router-dom'
@@ -6,8 +6,6 @@ import { backendUrl } from '../App.jsx'
 import { formatPrice } from '../utils/priceFormat'
 
 const SHIPPING_STATUSES = new Set(['Shipped', 'Out for delivery', 'Delivered'])
-const INITIAL_VISIBLE_ORDERS = 8
-const LOAD_MORE_STEP = 6
 
 const getOrderAddressMeta = (address = {}) => {
   const receiverName = address.receiverName || `${address.firstName || ''} ${address.lastName || ''}`.trim()
@@ -52,75 +50,51 @@ const Orders = ({ token }) => {
   const [orders, setOrders] = useState([])
   const [trackingInputs, setTrackingInputs] = useState({})
   const [loading, setLoading] = useState(true)
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ORDERS)
-  const sentinelRef = useRef(null)
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalOrders, setTotalOrders] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const ORDERS_PER_PAGE = 8
+
   const [returnRequests, setReturnRequests] = useState({})
   const [returnNotes, setReturnNotes] = useState({})
   const [processingReturn, setProcessingReturn] = useState(null)
 
-  const filteredOrders = useMemo(() => {
-    if (!filterStatus || filterStatus === 'all') return orders
-    return orders.filter((order) => order.status === filterStatus)
-  }, [orders, filterStatus])
-
-  const visibleOrders = useMemo(
-    () => filteredOrders.slice(0, Math.min(visibleCount, filteredOrders.length)),
-    [filteredOrders, visibleCount]
-  )
-  const hasMoreOrders = visibleCount < filteredOrders.length
+  // Reset to first page when status filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterStatus])
 
   useEffect(() => {
-    if (!focusOrderId || filteredOrders.length === 0) {
-      setVisibleCount(INITIAL_VISIBLE_ORDERS)
-      return
-    }
-    const targetIndex = filteredOrders.findIndex((order) => String(order._id) === String(focusOrderId))
-    if (targetIndex === -1) {
-      setVisibleCount(INITIAL_VISIBLE_ORDERS)
-      return
-    }
-    setVisibleCount(Math.max(INITIAL_VISIBLE_ORDERS, targetIndex + 1))
-  }, [filteredOrders, focusOrderId])
-
-  useEffect(() => {
-    if (!focusOrderId || visibleOrders.length === 0) return
+    if (!focusOrderId || orders.length === 0) return
     const id = `vendor-order-${focusOrderId}`
     const target = document.getElementById(id)
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [focusOrderId, visibleOrders])
-
-  useEffect(() => {
-    if (loading || !hasMoreOrders || !sentinelRef.current) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        if (!entry?.isIntersecting) return
-        setVisibleCount((prev) => Math.min(prev + LOAD_MORE_STEP, filteredOrders.length))
-      },
-      { root: null, rootMargin: '220px 0px', threshold: 0.01 }
-    )
-
-    observer.observe(sentinelRef.current)
-    return () => observer.disconnect()
-  }, [loading, hasMoreOrders, filteredOrders.length])
+  }, [focusOrderId, orders])
 
   const fetchAllOrders = async () => {
     if (!token) return
     setLoading(true)
     try {
-      const response = await axios.post(`${backendUrl}/api/order/vendor-list`, {}, { headers: { token } })
+      const body = {
+        page: currentPage,
+        limit: ORDERS_PER_PAGE,
+        status: filterStatus,
+      }
+      const response = await axios.post(`${backendUrl}/api/order/vendor-list`, body, { headers: { token } })
       if (response.data.success) {
         const nextOrders = response.data.orders || []
         setOrders(nextOrders)
+        setTotalOrders(response.data.totalOrders || 0)
+        setTotalPages(response.data.totalPages || 1)
         const nextTrackingInputs = {}
         nextOrders.forEach((order) => {
           nextTrackingInputs[order._id] = order.trackingNumber || ''
         })
         setTrackingInputs(nextTrackingInputs)
-        setVisibleCount(INITIAL_VISIBLE_ORDERS)
       } else {
         toast.error(response.data.message)
       }
@@ -232,7 +206,7 @@ const Orders = ({ token }) => {
   useEffect(() => {
     fetchAllOrders()
     fetchReturnRequests()
-  }, [token])
+  }, [token, currentPage, filterStatus])
 
   const renderItemVariant = (item) => {
     if (item.selectedAttributes && item.selectedAttributes.length > 0) {
@@ -260,7 +234,7 @@ const Orders = ({ token }) => {
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-pink-200 border-t-pink-600" />
           <p className="mt-4 text-xs font-semibold text-slate-400 animate-pulse">Đang tải danh sách đơn hàng...</p>
         </div>
-      ) : orders.length === 0 ? (
+      ) : totalOrders === 0 ? (
         <div className="admin-card flex flex-col items-center justify-center py-20 text-slate-400 bg-white text-center">
           <svg className="w-16 h-16 text-slate-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0 0L4 17V7m8 10V11" />
@@ -268,7 +242,7 @@ const Orders = ({ token }) => {
           <p className="text-sm font-semibold text-slate-500">Chưa có đơn hàng nào được đặt</p>
           <p className="mt-1 text-xs text-slate-400 font-medium">Hệ thống sẽ cập nhật ngay khi khách hàng thực hiện giao dịch mua sắm.</p>
         </div>
-      ) : filteredOrders.length === 0 ? (
+      ) : orders.length === 0 ? (
         <div className="space-y-4">
           {filterStatus !== 'all' && (
             <div className="flex items-center justify-between bg-pink-50 border border-pink-100 rounded-xl p-3.5 text-xs text-pink-700 font-bold shadow-xs">
@@ -313,7 +287,7 @@ const Orders = ({ token }) => {
               </button>
             </div>
           )}
-          {visibleOrders.map((order, index) => {
+          {orders.map((order, index) => {
             const addressMeta = getOrderAddressMeta(order.address)
             const isFocused = String(order._id) === String(focusOrderId)
             
@@ -499,7 +473,7 @@ const Orders = ({ token }) => {
                         </span>
                       </div>
                       
-                      <div className="space-y-1 text-slate-650">
+                      <div className="space-y-1 text-slate-655 font-medium leading-relaxed pl-5 space-y-0.5">
                         <p className="flex items-center gap-1.5">
                           <span className="text-slate-400">Lý do hoàn:</span> 
                           <span className="font-bold text-slate-700">{RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
@@ -574,9 +548,63 @@ const Orders = ({ token }) => {
             )
           })}
 
-          {hasMoreOrders && (
-            <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-slate-400 font-semibold animate-pulse">
-              Kéo xuống để tải thêm đơn hàng...
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs mt-6">
+              <span className="text-xs font-semibold text-slate-500">
+                Hiển thị {Math.min(totalOrders, (currentPage - 1) * ORDERS_PER_PAGE + 1)} - {Math.min(totalOrders, currentPage * ORDERS_PER_PAGE)} trong số <span className="font-bold text-slate-700">{totalOrders}</span> đơn hàng
+              </span>
+              
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="admin-btn-secondary px-3 py-1.5 text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Trước
+                </button>
+                
+                {(() => {
+                  const pages = []
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
+                      pages.push(i)
+                    } else if (pages[pages.length - 1] !== '...') {
+                      pages.push('...')
+                    }
+                  }
+                  
+                  return pages.map((page, idx) => {
+                    if (page === '...') {
+                      return <span key={`dots-${idx}`} className="px-2 text-slate-400 text-xs font-bold">...</span>
+                    }
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-lg border transition-all ${
+                          currentPage === page
+                            ? 'bg-pink-500 text-white border-pink-500'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  })
+                })()}
+                
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="admin-btn-secondary px-3 py-1.5 text-xs font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sau
+                </button>
+              </div>
             </div>
           )}
         </div>

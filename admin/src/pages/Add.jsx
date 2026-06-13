@@ -24,6 +24,7 @@ const Add = ({ token }) => {
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
   const [price, setPrice] = useState('')
+  const [tagsInput, setTagsInput] = useState('')
   const [bestseller, setBestseller] = useState(false)
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
   const [attributes, setAttributes] = useState([])
@@ -128,6 +129,12 @@ const Add = ({ token }) => {
       formData.append('attributes', JSON.stringify(attributes))
       formData.append('variants', JSON.stringify(variants))
       formData.append('bestseller', bestseller)
+      
+      const tagsArray = tagsInput
+        .split(',')
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+      formData.append('tags', JSON.stringify(tagsArray))
 
       if (image1) formData.append('image1', image1)
       if (image2) formData.append('image2', image2)
@@ -153,6 +160,7 @@ const Add = ({ token }) => {
         }
         setSubCategory('')
         setPrice('')
+        setTagsInput('')
         setAttributes([])
         setVariants([])
         setBestseller(false)
@@ -441,6 +449,19 @@ const Add = ({ token }) => {
                   className="admin-input min-h-[120px] py-2.5 text-sm leading-relaxed"
                   placeholder="Mô tả các thông số kỹ thuật, chất liệu, tính năng đặc biệt của sản phẩm..."
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Tags / Thẻ tìm kiếm
+                </label>
+                <input
+                  onChange={(event) => setTagsInput(event.target.value)}
+                  value={tagsInput}
+                  className="admin-input py-2.5 text-sm font-medium focus:border-pink-500"
+                  type="text"
+                  placeholder="Nhập các thẻ cách nhau bằng dấu phẩy (ví dụ: son moi, skincare, han quoc)..."
                 />
               </div>
             </div>

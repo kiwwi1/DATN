@@ -404,9 +404,7 @@ const Product = () => {
             );
           })()}
 
-          <p className="mt-5 text-gray-700 md:w-4/5 leading-relaxed">
-            {productData.description}
-          </p>
+
 
           {/* Product Attributes */}
           {productData.attributes && productData.attributes.length > 0 && (
@@ -737,11 +735,11 @@ const Product = () => {
                     {productData.stock > 0 ? "Còn hàng" : "Hết hàng"}
                   </span>
                 </div>
-                {productData.tags && productData.tags.length > 0 && (
+                {productData.tags && productData.tags.filter(tag => !tag.includes(':') && tag !== 'marketplace').length > 0 && (
                   <div className="flex justify-between border-b pb-2 sm:col-span-2">
                     <span className="text-gray-600">Tags:</span>
                     <div className="flex gap-2 flex-wrap">
-                      {productData.tags.map((tag, index) => (
+                      {productData.tags.filter(tag => !tag.includes(':') && tag !== 'marketplace').map((tag, index) => (
                         <span key={index} className="text-xs bg-gray-200 px-2 py-1 rounded">
                           {tag}
                         </span>

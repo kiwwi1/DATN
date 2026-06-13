@@ -98,8 +98,8 @@ const toggleProductActive = async (req, res) => {
 
 const listVendorProducts = async (req, res) => {
     try {
-        const products = await listVendorProductsService(req.vendorId);
-        res.json({ success: true, products });
+        const result = await listVendorProductsService(req.vendorId, req.query);
+        res.json({ success: true, ...result });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }

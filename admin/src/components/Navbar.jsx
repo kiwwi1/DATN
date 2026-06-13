@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 
@@ -55,9 +55,9 @@ const Navbar = ({ onLogout, vendorInfo, unreadCount = 0, notifications = [], mar
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <img src={assets.logo} alt="logo" className="h-9 w-auto" />
-          <div>
+        <div className="flex items-center gap-3.5">
+          <span className="prata-regular text-2xl text-slate-850 tracking-tight">Lumière</span>
+          <div className="border-l border-slate-200 pl-3.5">
             <p className="text-sm font-semibold text-slate-900">Bảng điều khiển nhà bán</p>
             <p className="text-xs text-slate-500">Quản lý sản phẩm, đơn hàng và vận hành cửa hàng</p>
           </div>

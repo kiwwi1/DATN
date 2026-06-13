@@ -34,6 +34,9 @@ const fallbackIncrWithWindow = (key, windowSec) => {
 const createLimiter = ({ keyBuilder, max, windowSec, message }) => {
     return async (req, res, next) => {
         try {
+            if (process.env.DISABLE_RATE_LIMIT === "true") {
+                return next();
+            }
             const key = keyBuilder(req);
             if (!key) return next();
 

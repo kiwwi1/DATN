@@ -103,3 +103,9 @@
     @apply mt-1 text-sm text-slate-500;
   }
 }
+
+.prata-regular {
+  font-family: 'Prata', serif;
+  font-weight: 400;
+  font-style: normal;
+}

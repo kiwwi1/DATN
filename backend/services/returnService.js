@@ -165,7 +165,7 @@ export const reviewReturnRequestService = async (vendorId, returnId, { approved,
   if (!returnReq) throw err("Không tìm thấy yêu cầu trả hàng", 404);
   if (returnReq.status !== "pending") throw err("Yêu cầu này đã được xử lý");
 
-  const order = await orderModel.findById(returnReq.orderId).select("vendors userId").lean();
+  const order = await orderModel.findById(returnReq.orderId).select("vendors userId items").lean();
   if (!order) throw err("Không tìm thấy đơn hàng", 404);
 
   const isVendorOfOrder = (order.vendors || []).some(
@@ -178,10 +178,13 @@ export const reviewReturnRequestService = async (vendorId, returnId, { approved,
   returnReq.reviewedAt = new Date();
   await returnReq.save();
 
-  const title = approved ? "Yêu cầu trả hàng được chấp nhận" : "Yêu cầu trả hàng bị từ chối";
+  const orderCode = String(returnReq.orderId).slice(-6).toUpperCase();
+  const itemNames = (order?.items || []).map((i) => i.name).join(", ");
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
+  const title = approved ? `Yêu cầu trả hàng được chấp nhận #${orderCode}` : `Yêu cầu trả hàng bị từ chối #${orderCode}`;
   const msg = approved
-    ? "Người bán đã chấp nhận yêu cầu trả hàng. Vui lòng gửi hàng lại theo hướng dẫn."
-    : `Người bán đã từ chối yêu cầu trả hàng${vendorNote ? `: ${vendorNote}` : ""}`;
+    ? `Người bán đã chấp nhận yêu cầu trả hàng cho đơn #${orderCode}${itemStr}. Vui lòng gửi lại hàng theo hướng dẫn.`
+    : `Người bán đã từ chối yêu cầu trả hàng cho đơn #${orderCode}${itemStr}${vendorNote ? `: ${vendorNote}` : ""}`;
 
   await createNotification(
     returnReq.userId,
@@ -236,11 +239,14 @@ export const confirmReturnReceivedService = async (vendorId, returnId) => {
     ? "Hoàn tiền sẽ được xử lý thủ công trong 3–5 ngày làm việc."
     : "Số tiền đã được hoàn về phương thức thanh toán của bạn.";
 
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  const itemNames = (order?.items || []).map((i) => i.name).join(", ");
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
   await createNotification(
     returnReq.userId,
     "return_refunded",
-    "Hoàn tiền thành công",
-    `Đơn hàng đã được hoàn tiền ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(returnReq.refundAmount)}. ${refundMsg}`,
+    `Hoàn tiền thành công #${orderCode}`,
+    `Đơn hàng #${orderCode}${itemStr} đã được hoàn tiền ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(returnReq.refundAmount)}. ${refundMsg}`,
     order._id,
     null,
     { audience: "user" }

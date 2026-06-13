@@ -78,11 +78,14 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
   await order.save();
 
   const label = STATUS_LABEL[status] || status;
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  const itemNames = (order.items || []).map((i) => i.name).join(", ");
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
   await createNotification(
     order.userId,
     "order_status",
-    "Cập nhật đơn hàng",
-    `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
+    `Cập nhật đơn hàng #${orderCode}`,
+    `Đơn hàng #${orderCode}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
     order._id,
     null,
     { audience: "user" }
@@ -91,24 +94,42 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
   return order;
 };
 
-export const vendorOrdersService = async (vendorId) => {
+export const vendorOrdersService = async (vendorId, query = {}) => {
+  const { page = 1, limit = 8, status = "all" } = query;
   const normalizedVendorId = vendorId.toString();
-  const orders = await orderModel.find({ "items.vendorId": vendorId }).sort({ date: -1 });
-  return orders
-    .filter((order) => order.items.some((item) => item.vendorId?.toString() === normalizedVendorId))
-    .map((order) => {
-      const vendorItems = order.items.filter((item) => item.vendorId?.toString() === normalizedVendorId);
-      const vendorAmount = vendorItems.reduce((total, item) => total + item.price * item.quantity, 0);
-      const vendorEntry = Array.isArray(order.vendors)
-        ? order.vendors.find((vendor) => vendor.vendorId?.toString() === normalizedVendorId)
-        : null;
-      return {
-        ...order.toObject(),
-        items: vendorItems,
-        vendorAmount,
-        trackingNumber: vendorEntry?.trackingNumber || order.trackingNumber || "",
-      };
-    });
+
+  const filter = { "items.vendorId": vendorId };
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.max(1, parseInt(limit) || 8);
+  const skip = (pageNum - 1) * limitNum;
+
+  const totalOrders = await orderModel.countDocuments(filter);
+  const orders = await orderModel.find(filter).sort({ date: -1 }).skip(skip).limit(limitNum);
+
+  const processedOrders = orders.map((order) => {
+    const vendorItems = order.items.filter((item) => item.vendorId?.toString() === normalizedVendorId);
+    const vendorAmount = vendorItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const vendorEntry = Array.isArray(order.vendors)
+      ? order.vendors.find((vendor) => vendor.vendorId?.toString() === normalizedVendorId)
+      : null;
+    return {
+      ...order.toObject(),
+      items: vendorItems,
+      vendorAmount,
+      trackingNumber: vendorEntry?.trackingNumber || order.trackingNumber || "",
+    };
+  });
+
+  return {
+    orders: processedOrders,
+    totalOrders,
+    page: pageNum,
+    totalPages: Math.ceil(totalOrders / limitNum)
+  };
 };
 
 export const updateVendorOrderStatusService = async (orderId, status, vendorId, trackingNumber, autoGenerateTracking = false) => {
@@ -160,11 +181,14 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
   await order.save();
 
   const label = STATUS_LABEL[order.status] || order.status;
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  const itemNames = (order.items || []).map((i) => i.name).join(", ");
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
   await createNotification(
     order.userId,
     "order_status",
-    "Cập nhật đơn hàng",
-    `Đơn hàng của bạn đã chuyển sang trạng thái: ${label}`,
+    `Cập nhật đơn hàng #${orderCode}`,
+    `Đơn hàng #${orderCode}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
     order._id,
     null,
     { audience: "user" }

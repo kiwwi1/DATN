@@ -319,7 +319,7 @@ const Stats = ({ token }) => {
               />
             </div>
           </div>
-          <div className="flex gap-1.5 mt-auto pt-4 sm:pt-0">
+          <div className="flex items-center gap-1.5 mt-auto pt-4 sm:pt-0">
             <button
               type="button"
               onClick={handleApplyFilter}
@@ -339,11 +339,11 @@ const Stats = ({ token }) => {
             <button
               type="button"
               onClick={() => fetchStats()}
-              className="admin-btn-secondary flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-50 shadow-sm"
+              className="flex items-center justify-center w-[30px] h-[30px] rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-colors shadow-sm cursor-pointer shrink-0"
               title="Làm mới"
             >
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 12H19c0 .72-.11 1.405-.316 2.052m-1.785-5.18L19 9h-5" />
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
               </svg>
             </button>
           </div>
@@ -726,7 +726,7 @@ const Stats = ({ token }) => {
               )
             }
             return (
-              <div className="space-y-2.5 max-h-[190px] overflow-y-auto pr-1">
+              <div className="space-y-2.5">
                 {rankingList.map((product, index) => {
                   let rankBadge = 'bg-slate-50 text-slate-500 border border-slate-100'
                   if (index === 0) rankBadge = 'bg-amber-100 text-amber-800 border border-amber-200'

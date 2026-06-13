@@ -161,6 +161,7 @@ const List = ({ token }) => {
     subCategory: '',
     attributes: [],
     variants: [],
+    tagsInput: '',
     bestseller: false,
   })
   const [editImages, setEditImages] = useState([null, null, null, null])
@@ -177,6 +178,8 @@ const List = ({ token }) => {
   const [search, setSearch] = useState(initialSearch)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [draggedImageIndex, setDraggedImageIndex] = useState(null)
   const [dragOverImageIndex, setDragOverImageIndex] = useState(null)
 
@@ -203,11 +206,30 @@ const List = ({ token }) => {
   }
 
   const fetchList = async () => {
+    if (!token) return
     setLoadingList(true)
     try {
-      const response = await axios.get(`${backendUrl}/api/product/vendor-list`, { headers: { token } })
+      const params = {
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        q: searchParams.get('q') || '',
+        category: filters.category,
+        subCategory: filters.subCategory,
+        visibility: filters.visibility,
+        bestseller: filters.bestseller,
+        stock: filters.stock,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        sort: filters.sort,
+      }
+      const response = await axios.get(`${backendUrl}/api/product/vendor-list`, {
+        params,
+        headers: { token },
+      })
       if (response.data.success) {
         setList(response.data.products || [])
+        setTotalProducts(response.data.totalProducts || 0)
+        setTotalPages(response.data.totalPages || 1)
       } else {
         toast.error(response.data.message)
       }
@@ -279,6 +301,7 @@ const List = ({ token }) => {
       subCategory: product.subCategory || '',
       attributes: product.attributes || [],
       variants: product.variants || [],
+      tagsInput: Array.isArray(product.tags) ? product.tags.join(', ') : '',
       bestseller: !!product.bestseller,
     })
 
@@ -328,6 +351,11 @@ const List = ({ token }) => {
       data.append('subCategory', formData.subCategory)
       data.append('attributes', JSON.stringify(formData.attributes))
       data.append('variants', JSON.stringify(formData.variants))
+      
+      const tagsArray = formData.tagsInput
+        ? formData.tagsInput.split(',').map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+        : []
+      data.append('tags', JSON.stringify(tagsArray))
       data.append('bestseller', formData.bestseller)
 
       const imageSlots = editImages.map((slot) => (slot?.type === 'existing' ? slot.url : null))
@@ -427,9 +455,13 @@ const List = ({ token }) => {
 
   useEffect(() => {
     fetchCategories()
-    fetchList()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    fetchList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filters, searchParams, token])
 
   useEffect(() => {
     const q = searchParams.get('q') || ''
@@ -473,62 +505,7 @@ const List = ({ token }) => {
     )
   }, [allCategories, filters.category])
 
-  const filtered = useMemo(() => {
-    const normalizedSearch = normalizeText(search)
-    const minPrice = filters.minPrice === '' ? null : Number(filters.minPrice)
-    const maxPrice = filters.maxPrice === '' ? null : Number(filters.maxPrice)
 
-    const products = list.filter((item) => {
-      const name = normalizeText(item.name)
-      const price = getProductPrice(item)
-      const stock = getProductStock(item)
-      const isVisible = item.isActive !== false
-
-      if (normalizedSearch && !name.includes(normalizedSearch)) return false
-      if (filters.category !== 'all' && String(item.category || '') !== filters.category) return false
-      if (filters.subCategory !== 'all' && String(item.subCategory || '') !== filters.subCategory) return false
-
-      if (filters.visibility === 'visible' && !isVisible) return false
-      if (filters.visibility === 'hidden' && isVisible) return false
-
-      if (filters.bestseller === 'yes' && !item.bestseller) return false
-      if (filters.bestseller === 'no' && item.bestseller) return false
-
-      if (filters.stock === 'in_stock' && stock <= 0) return false
-      if (filters.stock === 'out_of_stock' && stock > 0) return false
-      if (filters.stock === 'low_stock' && (stock <= 0 || stock > 5)) return false
-
-      if (minPrice != null && !Number.isNaN(minPrice) && price < minPrice) return false
-      if (maxPrice != null && !Number.isNaN(maxPrice) && price > maxPrice) return false
-
-      return true
-    })
-
-    return [...products].sort((left, right) => {
-      switch (filters.sort) {
-        case 'oldest':
-          return getProductDate(left) - getProductDate(right)
-        case 'price_asc':
-          return getProductPrice(left) - getProductPrice(right)
-        case 'price_desc':
-          return getProductPrice(right) - getProductPrice(left)
-        case 'sold_desc':
-          return (Number(right.sold) || 0) - (Number(left.sold) || 0)
-        case 'name_asc':
-          return String(left.name || '').localeCompare(String(right.name || ''), 'vi')
-        case 'newest':
-        default:
-          return getProductDate(right) - getProductDate(left)
-      }
-    })
-  }, [filters, list, search])
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-
-  const paginated = useMemo(
-    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
-    [currentPage, filtered]
-  )
 
   useEffect(() => {
     if (filters.category === 'all' && filters.subCategory !== 'all') {
@@ -784,6 +761,18 @@ const List = ({ token }) => {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tags / Thẻ tìm kiếm</label>
+                    <input
+                      type="text"
+                      name="tagsInput"
+                      value={formData.tagsInput}
+                      onChange={handleInputChange}
+                      className="admin-input py-2 text-xs font-semibold focus:border-pink-500"
+                      placeholder="Nhập các thẻ cách nhau bằng dấu phẩy (ví dụ: son moi, skincare, han quoc)..."
+                    />
+                  </div>
+
                   <div className="border-t border-slate-100 pt-3">
                     <AttributesManager
                       attributes={formData.attributes}
@@ -836,7 +825,7 @@ const List = ({ token }) => {
             </div>
             <div className="shrink-0 self-start sm:self-auto">
               <span className="inline-flex rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-650 border border-pink-100">
-                Tìm thấy {filtered.length} sản phẩm
+                Tìm thấy {totalProducts} sản phẩm
               </span>
             </div>
           </div>
@@ -974,27 +963,29 @@ const List = ({ token }) => {
             <p className="mt-4 text-xs font-semibold text-slate-505 animate-pulse">Đang tải danh sách sản phẩm...</p>
           </div>
         ) : list.length === 0 ? (
-          <div className="admin-card flex flex-col items-center justify-center py-20 text-slate-400 bg-white text-center">
-            <svg className="mb-4 h-14 w-14 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0 0L4 17V7m8 10V11" />
-            </svg>
-            <p className="text-sm font-semibold text-slate-500">Cửa hàng chưa có sản phẩm nào được đăng bán</p>
-            <p className="mt-1 text-xs text-slate-400 font-medium">Hãy tiến hành thêm sản phẩm đầu tiên để bắt đầu bán hàng.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="admin-card flex flex-col items-center justify-center py-16 text-slate-400 bg-white">
-            <svg className="w-10 h-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-xs font-bold text-slate-500">Không tìm thấy sản phẩm phù hợp bộ lọc hiện tại</p>
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="mt-3.5 inline-flex items-center gap-1 px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg text-xs font-bold transition-all"
-            >
-              Reset bộ lọc
-            </button>
-          </div>
+          hasFiltersApplied ? (
+            <div className="admin-card flex flex-col items-center justify-center py-16 text-slate-400 bg-white">
+              <svg className="w-10 h-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs font-bold text-slate-500">Không tìm thấy sản phẩm phù hợp bộ lọc hiện tại</p>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-3.5 inline-flex items-center gap-1 px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg text-xs font-bold transition-all"
+              >
+                Reset bộ lọc
+              </button>
+            </div>
+          ) : (
+            <div className="admin-card flex flex-col items-center justify-center py-20 text-slate-400 bg-white text-center">
+              <svg className="mb-4 h-14 w-14 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0 0L4 17V7m8 10V11" />
+              </svg>
+              <p className="text-sm font-semibold text-slate-500">Cửa hàng chưa có sản phẩm nào được đăng bán</p>
+              <p className="mt-1 text-xs text-slate-400 font-medium">Hãy tiến hành thêm sản phẩm đầu tiên để bắt đầu bán hàng.</p>
+            </div>
+          )
         ) : (
           <div className="admin-card overflow-hidden bg-white shadow-sm border border-slate-200">
             {/* Table Header for Desktop */}
@@ -1010,7 +1001,7 @@ const List = ({ token }) => {
 
             {/* Table Rows */}
             <div className="divide-y divide-slate-100">
-              {paginated.map((item) => {
+              {list.map((item) => {
                 const stock = getProductStock(item)
                 const categoryName = categoryMap[item.category]?.name || '—'
                 const subCategoryName = categoryMap[item.subCategory]?.name || ''

@@ -1,11 +1,53 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-Nếu trong nội dung chính không đủ không gian cho các use case khác (ngoài các use case nghiệp vụ chính) thì đặc tả thêm cho các use case đó ở đây.
 
-\section{Đặc tả use case ``Thống kê tình hình mượn sách''}
-\ldots
+Phần phụ lục này trình bày đặc tả chi tiết của một số ca sử dụng (Use Case) chính trong hệ thống sàn thương mại điện tử đa nhà bán hàng \textbf{Lumière}.
 
-\section{Đặc tả use case ``Đăng ký làm thẻ mượn''}
-\ldots
+\section{Đặc tả use case ``Đặt hàng và thanh toán trực tuyến''}
+
+\begin{itemize}
+    \item \textbf{Tên ca sử dụng}: Đặt hàng và thanh toán trực tuyến.
+    \item \textbf{Tác nhân}: Khách hàng (Buyer).
+    \item \textbf{Mô tả}: Khách hàng tiến hành tạo đơn đặt hàng từ các sản phẩm trong giỏ hàng và thanh toán trực tuyến qua cổng thanh toán VNPay hoặc Stripe.
+    \item \textbf{Tiền điều kiện}: Khách hàng đã đăng nhập vào tài khoản, trong giỏ hàng có ít nhất một sản phẩm hợp lệ, và các sản phẩm vẫn còn đủ số lượng tồn kho.
+    \item \textbf{Hậu điều kiện}: Đơn hàng được khởi tạo thành công trên hệ thống ở trạng thái ``Chờ thanh toán'' hoặc ``Đang chuẩn bị hàng'', số lượng tồn kho thực tế của các sản phẩm tương ứng bị giảm đi.
+    \item \textbf{Luồng sự kiện chính}:
+        \begin{enumerate}
+            \item Khách hàng truy cập vào giao diện giỏ hàng và chọn nút ``Tiến hành đặt hàng''.
+            \item Hệ thống hiển thị giao diện thông tin thanh toán, yêu cầu chọn địa chỉ nhận hàng và phương thức thanh toán (COD, Stripe, VNPay).
+            \item Khách hàng điền/chọn địa chỉ giao hàng, áp dụng các mã giảm giá (Voucher) hợp lệ và bấm ``Đặt hàng''.
+            \item Hệ thống sinh mã chống trùng lặp giao dịch (Idempotency Key), thực hiện trừ kho nguyên tử (Atomic Reservation), tạo đơn hàng tạm thời ở cơ sở dữ liệu và chuyển hướng khách hàng sang trang thanh toán trực tuyến (nếu chọn VNPay/Stripe).
+            \item Khách hàng hoàn tất thanh toán trên trang của bên thứ ba và được chuyển hướng quay lại ứng dụng.
+            \item Hệ thống nhận kết quả thanh toán từ cổng thanh toán qua webhook (hoặc IPN), cập nhật trạng thái đơn hàng thành ``Đã đặt hàng'' và gửi thông báo cho cả Khách hàng lẫn các Cửa hàng (Vendor) liên quan.
+        \end{enumerate}
+    \item \textbf{Luồng ngoại lệ}:
+        \begin{itemize}
+            \item \textit{Sản phẩm hết hàng đồng thời}: Tại bước 4, nếu tồn kho không đủ do có giao dịch đồng thời khác mua trước, hệ thống hủy giao dịch đặt kho ảo và thông báo lỗi hết hàng.
+            \item \textit{Thanh toán không thành công hoặc hết hạn}: Nếu khách hàng tắt trang thanh toán giữa chừng, tiến trình quét ngầm (sweeper cron job) sẽ tự động hủy đơn hàng sau 10 phút, đồng thời hoàn trả lại số lượng tồn kho và khôi phục trạng thái sử dụng của voucher.
+        \end{itemize}
+\end{itemize}
+
+\section{Đặc tả use case ``Xử lý yêu cầu trả hàng và hoàn tiền''}
+
+\begin{itemize}
+    \item \textbf{Tên ca sử dụng}: Xử lý yêu cầu trả hàng và hoàn tiền.
+    \item \textbf{Tác nhân}: Nhà bán hàng (Vendor).
+    \item \textbf{Mô tả}: Nhà bán hàng duyệt yêu cầu trả hàng từ phía Khách hàng đối với các sản phẩm bị lỗi hoặc không đạt yêu cầu.
+    \item \textbf{Tiền điều kiện}: Đơn hàng có trạng thái ``Đã giao hàng thành công'' và Khách hàng đã gửi yêu cầu trả hàng kèm theo hình ảnh minh chứng hợp lệ trong vòng thời gian quy định (mặc định là 7 ngày).
+    \item \textbf{Hậu điều kiện}: Trạng thái yêu cầu được cập nhật (Chấp nhận/Từ chối), số tiền hoàn trả được cập nhật và hệ thống tự động thực hiện lệnh hoàn tiền về tài khoản Khách hàng (qua Stripe) hoặc gửi thông báo hướng dẫn hoàn tiền thủ công.
+    \item \textbf{Luồng sự kiện chính}:
+        \begin{enumerate}
+            \item Nhà bán hàng truy cập vào danh sách yêu cầu trả hàng từ Vendor Portal.
+            \item Nhà bán hàng chọn yêu cầu cần xử lý và xem chi tiết lý do cùng hình ảnh/video bằng chứng do Khách hàng cung cấp.
+            \item Nhà bán hàng chọn quyết định ``Đồng ý'' hoặc ``Từ chối''.
+            \item \textit{Nếu đồng ý}: Hệ thống cập nhật trạng thái yêu cầu thành ``Đã chấp nhận'', gửi thông báo hướng dẫn gửi lại hàng cho Khách hàng. Khi nhận được hàng gửi trả, Nhà bán hàng ấn xác nhận hoàn tiền, hệ thống gọi API Stripe hoàn tiền (refund) hoặc hướng dẫn chuyển khoản thủ công.
+            \item \textit{Nếu từ chối}: Hệ thống yêu cầu điền lý do từ chối và cập nhật trạng thái yêu cầu thành ``Bị từ chối''.
+            \item Hệ thống gửi thông báo trạng thái xử lý mới nhất kèm tên các sản phẩm hoàn trả cụ thể tới Khách hàng qua hệ thống thông báo thời gian thực.
+        \end{enumerate}
+    \item \textbf{Luồng ngoại lệ}:
+        \begin{itemize}
+            \item \textit{Lỗi API cổng thanh toán}: Nếu lệnh gọi API hoàn tiền của Stripe thất bại do lỗi mạng hoặc tài khoản nguồn thiếu số dư, hệ thống đánh dấu yêu cầu ở trạng thái ``Chờ xử lý thủ công'' và gửi cảnh báo đến quản trị viên để giải quyết trực tiếp.
+        \end{itemize}
+\end{itemize}
 
 \end{document}

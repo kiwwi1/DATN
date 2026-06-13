@@ -515,9 +515,12 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
             );
         }
     } else {
+        const orderCode = String(order._id).slice(-6).toUpperCase();
+        const itemNames = (order.items || []).map((i) => i.name).join(", ");
+        const itemStr = itemNames ? ` [${itemNames}]` : "";
         await createNotification(
-            order.userId, "order_cancelled", "Đơn hàng đã bị hủy",
-            `Đơn hàng của bạn đã bị hủy. Lý do: ${cancelReason || "Không có lý do"}`,
+            order.userId, "order_cancelled", `Đơn hàng đã bị hủy #${orderCode}`,
+            `Đơn hàng #${orderCode}${itemStr} của bạn đã bị hủy. Lý do: ${cancelReason || "Không có lý do"}`,
             order._id, null, { audience: "user" }
         );
     }

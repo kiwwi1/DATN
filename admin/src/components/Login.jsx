@@ -7,7 +7,7 @@ const Login = ({ isCheckingSession = false }) => (
     <div className="w-full max-w-md">
       <div className="admin-card overflow-hidden p-8">
         <div className="mb-6 flex justify-center">
-          <img src={assets.logo} alt="logo" className="h-auto w-32" />
+          <span className="prata-regular text-4xl text-slate-850 tracking-tight">Lumière</span>
         </div>
 
         <div className="mb-6 text-center">

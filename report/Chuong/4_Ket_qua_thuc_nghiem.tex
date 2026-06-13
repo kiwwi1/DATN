@@ -97,6 +97,108 @@ Lược đồ dữ liệu được thiết kế theo hướng kết hợp giữa
 
 Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên biệt. Collection \texttt{product} có chỉ mục văn bản trên \texttt{name}, \texttt{brand} và \texttt{tags} để phục vụ tìm kiếm server-side. Collection \texttt{order} có chỉ mục duy nhất trên cặp \texttt{userId} và \texttt{idempotencyKey} để chặn tạo đơn trùng. Collection \texttt{userInteraction} có chỉ mục kết hợp \texttt{userId} -- \texttt{productId} nhằm bảo đảm mỗi người dùng chỉ có một hồ sơ tương tác cho một sản phẩm, từ đó tránh lệch điểm khi cập nhật đồng thời.
 
+Để làm rõ hơn thiết kế cơ sở dữ liệu của hệ thống, cấu trúc các collection quan trọng nhất được trình bày chi tiết từ Bảng \ref{table:schema_user} đến Bảng \ref{table:schema_interaction}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu trúc collection \texttt{users} (Người dùng và nhà bán hàng)}
+    \label{table:schema_user}
+    \begin{tabular}{|l|l|l|p{7.5cm}|}
+        \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của người dùng. \\ \hline
+        \texttt{name} & String & Required & Họ và tên người dùng. \\ \hline
+        \texttt{email} & String & Unique, Required & Địa chỉ email dùng để đăng nhập. \\ \hline
+        \texttt{password} & String & Select: false & Mật khẩu đã được mã hóa bằng bcrypt. \\ \hline
+        \texttt{role} & String & Default: 'user' & Vai trò: \texttt{'user'} hoặc \texttt{'vendor'}. \\ \hline
+        \texttt{avatar} & Object & - & Chứa đường dẫn ảnh gốc và ảnh thu nhỏ (thumbnail). \\ \hline
+        \texttt{cartData} & Object & Default: \{\} & Giỏ hàng lưu tạm của khách hàng. \\ \hline
+        \texttt{shopName} & String & - & Tên gian hàng (chỉ dành cho vendor). \\ \hline
+        \texttt{shopAddress} & String & - & Địa chỉ gian hàng (chỉ dành cho vendor). \\ \hline
+        \texttt{phone} & String & - & Số điện thoại liên lạc. \\ \hline
+        \texttt{emailVerified} & Boolean & Default: false & Trạng thái xác thực email. \\ \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu trúc collection \texttt{products} (Sản phẩm)}
+    \label{table:schema_product}
+    \begin{tabular}{|l|l|l|p{7.5cm}|}
+        \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của sản phẩm. \\ \hline
+        \texttt{name} & String & Required & Tên sản phẩm (chỉ mục text). \\ \hline
+        \texttt{description} & String & Required & Mô tả chi tiết sản phẩm. \\ \hline
+        \texttt{price} & Number & Required & Giá bán cơ bản. \\ \hline
+        \texttt{stock} & Number & Default: 0 & Số lượng tồn kho cơ bản. \\ \hline
+        \texttt{category} & ObjectId & Ref: category & Danh mục cấp 1 của sản phẩm. \\ \hline
+        \texttt{subCategory} & ObjectId & Ref: category & Danh mục cấp 2 của sản phẩm. \\ \hline
+        \texttt{vendorId} & ObjectId & Ref: user & Định danh vendor sở hữu sản phẩm. \\ \hline
+        \texttt{sold} & Number & Default: 0 & Số lượng sản phẩm đã bán. \\ \hline
+        \texttt{rating} & Number & Default: 0 & Điểm đánh giá trung bình (1-5). \\ \hline
+        \texttt{variants} & Array & - & Danh sách biến thể sản phẩm (SKU, giá và tồn kho riêng). \\ \hline
+        \texttt{isActive} & Boolean & Default: true & Trạng thái kinh doanh của sản phẩm. \\ \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu trúc collection \texttt{orders} (Đơn hàng)}
+    \label{table:schema_order}
+    \begin{tabular}{|l|l|l|p{7.5cm}|}
+        \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của đơn hàng. \\ \hline
+        \texttt{userId} & ObjectId & Ref: user & Người mua hàng. \\ \hline
+        \texttt{items} & Array & - & Danh sách chi tiết các mặt hàng lồng nhau. \\ \hline
+        \texttt{pricing} & Object & - & Gồm các thông tin subtotal, discounts và finalTotal. \\ \hline
+        \texttt{paymentMethod} & String & Required & Phương thức: \texttt{'COD'}, \texttt{'Stripe'}, \texttt{'VNPay'}. \\ \hline
+        \texttt{payment} & Boolean & Default: false & Trạng thái thanh toán của đơn hàng. \\ \hline
+        \texttt{status} & String & Default: 'Placed' & Trạng thái vận chuyển của đơn hàng. \\ \hline
+        \texttt{idempotencyKey} & String & Unique (cặp) & Khóa chống trùng lặp giao dịch đặt hàng. \\ \hline
+        \texttt{reservationExpiresAt} & Number & - & Thời gian hết hạn đặt chỗ tồn kho. \\ \hline
+        \texttt{vendors} & Array & - & Danh sách chia nhỏ đơn hàng theo từng shop để điều phối. \\ \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu trúc collection \texttt{vouchers} (Mã giảm giá)}
+    \label{table:schema_voucher}
+    \begin{tabular}{|l|l|l|p{7.5cm}|}
+        \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của voucher. \\ \hline
+        \texttt{code} & String & Unique, Required & Mã ký tự nhập vào để áp dụng (viết hoa). \\ \hline
+        \texttt{type} & String & Required & Loại: \texttt{'SHOP'}, \texttt{'PLATFORM'}, \texttt{'SHIPPING'}. \\ \hline
+        \texttt{discountType} & String & Required & Kiểu giảm giá: \texttt{'PERCENT'} hoặc \texttt{'FIXED'}. \\ \hline
+        \texttt{discountValue} & Number & Required & Giá trị giảm giá tương ứng. \\ \hline
+        \texttt{minOrderValue} & Number & Default: 0 & Giá trị đơn hàng tối thiểu để áp dụng. \\ \hline
+        \texttt{vendorId} & ObjectId & Ref: user & Cửa hàng áp dụng (chỉ áp dụng cho SHOP voucher). \\ \hline
+        \texttt{usageLimit} & Number & Default: 0 & Giới hạn số lần sử dụng tối đa. \\ \hline
+        \texttt{usedCount} & Number & Default: 0 & Số lần thực tế voucher đã được dùng. \\ \hline
+        \texttt{isActive} & Boolean & Default: true & Trạng thái kích hoạt của voucher. \\ \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu trúc collection \texttt{userinteractions} (Tương tác người dùng)}
+    \label{table:schema_interaction}
+    \begin{tabular}{|l|l|l|p{7.5cm}|}
+        \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất. \\ \hline
+        \texttt{userId} & ObjectId & Ref: user & Định danh người dùng tương tác. \\ \hline
+        \texttt{productId} & ObjectId & Ref: product & Định danh sản phẩm tương tác. \\ \hline
+        \texttt{interactions} & Object & - & Chứa số lần viewed, clicked, addedToCart, purchased. \\ \hline
+        \texttt{interactionScore} & Number & Default: 0 & Điểm số tương tác tổng hợp động. \\ \hline
+        \texttt{lastInteraction} & Date & Default: Now & Mốc thời gian tương tác gần nhất. \\ \hline
+        \texttt{decayFactor} & Number & Default: 1 & Hệ số suy hao thời gian theo chu kỳ bán rã 30 ngày. \\ \hline
+    \end{tabular}
+\end{table}
+
 \section{Xây dựng ứng dụng}
 \label{section:4.3}
 

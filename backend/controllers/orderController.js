@@ -166,8 +166,9 @@ const updateOrderStatus = async (req, res) => {
 
 const vendorOrders = async (req, res) => {
     try {
-        const orders = await vendorOrdersService(req.vendorId);
-        res.json({ success: true, orders });
+        const query = { ...req.query, ...req.body };
+        const result = await vendorOrdersService(req.vendorId, query);
+        res.json({ success: true, ...result });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }

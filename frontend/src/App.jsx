@@ -1,5 +1,5 @@
-import React from 'react'
-import { Route,Routes } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import Login from './pages/auth/Login'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -29,6 +29,12 @@ import ProfileVouchers from './pages/profile/ProfileVouchers'
 import RecommendationsPage from './pages/main/RecommendationsPage'
 
 const App = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
     <div className='px-4 sm:px-[5wh] md:px-[7vw] lg:px-[9vw]'>
     <ToastContainer />

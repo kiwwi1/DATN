@@ -36,7 +36,7 @@ export const normalizeVariantsWithKeys = (variants = []) => {
 };
 
 export const addProductService = async ({ body, files, vendorId, vendorShopName }) => {
-    const { name, description, price, category, subCategory, attributes, sizes, variants, bestseller } = body;
+    const { name, description, price, category, subCategory, attributes, sizes, variants, bestseller, tags } = body;
 
     if (!name || !description || !category) {
         throw Object.assign(new Error("Missing required fields: name, description, category"), { status: 400 });
@@ -45,6 +45,7 @@ export const addProductService = async ({ body, files, vendorId, vendorShopName 
     const parsedAttributes = attributes ? JSON.parse(attributes) : [];
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
     const parsedVariants = normalizeVariantsWithKeys(variants ? JSON.parse(variants) : []);
+    const parsedTags = tags ? (typeof tags === "string" ? JSON.parse(tags) : tags) : [];
 
     const imageFiles = [files?.image1?.[0], files?.image2?.[0], files?.image3?.[0], files?.image4?.[0]].filter(Boolean);
 
@@ -66,6 +67,7 @@ export const addProductService = async ({ body, files, vendorId, vendorShopName 
         attributes: parsedAttributes,
         variants: parsedVariants,
         sizes: parsedSizes,
+        tags: parsedTags,
         bestseller: bestseller === "true",
         image: imagesUrl,
         date: Date.now(),
@@ -124,7 +126,7 @@ export const toggleProductActiveService = async (productId, vendorId, isActive) 
 };
 
 export const updateProductService = async (productId, vendorId, body, files) => {
-    const { name, description, price, category, subCategory, bestseller, attributes, variants, imageSlots } = body;
+    const { name, description, price, category, subCategory, bestseller, attributes, variants, imageSlots, tags } = body;
 
     const product = await productModel.findById(productId);
     if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
@@ -141,6 +143,9 @@ export const updateProductService = async (productId, vendorId, body, files) => 
             ? (typeof variants === "string" ? JSON.parse(variants) : variants)
             : product.variants
     );
+    const parsedTags = tags
+        ? (typeof tags === "string" ? JSON.parse(tags) : tags)
+        : product.tags || [];
 
     const variantSync = parsedVariants?.length > 0 ? syncFromVariants(parsedVariants) : null;
 
@@ -166,6 +171,7 @@ export const updateProductService = async (productId, vendorId, body, files) => 
     product.subCategory = subCategory || null;
     product.attributes = parsedAttributes;
     product.variants = parsedVariants;
+    product.tags = parsedTags;
     product.bestseller = bestseller === true || bestseller === "true";
     product.markModified("variants");
     await product.save();
@@ -182,8 +188,107 @@ export const updateProductService = async (productId, vendorId, body, files) => 
     return product;
 };
 
-export const listVendorProductsService = async (vendorId) =>
-    productModel.find({ vendorId });
+export const listVendorProductsService = async (vendorId, query = {}) => {
+    const { 
+        page = 1, 
+        limit = 8, 
+        q = "", 
+        category = "all", 
+        subCategory = "all", 
+        visibility = "all", 
+        bestseller = "all", 
+        stock = "all", 
+        minPrice = "", 
+        maxPrice = "", 
+        sort = "newest" 
+    } = query;
+
+    const filter = { vendorId };
+
+    // Text Search on name
+    if (q && q.trim()) {
+        filter.name = { $regex: q.trim(), $options: "i" };
+    }
+
+    // Category / SubCategory
+    if (category && category !== "all") {
+        filter.category = category;
+    }
+    if (subCategory && subCategory !== "all") {
+        filter.subCategory = subCategory;
+    }
+
+    // Visibility
+    if (visibility === "visible") {
+        filter.isActive = { $ne: false };
+    } else if (visibility === "hidden") {
+        filter.isActive = false;
+    }
+
+    // Bestseller
+    if (bestseller === "yes") {
+        filter.bestseller = true;
+    } else if (bestseller === "no") {
+        filter.bestseller = { $ne: true };
+    }
+
+    // Stock Status
+    if (stock === "in_stock") {
+        filter.$or = [
+            { $and: [ { variants: { $exists: true, $ne: [] } }, { "variants.stock": { $gt: 0 } } ] },
+            { $and: [ { $or: [ { variants: { $exists: false } }, { variants: { $size: 0 } } ] }, { stock: { $gt: 0 } } ] }
+        ];
+    } else if (stock === "out_of_stock") {
+        filter.$or = [
+            { $and: [ { variants: { $exists: true, $ne: [] } }, { "variants.stock": { $lte: 0 } } ] },
+            { $and: [ { $or: [ { variants: { $exists: false } }, { variants: { $size: 0 } } ] }, { $or: [ { stock: { $lte: 0 } }, { stock: { $exists: false } } ] } ] }
+        ];
+    } else if (stock === "low_stock") {
+        filter.$or = [
+            { $and: [ { variants: { $exists: true, $ne: [] } }, { "variants.stock": { $gt: 0, $lte: 5 } } ] },
+            { $and: [ { $or: [ { variants: { $exists: false } }, { variants: { $size: 0 } } ] }, { stock: { $gt: 0, $lte: 5 } } ] }
+        ];
+    }
+
+    // Price filters
+    if (minPrice !== undefined && minPrice !== "") {
+        filter.price = { ...filter.price, $gte: Number(minPrice) };
+    }
+    if (maxPrice !== undefined && maxPrice !== "") {
+        filter.price = { ...filter.price, $lte: Number(maxPrice) };
+    }
+
+    // Sorting
+    let sortObj = { date: -1 };
+    if (sort === "oldest") {
+        sortObj = { date: 1 };
+    } else if (sort === "price_asc") {
+        sortObj = { price: 1 };
+    } else if (sort === "price_desc") {
+        sortObj = { price: -1 };
+    } else if (sort === "sold_desc") {
+        sortObj = { sold: -1 };
+    } else if (sort === "name_asc") {
+        sortObj = { name: 1 };
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, parseInt(limit) || 8);
+    const skip = (pageNum - 1) * limitNum;
+
+    const totalProducts = await productModel.countDocuments(filter);
+    const products = await productModel.find(filter)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limitNum);
+
+    return {
+        products,
+        totalProducts,
+        page: pageNum,
+        totalPages: Math.ceil(totalProducts / limitNum)
+    };
+};
 
 export const getVendorShopPublicService = async (vendorId) => {
     const vendor = await userModel

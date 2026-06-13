@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useMemo, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { assets } from '../../assets/assets'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ShopContext } from '../../context/ShopContext'
@@ -90,7 +90,7 @@ const Navbar = () => {
   }
 
   const openVendorPortal = () => {
-    window.open('http://localhost:5174/add', '_blank')
+    window.open('http://localhost:5174/stats', '_blank')
   }
 
   const primaryLinks = navLinks.slice(0, 2)

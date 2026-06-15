@@ -29,7 +29,7 @@ Song song với đó là vấn đề trùng lặp giao dịch (duplicate transac
 \subsubsection{Cơ chế giữ kho nguyên tử (Atomic Stock Reservation)}
 Thay vì thực hiện kiểm tra tồn kho ở tầng ứng dụng và cập nhật ở tầng dữ liệu thông qua hai truy vấn riêng biệt, đồ án chuyển toàn bộ logic kiểm tra và trừ kho thành một thao tác ghi nguyên tử duy nhất (Atomic Write) tại MongoDB bằng cách nhúng điều kiện ràng buộc tồn kho trực tiếp vào bộ lọc tìm kiếm của câu lệnh cập nhật:
 \begin{equation}
-    \text{UpdateFilter} = \{ \text{\_id}: \text{productId}, \text{stock}: \{ \$gte: \text{requestedQuantity} \} \}
+    \text{UpdateFilter} = \{ \text{\_id}: \text{productId},\ \texttt{isActive}: \text{true},\ \text{stock}: \{ \$gte: \text{requestedQuantity} \} \}
 \end{equation}
 \begin{equation}
     \text{UpdateAction} = \{ \$inc: \{ \text{stock}: -\text{requestedQuantity} \} \}
@@ -99,55 +99,62 @@ Hệ thống không chỉ ghi nhận hành vi mua hàng mà thu thập toàn b�
     \centering
     \caption{Trọng số điểm tương tác cơ bản theo loại hành vi}
     \label{table:interaction_weights}
-    \begin{tabular}{|c|c|l|}
+    \begin{tabular}{|l|c|l|}
         \hline
-        \textbf{Hành vi} & \textbf{Trọng số cơ bản ($w_{action}$)} & \textbf{Ý nghĩa hành vi} \\ \hline
-        Xem trang (\texttt{view}) & 1 & Người dùng mở xem chi tiết sản phẩm \\ \hline
-        Yêu thích (\texttt{like}) & 2 & Người dùng bấm lưu sản phẩm vào danh sách yêu thích \\ \hline
-        Thêm giỏ (\texttt{cart}) & 3 & Người dùng chọn thuộc tính và đưa vào giỏ hàng \\ \hline
-        Mua hàng (\texttt{purchase}) & 5 & Người dùng hoàn tất giao dịch mua sản phẩm \\ \hline
+        \textbf{Hành vi} & \textbf{Trọng số ($w_a$)} & \textbf{Ý nghĩa hành vi} \\ \hline
+        Mua hàng (\texttt{purchased}) & 10 & Người dùng hoàn tất giao dịch mua sản phẩm \\ \hline
+        Viết đánh giá (\texttt{reviewed}) & 8 & Người dùng đăng nhận xét về sản phẩm \\ \hline
+        Yêu thích (\texttt{wishlisted}) & 6 & Người dùng lưu sản phẩm vào danh sách yêu thích \\ \hline
+        Thêm giỏ hàng (\texttt{addedToCart}) & 5 & Người dùng chọn thuộc tính và thêm vào giỏ hàng \\ \hline
+        Tìm kiếm (\texttt{searched}) & 2 & Người dùng tìm kiếm sản phẩm qua thanh tìm kiếm \\ \hline
+        Đánh giá sao (\texttt{rated}) & 2 & Người dùng chấm điểm sao cho sản phẩm \\ \hline
+        Xem sản phẩm (\texttt{viewed}) & 1 & Người dùng mở trang chi tiết sản phẩm \\ \hline
+        Nhấp chuột (\texttt{clicked}) & 1 & Người dùng nhấp vào thẻ sản phẩm trong danh sách \\ \hline
+        Thời gian xem (\texttt{timeSpent}) & 0.01/giây & Tổng số giây người dùng ở lại trang sản phẩm \\ \hline
     \end{tabular}
 \end{table}
 
 \subsubsection{Áp dụng hệ số suy hao thời gian (Time Decay)}
-Để giải quyết bài toán thay đổi sở thích của người dùng, điểm tương tác của một hành vi xảy ra trong quá khứ sẽ bị giảm trừ giá trị theo quy luật hàm mũ giảm dần dựa trên khoảng thời gian trôi qua. Điểm tương tác suy hao thực tế ($S_{decayed}$) tại thời điểm hiện tại được tính toán theo công thức:
-\begin{equation}
-    S_{decayed} = w_{action} \times e^{-\lambda \cdot \Delta t}
-\end{equation}
-Trong đó:
-\begin{itemize}
-    \item $w_{action}$ là điểm trọng số cơ bản của hành vi thực hiện.
-    \item $\Delta t$ là số ngày đã trôi qua kể từ thời điểm tương tác được ghi nhận đến thời điểm chạy thuật toán gợi ý: $\Delta t = (t_{current} - t_{interaction}) / (24 \times 3600 \times 1000)$.
-    \item $\lambda$ là hệ số suy hao thời gian (decay rate). Trong đồ án này, hệ số được thiết lập là $\lambda = 0.05$, tương ứng với chu kỳ bán rã sở thích khoảng 14 ngày (sau 14 ngày không tương tác lại, độ quan tâm giảm đi một nửa).
-\end{itemize}
+Để giải quyết bài toán thay đổi sở thích của người dùng, điểm tương tác tổng hợp của cặp người dùng--sản phẩm được nhân với một hệ số suy hao theo hàm mũ giảm dần, phụ thuộc vào khoảng thời gian kể từ lần tương tác gần nhất. Quá trình tính điểm diễn ra theo hai bước:
 
-Điểm tương tác tổng hợp của một người dùng $u$ đối với sản phẩm $i$ được tính bằng tổng các điểm tương tác suy hao của tất cả các hành vi mà người dùng đó đã thực hiện trên sản phẩm đó:
+\textbf{Bước 1 -- Tính điểm thô:} Điểm thô (raw score) được tính bằng tổng tích của trọng số hành vi và số lần thực hiện hành vi đó:
 \begin{equation}
-    \text{Score}(u, i) = \sum_{action \in \text{Interactions}(u, i)} w_{action} \times e^{-\lambda \cdot \Delta t_{action}}
+    S_{raw}(u, i) = \sum_{a \in A} w_a \cdot n_a(u, i)
 \end{equation}
+Trong đó $n_a(u, i)$ là số lần người dùng $u$ thực hiện hành vi $a$ trên sản phẩm $i$ (tích lũy theo thời gian).
+
+\textbf{Bước 2 -- Áp dụng suy hao thời gian:} Điểm thô được nhân với hệ số suy hao $\delta$ tính theo thời gian kể từ lần tương tác gần nhất của cặp $(u, i)$:
+\begin{equation}
+    \delta = e^{-\lambda \cdot \Delta t}, \quad \lambda = \frac{1}{30} \approx 0.033
+\end{equation}
+\begin{equation}
+    \text{interactionScore}(u, i) = S_{raw}(u, i) \times \delta
+\end{equation}
+Trong đó $\Delta t$ là số ngày kể từ lần tương tác gần nhất (\texttt{lastInteraction}) đến thời điểm tính toán: $\Delta t = (t_{current} - t_{lastInteraction}) / (24 \times 3600 \times 1000)$. Hệ số $\lambda = \frac{1}{30}$ tương ứng với chu kỳ bán rã 30 ngày (sau 30 ngày không có tương tác mới, điểm quan tâm của người dùng đối với sản phẩm giảm đi một nửa).
 
 \subsubsection{Kiến trúc bộ khuyến nghị lai (Hybrid Recommendation Engine)}
 Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ thể được mô tả qua các bước sau:
 \begin{enumerate}
     \item \textbf{Nhánh Lọc theo nội dung (Content-Based Filtering)}:
         \begin{itemize}
-            \item Xác định danh sách $P_{active}(u)$ gồm các sản phẩm mà người dùng $u$ có điểm tương tác tổng hợp cao nhất trong thời gian gần đây.
-            \item Với mỗi sản phẩm $p \in P_{active}(u)$, backend thực hiện truy vấn các sản phẩm có cùng danh mục phân cấp (\texttt{category}), thương hiệu (\texttt{brand}) hoặc chứa các từ khóa tương đồng trong mảng thẻ (\texttt{tags}).
-            \item Tính toán độ tương đồng giữa sản phẩm gợi ý và sản phẩm gốc, cộng dồn điểm nhân với trọng số tương tác của sản phẩm gốc để tạo ra danh sách ứng viên $L_{content}$.
+            \item Xác định danh sách $P_{active}(u)$ gồm tối đa 5 sản phẩm mà người dùng $u$ có điểm tương tác tổng hợp cao nhất.
+            \item Trích xuất tập hợp các danh mục (\texttt{category}, \texttt{subCategory}), thương hiệu (\texttt{brand}) và thẻ từ khóa (\texttt{tags}) từ $P_{active}(u)$.
+            \item Truy vấn các sản phẩm khớp với ít nhất một trong các thuộc tính trên (điều kiện \texttt{\$or}), loại trừ những sản phẩm đã có trong $P_{active}(u)$, sắp xếp theo doanh số và điểm đánh giá giảm dần để tạo ra danh sách ứng viên $L_{content}$.
         \end{itemize}
     \item \textbf{Nhánh Lọc cộng tác (Collaborative Filtering)}:
         \begin{itemize}
-            \item Tìm nhóm $K$ người dùng có hồ sơ tương tác tương đồng nhất với người dùng $u$ dựa trên khoảng cách Cosine giữa các vector điểm tương tác sản phẩm của họ.
-            \item Tổng hợp các sản phẩm mà nhóm người dùng tương đồng này đã tương tác nhiều nhưng người dùng $u$ chưa từng tương tác, tạo ra danh sách ứng viên $L_{collaborative}$.
+            \item Tìm tối đa 50 người dùng tiềm năng có tương tác trùng sản phẩm với người dùng $u$; xây dựng vector tương tác thưa (sparse vector) cho từng người dùng trên không gian các sản phẩm chung.
+            \item Tính độ tương đồng Cosine giữa vector của $u$ và từng người dùng tiềm năng theo công thức $\text{sim}(u,v) = \frac{\mathbf{x}_u \cdot \mathbf{x}_v}{\|\mathbf{x}_u\| \cdot \|\mathbf{x}_v\|}$; chọn top-20 người dùng tương đồng nhất.
+            \item Tổng hợp các sản phẩm mà nhóm top-20 đã tương tác nhưng $u$ chưa từng tương tác; điểm của mỗi sản phẩm được tính có trọng số bởi độ tương đồng của người gợi ý: $\text{score}(p) = \sum_{v \in \text{top-}20} \text{sim}(u,v) \cdot \text{interactionScore}(v, p)$, tạo ra danh sách ứng viên $L_{collaborative}$.
         \end{itemize}
     \item \textbf{Trộn và xếp hạng (Merge \& Rank)}:
         \begin{itemize}
-            \item Kết hợp hai danh sách ứng viên theo tỷ lệ trọng số cấu hình (mặc định $60\%$ điểm từ lọc nội dung và $40\%$ từ lọc cộng tác) để tạo danh sách gợi ý cá nhân hóa cuối cùng.
-            \item Loại bỏ các sản phẩm người dùng đã mua hoặc đang ẩn (\texttt{isActive: false}).
+            \item Kết hợp hai danh sách ứng viên theo chiến lược ưu tiên: nhánh Lọc cộng tác cung cấp tối đa $\lceil N/2 \rceil$ sản phẩm (với $N$ là tổng số gợi ý cần trả về) và được xếp vào trước; nhánh Lọc theo nội dung bổ sung tối đa $N$ sản phẩm vào sau. Toàn bộ danh sách được loại trùng (deduplication), đảm bảo mỗi sản phẩm chỉ xuất hiện một lần. Chiến lược này ưu tiên kết quả Lọc cộng tác ở nửa đầu danh sách và dùng Lọc theo nội dung lấp đầy phần còn lại.
+            \item Loại bỏ các sản phẩm người dùng đã tương tác hoặc đang ẩn (\texttt{isActive: false}).
         \end{itemize}
     \item \textbf{Xử lý Khởi động lạnh và Fallback}:
         \begin{itemize}
-            \item Nếu người dùng là tài khoản mới hoàn toàn và chưa có dữ liệu tương tác trong collection \texttt{userInteraction}, hệ thống sẽ kích hoạt luồng dự phòng (Fallback): Gợi ý các sản phẩm bán chạy nhất (\texttt{bestseller: true}) có điểm đánh giá trung bình cao (\texttt{rating} $\ge 4.0$) và thuộc các danh mục thịnh hành của sàn.
+            \item Nếu người dùng là tài khoản mới hoàn toàn và chưa có dữ liệu tương tác trong collection \texttt{userInteraction}, hệ thống sẽ kích hoạt luồng dự phòng (Fallback): Gợi ý các sản phẩm phổ biến nhất của sàn, được sắp xếp theo doanh số bán hàng giảm dần (\texttt{sold}), tiếp theo là điểm đánh giá (\texttt{rating}) và thời điểm cập nhật mới nhất — loại trừ các sản phẩm đã xuất hiện trong kết quả của hai nhánh trên.
         \end{itemize}
 \end{enumerate}
 
@@ -155,7 +162,7 @@ Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ th�
 Hệ thống gợi ý lai đã mang lại những cải thiện rõ rệt về mặt định tính và trải nghiệm sử dụng:
 \begin{itemize}
     \item \textbf{Trải nghiệm mượt mà}: Phần gợi ý hiển thị tự động trên trang chủ của khách hàng ngay khi đăng nhập, cập nhật động danh sách sản phẩm liên quan chỉ sau vài giây kể từ khi người dùng thực hiện các hành động xem hoặc thêm sản phẩm vào giỏ hàng.
-    \item \textbf{Giải quyết triệt để lỗi đề xuất cũ kỹ}: Nhờ hệ số suy hao thời gian $\lambda = 0.05$, các sản phẩm người dùng tìm kiếm từ nhiều tuần trước sẽ nhanh chóng nhường vị trí ưu tiên cho các mối quan tâm mới nhất của họ.
+    \item \textbf{Giải quyết triệt để lỗi đề xuất cũ kỹ}: Nhờ hệ số suy hao thời gian $\lambda = \frac{1}{30} \approx 0.033$ (chu kỳ bán rã 30 ngày), các sản phẩm người dùng tìm kiếm từ nhiều tuần trước sẽ nhanh chóng nhường vị trí ưu tiên cho các mối quan tâm mới nhất của họ.
     \item \textbf{Tự động tối ưu số lượng hiển thị}: Quy mô gợi ý được điều chỉnh tự động theo thuật toán động ở frontend (ngưỡng tối thiểu 20, tối đa 100 sản phẩm tùy thuộc quy mô danh mục) bảo đảm giao diện luôn đầy đặn và hấp dẫn người xem.
 \end{itemize}
 

@@ -24,9 +24,9 @@ Bảng \ref{table:survey} dưới đây trình bày so sánh chi tiết ưu như
         \hline
         \textbf{Tiêu chí} & \textbf{Các hệ thống truyền thống} & \textbf{Hệ thống đề xuất trong đồ án} \\ \hline
         \textbf{Mô hình} & Hỗ trợ tốt Single-shop; cấu hình Multi-vendor thường cần thêm nhiều lớp mở rộng. & Thiết kế chuyên biệt cho Multi-vendor, hỗ trợ tách đơn theo shop và xử lý dữ liệu theo từng nhà bán. \\ \hline
-        \textbf{Xử lý kho} & Dễ phát sinh oversell dưới tải cao nếu chỉ dùng cơ chế cập nhật tuần tự thông thường. & Sử dụng cơ chế giữ kho nguyên tử và idempotency key để kiểm soát tốt hơn các tình huống đặt hàng đồng thời. \\ \hline
+        \textbf{Xử lý kho} & Dễ phát sinh oversell dưới tải cao nếu chỉ dùng cơ chế cập nhật tuần tự thông thường. & Sử dụng cơ chế giữ kho nguyên tử và kiểm soát trùng đơn để bảo toàn tính nhất quán tồn kho khi đặt hàng đồng thời. \\ \hline
         \textbf{Mã giảm giá} & Thường chỉ hỗ trợ voucher một lớp hoặc xử lý phần lớn ở phía giao diện. & Động cơ tính giá tại backend hỗ trợ nhiều lớp gồm giá bán hiện hành, shop voucher, platform voucher và shipping discount. \\ \hline
-        \textbf{Bảo mật} & Xác thực session/token cơ bản; dễ thiếu lớp bảo vệ chống brute-force hoặc quản lý phiên tập trung. & Bảo vệ API nhạy cảm bằng Redis rate-limit, quản lý phiên xác thực phía server và xoay vòng refresh token. \\ \hline
+        \textbf{Bảo mật} & Xác thực session/token cơ bản; dễ thiếu lớp bảo vệ chống brute-force hoặc quản lý phiên tập trung. & Bảo vệ API nhạy cảm bằng giới hạn tần suất truy cập, quản lý phiên xác thực phía server và xoay vòng token làm mới. \\ \hline
         \textbf{Cá nhân hóa} & Hiển thị sản phẩm theo danh mục hoặc sắp xếp tĩnh. & Tích hợp bộ khuyến nghị lai Hybrid kết hợp điểm tương tác người dùng và hệ số suy hao theo thời gian. \\ \hline
     \end{tabular}
 \end{table}
@@ -35,16 +35,11 @@ Từ các phân tích trên, đồ án xác định các tính năng phần mề
 
 \section{Tổng quan chức năng}
 \label{section:2.2}
-Hệ thống sàn thương mại điện tử đa nhà bán hàng được phân tích và thiết kế hướng đối tượng với hai tác nhân nghiệp vụ trực tiếp và một khối chức năng vận hành ở mức ứng dụng:
-\begin{itemize}
-\item \textbf{Khách hàng (Buyer):} Người mua hàng trên hệ thống, có quyền tìm kiếm sản phẩm, xem danh sách gợi ý cá nhân hóa, quản lý giỏ hàng, áp dụng các mã giảm giá hợp lệ, đặt hàng qua COD hoặc Stripe/VNPay, theo dõi đơn hàng, viết đánh giá và chat trực tiếp với từng nhà bán hàng.
-\item \textbf{Đối tác bán hàng (Vendor/Seller):} Người đăng ký gian hàng từ tài khoản người dùng của mình. Có quyền đăng sản phẩm và biến thể, quản lý tồn kho, cấu hình mã giảm giá riêng của cửa hàng, cập nhật trạng thái đơn hàng, giao tiếp với khách hàng và theo dõi thống kê doanh thu.
-\item \textbf{Khối vận hành hệ thống:} Bao gồm các chức năng quản lý danh mục, voucher cấp nền tảng và theo dõi hoạt động chung của ứng dụng. Trong phạm vi hiện thực của đồ án, nhóm chức năng này chủ yếu được thể hiện ở mức quản lý dữ liệu và giao diện quản trị ứng dụng.
-\end{itemize}
+Hệ thống sàn thương mại điện tử đa nhà bán hàng được phân tích và thiết kế hướng đối tượng với hai tác nhân nghiệp vụ trực tiếp và một khối chức năng vận hành ở mức ứng dụng. Khách hàng (Buyer) là người mua hàng trên hệ thống, có quyền tìm kiếm sản phẩm, xem danh sách gợi ý cá nhân hóa, quản lý giỏ hàng, áp dụng mã giảm giá hợp lệ, đặt hàng qua COD hoặc cổng thanh toán trực tuyến, theo dõi đơn hàng, viết đánh giá và chat trực tiếp với từng nhà bán hàng. Đối tác bán hàng (Vendor/Seller) là người đăng ký gian hàng từ tài khoản người dùng của mình, có quyền đăng sản phẩm và biến thể, quản lý tồn kho, cấu hình mã giảm giá riêng của cửa hàng, cập nhật trạng thái đơn hàng, giao tiếp với khách hàng và theo dõi thống kê doanh thu. Ngoài hai tác nhân chính, khối vận hành hệ thống đảm nhận các chức năng quản lý danh mục, voucher cấp nền tảng và theo dõi hoạt động chung của ứng dụng, được thể hiện chủ yếu ở mức quản lý dữ liệu và giao diện quản trị trong phạm vi đồ án.
 
 \subsection{Biểu đồ use case tổng quát}
 \label{subsection:2.2.1}
-Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các tương tác cơ bản giữa các tác nhân và các nhóm chức năng lớn bao gồm: Quản lý tài khoản và bảo mật, Nghiệp vụ mua bán hàng hóa, Quản trị gian hàng và phân tích số liệu, cùng hệ thống tương tác thời gian thực (Chat/Notification) như mô tả trong Hình \ref{fig:general_use_case}.
+Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các tương tác cơ bản giữa các tác nhân và các nhóm chức năng lớn bao gồm: Quản lý tài khoản và bảo mật, Mua hàng và thanh toán, Quản lý gian hàng, cùng phân hệ Vận hành dữ liệu và cấu hình nền tảng như mô tả trong Hình \ref{fig:general_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -55,18 +50,10 @@ Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các t�
 
 \subsection{Biểu đồ use case phân rã các phân hệ nghiệp vụ chính}
 \label{subsection:2.2.2}
-Để làm rõ cấu trúc chức năng, các nhóm ca sử dụng lớn được phân rã thành các ca sử dụng thành phần:
+Để làm rõ cấu trúc chức năng, các nhóm ca sử dụng lớn được phân rã thành các ca sử dụng thành phần tương ứng với từng phân hệ.
 
 \subsubsection{Phân hệ Quản lý tài khoản và Bảo mật (Auth \& Security)}
-Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ bảo mật thông qua các ca sử dụng phân rã bao gồm:
-\begin{itemize}
-    \item \textbf{Đăng ký tài khoản:} Nhập thông tin và xác minh mã OTP 6 số qua email trước khi kích hoạt tài khoản.
-    \item \textbf{Đăng nhập hệ thống:} Hỗ trợ đăng nhập bằng mật khẩu thông thường, có lớp giới hạn tần suất truy cập theo IP và email, hoặc đăng nhập nhanh qua Google OAuth.
-    \item \textbf{Đăng ký gian hàng (Vendor Register):} Cho phép tài khoản người mua nâng cấp thành tài khoản nhà bán hàng bằng cách bổ sung thông tin shop mà không phải tạo tài khoản mới.
-    \item \textbf{Khôi phục mật khẩu:} Gửi token đặt lại mật khẩu qua email để người dùng tự thiết lập lại thông tin xác thực.
-\end{itemize}
-
-Chi tiết các mối tương tác và sự liên kết giữa các ca sử dụng trong phân hệ Tài khoản và Bảo mật được thể hiện trong Hình \ref{fig:auth_security_use_case}.
+Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ bảo mật thông qua bốn ca sử dụng phân rã: (i) Đăng ký tài khoản bằng cách nhập thông tin và xác minh mã OTP 6 số qua email trước khi kích hoạt; (ii) Đăng nhập hệ thống hỗ trợ cả mật khẩu thông thường có giới hạn tần suất theo IP và email lẫn đăng nhập nhanh qua Google OAuth; (iii) Đăng ký gian hàng cho phép tài khoản người mua nâng cấp thành nhà bán hàng bằng cách bổ sung thông tin shop mà không phải tạo tài khoản mới; và (iv) Khôi phục mật khẩu thông qua token đặt lại được gửi qua email. Chi tiết các mối tương tác và sự liên kết giữa các ca sử dụng trong phân hệ này được thể hiện trong Hình \ref{fig:auth_security_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -76,15 +63,7 @@ Chi tiết các mối tương tác và sự liên kết giữa các ca sử dụ
 \end{figure}
 
 \subsubsection{Phân hệ Mua hàng và Thanh toán (Ordering \& Payment)}
-Người mua tương tác trực tiếp với các ca sử dụng cốt lõi:
-\begin{itemize}
-    \item \textbf{Xem sản phẩm cá nhân hóa:} Hệ thống tính toán điểm Interaction Score để đưa ra danh sách sản phẩm gợi ý phù hợp hơn với hành vi người dùng.
-    \item \textbf{Áp dụng voucher nhiều lớp:} Người dùng chọn mã giảm giá, hệ thống backend kiểm tra điều kiện áp dụng và tính toán lại hóa đơn theo đúng thứ tự xử lý.
-    \item \textbf{Giữ kho nguyên tử:} Khi xác nhận đặt hàng, hệ thống giữ kho cho tổng sản phẩm và biến thể ngay tại tầng dữ liệu để giảm nguy cơ oversell.
-    \item \textbf{Thanh toán trực tuyến:} Gọi API tạo checkout session hoặc đường dẫn thanh toán qua Stripe/VNPay, sau đó xác nhận kết quả bằng webhook hoặc callback có ký số.
-\end{itemize}
-
-Sơ đồ phân rã ca sử dụng của phân hệ Mua hàng và Thanh toán được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
+Phân hệ gồm ba ca sử dụng mà người mua tương tác trực tiếp: (i) Xem sản phẩm cá nhân hóa theo điểm tương tác người dùng, với thao tác tính điểm là ca sử dụng bao hàm bên trong; (ii) Đặt hàng với tính giá và áp dụng voucher nhiều lớp cùng thao tác giữ kho nguyên tử được thực hiện như hai ca sử dụng bao hàm nhằm kiểm soát nguy cơ oversell; và (iii) Thanh toán trực tuyến qua Stripe hoặc VNPay với xác nhận kết quả tự động thông qua webhook và callback. Sơ đồ phân rã ca sử dụng của phân hệ này được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -94,14 +73,7 @@ Sơ đồ phân rã ca sử dụng của phân hệ Mua hàng và Thanh toán đ
 \end{figure}
 
 \subsubsection{Phân hệ Quản lý gian hàng (Merchant Console)}
-Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập:
-\begin{itemize}
-    \item \textbf{Quản lý sản phẩm và biến thể:} Đăng tải, chỉnh sửa thông tin và quản lý tồn kho theo sản phẩm hoặc biến thể.
-    \item \textbf{Cấu hình mã giảm giá riêng (Shop Voucher):} Thiết lập mã giảm giá theo phần trăm hoặc số tiền cố định áp dụng riêng cho subtotal của shop.
-    \item \textbf{Xem thống kê doanh thu (Stats):} Biểu đồ Recharts phân tích dòng doanh thu theo ngày, số lượng đơn theo tháng và cảnh báo sản phẩm sắp hết hàng.
-\end{itemize}
-
-Các chức năng chi tiết thuộc phân hệ Quản lý gian hàng dành cho đối tác bán hàng được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
+Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập với ba nhóm chức năng: (i) Quản lý sản phẩm và biến thể bao gồm đăng tải, chỉnh sửa thông tin và quản lý tồn kho; (ii) Cấu hình mã giảm giá riêng của shop theo phần trăm hoặc số tiền cố định; và (iii) Xem thống kê doanh thu qua biểu đồ phân tích theo ngày, tháng kèm cảnh báo sản phẩm sắp hết hàng. Các chức năng chi tiết của phân hệ này được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -116,19 +88,19 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
 
 \begin{enumerate}
     \item \textbf{Bước 1:} Khách hàng thêm các sản phẩm với biến thể cụ thể vào giỏ hàng và tiến hành checkout.
-    \item \textbf{Bước 2:} Client gửi danh sách sản phẩm và các mã voucher lên endpoint \texttt{/api/order/preview}. Backend thực hiện tính toán thử bảng kê tiền tệ và trả về bảng tính chi tiết cho giao diện xác nhận.
-    \item \textbf{Bước 3:} Người dùng chọn phương thức thanh toán (COD, Stripe hoặc VNPay) và gửi yêu cầu tạo đơn kèm \texttt{idempotencyKey}.
-    \item \textbf{Bước 4:} Backend gọi hàm \texttt{reserveStockByUnits} để kiểm tra và giữ kho nguyên tử.
+    \item \textbf{Bước 2:} Client gửi danh sách sản phẩm và các mã voucher lên API xem trước đơn hàng. Backend thực hiện tính toán thử bảng kê tiền tệ và trả về bảng tính chi tiết cho giao diện xác nhận.
+    \item \textbf{Bước 3:} Người dùng chọn phương thức thanh toán (COD, Stripe hoặc VNPay) và gửi yêu cầu tạo đơn kèm mã chống trùng đơn.
+    \item \textbf{Bước 4:} Backend thực hiện thao tác kiểm tra và giữ kho nguyên tử tại tầng dữ liệu.
     \begin{itemize}
-        \item \textit{Nếu đủ hàng:} Tồn kho tổng và tồn kho biến thể được giảm trừ tạm thời, đồng thời đơn hàng được tạo với các thông tin giữ kho như \texttt{stockReservedAt} và \texttt{reservationExpiresAt}.
-        \item \textit{Nếu thiếu hàng ở bất kỳ sản phẩm nào:} Hệ thống trả về lỗi \texttt{OUT\_OF\_STOCK} kèm thông tin số lượng khả dụng để giao diện thông báo cho người dùng, quá trình tạo đơn bị dừng.
+        \item \textit{Nếu đủ hàng:} Tồn kho tổng và tồn kho biến thể được giảm trừ tạm thời, đồng thời đơn hàng được tạo với thông tin thời điểm và thời hạn giữ kho.
+        \item \textit{Nếu thiếu hàng ở bất kỳ sản phẩm nào:} Hệ thống trả về thông báo hết hàng kèm số lượng khả dụng để giao diện thông báo cho người dùng, quá trình tạo đơn bị dừng.
     \end{itemize}
-    \item \textbf{Bước 5:} Nếu người dùng chọn COD, đơn hàng được tạo với trạng thái \texttt{Order Placed} và tiếp tục các bước hậu xử lý liên quan. Nếu người dùng chọn Stripe hoặc VNPay, hệ thống khởi tạo phiên hoặc đường dẫn thanh toán, đồng thời giữ cờ \texttt{payment = false} cho đến khi nhận xác nhận từ cổng thanh toán.
+    \item \textbf{Bước 5:} Nếu người dùng chọn COD, đơn hàng được tạo với trạng thái Đã đặt hàng và tiếp tục các bước hậu xử lý liên quan. Nếu người dùng chọn Stripe hoặc VNPay, hệ thống khởi tạo phiên hoặc đường dẫn thanh toán, đồng thời giữ cờ trạng thái thanh toán chờ xác nhận cho đến khi nhận phản hồi từ cổng thanh toán.
     \item \textbf{Bước 6:} Khách hàng hoàn tất thao tác trên giao diện cổng thanh toán.
     \begin{itemize}
-        \item \textit{Trường hợp Stripe thành công:} Backend nhận webhook, kiểm tra tính hợp lệ, cập nhật cờ thanh toán, tăng biến đếm số lượng bán, xóa sản phẩm tương ứng khỏi giỏ hàng và gửi thông báo tới các nhà bán liên quan.
+        \item \textit{Trường hợp Stripe thành công:} Backend nhận webhook, kiểm tra tính hợp lệ, cập nhật trạng thái thanh toán, tăng biến đếm số lượng bán, xóa sản phẩm tương ứng khỏi giỏ hàng và gửi thông báo tới các nhà bán liên quan.
         \item \textit{Trường hợp VNPay thành công:} Backend xử lý callback hoặc redirect có ký số, xác nhận kết quả thanh toán rồi thực hiện các bước cập nhật tương tự.
-        \item \textit{Trường hợp thất bại hoặc quá hạn thanh toán:} Tác vụ quét nền của server phát hiện đơn hàng quá thời gian giữ kho, chuyển trạng thái sang \texttt{Cancelled}, ghi nhận lý do hết hạn thanh toán, hoàn trả số lượng tồn kho và khôi phục lượt sử dụng voucher liên quan.
+        \item \textit{Trường hợp thất bại hoặc quá hạn thanh toán:} Tác vụ quét nền của server phát hiện đơn hàng quá thời gian giữ kho, chuyển trạng thái sang Đã hủy, ghi nhận lý do hết hạn thanh toán, hoàn trả số lượng tồn kho và khôi phục lượt sử dụng voucher liên quan.
     \end{itemize}
 \end{enumerate}
 
@@ -139,12 +111,12 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
     \label{fig:checkout_process}
 \end{figure}
 
-Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành hai biểu đồ. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn preview, tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến, xác nhận kết quả và xử lý quá hạn thanh toán.
+Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành hai biểu đồ. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn xem trước, tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến, xác nhận kết quả và xử lý quá hạn thanh toán.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
-    \caption{Biểu đồ tuần tự giai đoạn preview, tạo đơn và giữ kho nguyên tử}
+    \caption{Biểu đồ tuần tự giai đoạn xem trước, tạo đơn và giữ kho nguyên tử}
     \label{fig:order_creation_sequence}
 \end{figure}
 
@@ -164,13 +136,13 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
     \item \textbf{Tên ca sử dụng:} Đăng nhập hệ thống (Login).
     \item \textbf{Tác nhân chính:} Khách hàng, Đối tác bán hàng.
     \item \textbf{Tiền điều kiện:} Người dùng đã đăng ký tài khoản và xác minh email thành công.
-    \item \textbf{Hậu điều kiện:} Người dùng đăng nhập thành công, nhận được \texttt{accessToken}, \texttt{refreshToken} trong cookie bảo mật và được gắn với phiên xác thực quản lý phía server để điều hướng theo đúng quyền hạn.
+    \item \textbf{Hậu điều kiện:} Người dùng đăng nhập thành công, nhận được token truy cập và token làm mới trong cookie bảo mật, đồng thời được gắn với phiên xác thực quản lý phía server để điều hướng theo đúng quyền hạn.
     \item \textbf{Luồng sự kiện chính:}
     \begin{enumerate}
         \item Người dùng truy cập trang đăng nhập, điền email và mật khẩu hoặc chọn đăng nhập qua Google.
-        \item Hệ thống kiểm tra tần suất yêu cầu trong Redis rate-limiter. Nếu vượt ngưỡng cho phép, trả về lỗi HTTP 429 và thông tin thời gian chờ.
-        \item Hệ thống kiểm tra thông tin tài khoản trong cơ sở dữ liệu, đối chiếu mật khẩu bằng \texttt{bcrypt} hoặc xác thực với nhà cung cấp OAuth tương ứng.
-        \item Nếu hợp lệ, hệ thống cấp access token, refresh token và tạo bản ghi phiên xác thực phía server phục vụ cơ chế refresh token rotation.
+        \item Hệ thống kiểm tra tần suất yêu cầu theo IP và email. Nếu vượt ngưỡng cho phép, trả về lỗi HTTP 429 và thông tin thời gian chờ.
+        \item Hệ thống kiểm tra thông tin tài khoản trong cơ sở dữ liệu, đối chiếu mật khẩu bằng thuật toán băm hoặc xác thực với nhà cung cấp OAuth tương ứng.
+        \item Nếu hợp lệ, hệ thống cấp token truy cập, token làm mới và tạo bản ghi phiên xác thực phía server phục vụ cơ chế xoay vòng token.
         \item Hệ thống ghi token vào cookie với các cờ bảo mật phù hợp, sau đó giao diện lấy thông tin hồ sơ và mở quyền truy cập tương ứng.
     \end{enumerate}
     \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
@@ -188,16 +160,16 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
     \item \textbf{Hậu điều kiện:} Đơn hàng được tạo thành công trong cơ sở dữ liệu với thông tin giữ kho, trạng thái và cờ thanh toán phù hợp với phương thức đã chọn; số lượng kho của các sản phẩm liên quan được cập nhật nhất quán.
     \item \textbf{Luồng sự kiện chính:}
     \begin{enumerate}
-        \item Khách hàng nhấn nút ``Đặt hàng'' trên giao diện thanh toán. Client gửi request kèm giỏ hàng, địa chỉ giao hàng, danh sách mã voucher, phương thức thanh toán và \texttt{idempotencyKey}.
-        \item Backend kiểm tra trùng lặp thông qua \texttt{idempotencyKey} và \texttt{userId}. Nếu đơn hàng đã tồn tại, hệ thống trả lại kết quả trước đó để tránh tạo đơn lặp.
-        \item Hệ thống gọi hàm \texttt{reserveStockByUnits} để kiểm tra và giảm trừ tổng kho cùng kho biến thể trực tiếp tại tầng dữ liệu bằng câu lệnh cập nhật nguyên tử.
+        \item Khách hàng nhấn nút ``Đặt hàng'' trên giao diện thanh toán. Client gửi yêu cầu kèm giỏ hàng, địa chỉ giao hàng, danh sách mã voucher, phương thức thanh toán và mã chống trùng đơn.
+        \item Backend kiểm tra trùng lặp thông qua mã chống trùng đơn và định danh người dùng. Nếu đơn hàng đã tồn tại, hệ thống trả lại kết quả trước đó để tránh tạo đơn lặp.
+        \item Hệ thống thực hiện thao tác giữ kho nguyên tử: kiểm tra và giảm trừ tổng kho cùng kho biến thể trực tiếp tại tầng dữ liệu bằng câu lệnh cập nhật nguyên tử.
         \item Hệ thống tải thông tin voucher, kiểm tra điều kiện hợp lệ và ghi nhận lượt sử dụng theo đúng luồng nghiệp vụ.
-        \item Đơn hàng được tạo với bảng kê tài chính đầy đủ, kèm các trường thông tin như \texttt{stockReservedAt} và \texttt{reservationExpiresAt}.
-        \item Nếu thanh toán bằng COD, đơn hàng được ghi nhận ở trạng thái \texttt{Order Placed} và hệ thống tiếp tục cập nhật số lượng bán, giỏ hàng và thông báo liên quan. Nếu thanh toán online, đơn hàng vẫn ở trạng thái \texttt{Order Placed}, giữ \texttt{payment = false} và tạo liên kết Stripe hoặc VNPay để chuyển khách hàng sang bước thanh toán.
+        \item Đơn hàng được tạo với bảng kê tài chính đầy đủ, kèm thông tin thời điểm và thời hạn giữ kho.
+        \item Nếu thanh toán bằng COD, đơn hàng được ghi nhận ở trạng thái Đã đặt hàng và hệ thống tiếp tục cập nhật số lượng bán, giỏ hàng và thông báo liên quan. Nếu thanh toán online, đơn hàng vẫn ở trạng thái Đã đặt hàng với cờ chờ thanh toán và hệ thống tạo liên kết Stripe hoặc VNPay để chuyển khách hàng sang bước thanh toán.
     \end{enumerate}
     \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
     \begin{itemize}
-        \item \textit{Tại bước 3 (Hết hàng hoặc thiếu hàng):} Nếu một sản phẩm không đủ tồn kho, hệ thống trả về lỗi \texttt{OUT\_OF\_STOCK} kèm thông tin sản phẩm thiếu hàng. Mọi phần tồn kho đã được giữ trước đó trong cùng giao dịch sẽ được hoàn lại tự động và quá trình tạo đơn bị hủy.
+        \item \textit{Tại bước 3 (Hết hàng hoặc thiếu hàng):} Nếu một sản phẩm không đủ tồn kho, hệ thống trả về thông báo hết hàng kèm thông tin sản phẩm thiếu. Mọi phần tồn kho đã được giữ trước đó trong cùng giao dịch sẽ được hoàn lại tự động và quá trình tạo đơn bị hủy.
     \end{itemize}
 \end{itemize}
 
@@ -210,7 +182,7 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
     \item \textbf{Luồng sự kiện chính:}
     \begin{enumerate}
         \item Khách hàng điền hoặc chọn các mã voucher trên giao diện giỏ hàng hoặc thanh toán.
-        \item Hệ thống gọi API preview để gửi danh sách sản phẩm và mã giảm giá lên backend.
+        \item Hệ thống gửi danh sách sản phẩm và mã giảm giá lên API xem trước đơn hàng tại backend.
         \item Backend tải dữ liệu voucher từ cơ sở dữ liệu, xác thực tính hợp lệ như thời hạn, trạng thái kích hoạt và số lượt còn lại.
         \item Công cụ tính giá tại backend áp dụng thứ tự xử lý gồm giá bán hiện hành của sản phẩm, giảm giá theo shop, giảm giá nền tảng và giảm giá phí vận chuyển.
         \item Hệ thống trả về bảng kê tính toán chi tiết cùng danh sách voucher được chấp nhận và voucher bị từ chối kèm lý do cụ thể.
@@ -231,9 +203,9 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
     \item \textbf{Luồng sự kiện chính:}
     \begin{enumerate}
         \item Thương nhân truy cập vào mục ``Thống kê'' trên bảng điều khiển.
-        \item Client gọi API \texttt{/api/order/vendor-stats} kèm thông tin xác thực.
-        \item Backend xác thực phiên, định danh \texttt{vendorId} của gian hàng và kiểm tra quyền truy cập.
-        \item Hệ thống thực hiện các pipeline aggregation của MongoDB để thống kê doanh thu theo ngày, số lượng đơn theo trạng thái và doanh số theo tháng.
+        \item Client gửi yêu cầu lấy dữ liệu thống kê doanh thu kèm thông tin xác thực phiên.
+        \item Backend xác thực phiên, xác định định danh gian hàng của người dùng và kiểm tra quyền truy cập.
+        \item Hệ thống tổng hợp dữ liệu doanh thu theo ngày, số lượng đơn theo trạng thái và doanh số theo tháng.
         \item Client nhận dữ liệu tổng hợp, hiển thị các thẻ chỉ số và vẽ biểu đồ bằng thư viện Recharts.
     \end{enumerate}
     \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
@@ -244,15 +216,17 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
 
 \section{Yêu cầu phi chức năng}
 \label{section:2.4}
-Hệ thống được thiết kế để đáp ứng các yêu cầu chất lượng phần mềm trực tuyến sau:
-\begin{itemize}
-\item \textbf{Hiệu năng và tải cao (High Performance):} Backend Node.js kết hợp Redis nhằm rút ngắn thời gian phản hồi đối với các API phổ biến trong điều kiện tải thông thường. Đối với các kịch bản đồng thời cao ở bước checkout, hệ thống ưu tiên kiểm soát tranh chấp bằng giữ kho nguyên tử và idempotency key để giảm nguy cơ tạo đơn trùng hoặc oversell.
-\item \textbf{Tính toàn vẹn và nhất quán dữ liệu (Data Integrity):} Hệ thống phải bảo đảm dữ liệu tồn kho giữa sản phẩm tổng và biến thể được cập nhật đồng bộ. Trong các trường hợp đặt hàng thất bại, thanh toán lỗi hoặc quá thời gian giữ kho, cơ chế hoàn kho và hoàn lượt voucher cần được thực thi tự động.
-\item \textbf{Tính dễ dùng và trực quan (Usability):} Giao diện React SPA cần phản hồi rõ ràng, thao tác thanh toán dễ theo dõi, bảng kê giá minh bạch và dashboard thống kê đủ trực quan để người bán sử dụng trong vận hành hằng ngày.
-\item \textbf{Tính bảo mật (Security):} Mật khẩu được băm bằng \texttt{bcrypt}; thông tin xác thực được truyền qua cookie với các cờ bảo mật phù hợp; phiên đăng nhập được quản lý phía server; và các API nhạy cảm được bảo vệ bằng cơ chế rate-limit dựa trên Redis.
-\end{itemize}
+Hệ thống được thiết kế để đáp ứng bốn nhóm yêu cầu chất lượng phần mềm trực tuyến sau.
+
+Về hiệu năng và chịu tải cao, backend Node.js kết hợp Redis nhằm rút ngắn thời gian phản hồi đối với các API phổ biến trong điều kiện tải thông thường. Đối với các kịch bản đồng thời cao ở bước checkout, hệ thống ưu tiên kiểm soát tranh chấp bằng giữ kho nguyên tử và kiểm soát trùng đơn để giảm nguy cơ tạo đơn trùng hoặc oversell.
+
+Về tính toàn vẹn và nhất quán dữ liệu, hệ thống phải bảo đảm dữ liệu tồn kho giữa sản phẩm tổng và biến thể được cập nhật đồng bộ. Trong các trường hợp đặt hàng thất bại, thanh toán lỗi hoặc quá thời gian giữ kho, cơ chế hoàn kho và hoàn lượt voucher cần được thực thi tự động.
+
+Về tính dễ dùng và trực quan, giao diện React SPA cần phản hồi rõ ràng, thao tác thanh toán dễ theo dõi, bảng kê giá minh bạch và dashboard thống kê đủ trực quan để người bán sử dụng trong vận hành hằng ngày.
+
+Về tính bảo mật, mật khẩu được lưu trữ dưới dạng băm một chiều; thông tin xác thực được truyền qua cookie với các cờ bảo mật phù hợp; phiên đăng nhập được quản lý phía server; và các API nhạy cảm được bảo vệ bằng cơ chế giới hạn tần suất truy cập dựa trên Redis.
 
 \section*{Kết chương}
-Chương 2 đã xây dựng bức tranh chức năng của hệ thống thông qua việc khảo sát hiện trạng, xác định các tác nhân và phân hệ chính, mô tả quy trình đặt hàng - giữ kho - thanh toán, đồng thời đặc tả bốn ca sử dụng cốt lõi của đồ án. Những nội dung này tạo nền tảng để chuyển sang chương tiếp theo, nơi các cơ sở lý thuyết, công nghệ sử dụng và lý do lựa chọn giải pháp sẽ được phân tích cụ thể hơn.
+Chương 2 đã xây dựng bức tranh chức năng của hệ thống thông qua việc khảo sát hiện trạng, xác định các tác nhân và phân hệ chính, mô tả quy trình đặt hàng -- giữ kho -- thanh toán, đồng thời đặc tả bốn ca sử dụng cốt lõi của đồ án. Những nội dung này tạo nền tảng để chuyển sang chương tiếp theo, nơi các cơ sở lý thuyết, công nghệ sử dụng và lý do lựa chọn giải pháp sẽ được phân tích cụ thể hơn.
 
 \end{document}

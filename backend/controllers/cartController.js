@@ -2,7 +2,8 @@ import { addToCartService, updateCartService, getUserCartService } from "../serv
 
 const adddToCart = async (req, res) => {
     try {
-        const { userId, itemId, size } = req.body;
+        const { itemId, size } = req.body;
+        const userId = req.userId;
         await addToCartService(userId, itemId, size);
         res.json({ success: true, message: "Product added to cart" });
     } catch (error) {
@@ -13,7 +14,8 @@ const adddToCart = async (req, res) => {
 
 const updateCart = async (req, res) => {
     try {
-        const { userId, itemId, size, quantity } = req.body;
+        const { itemId, size, quantity } = req.body;
+        const userId = req.userId;
         await updateCartService(userId, itemId, size, quantity);
         res.json({ success: true, message: "Cart updated" });
     } catch (error) {
@@ -24,7 +26,7 @@ const updateCart = async (req, res) => {
 
 const getUserCart = async (req, res) => {
     try {
-        const cartData = await getUserCartService(req.body.userId);
+        const cartData = await getUserCartService(req.userId);
         res.json({ success: true, cartData });
     } catch (error) {
         console.log(error);

@@ -86,9 +86,17 @@ export const computeOrderPricing = ({ items, vouchers, shippingFee }) => {
   const platformVouchers = safeVouchers.filter((voucher) => voucher.type === "PLATFORM");
   const shippingVouchers = safeVouchers.filter((voucher) => voucher.type === "SHIPPING");
 
+  const usedShopVendors = new Set();
   for (const voucher of shopVouchers) {
     const code = normalizeCode(voucher.code);
     const vendorKey = toIdKey(voucher.vendorId);
+
+    if (usedShopVendors.has(vendorKey)) {
+      pushRejected(rejectedVouchers, code, "Mỗi cửa hàng chỉ được áp dụng một voucher shop");
+      continue;
+    }
+    usedShopVendors.add(vendorKey);
+
     const shopSubtotal = toSafeMoney(perShopSubtotal.get(vendorKey) || 0);
     const currentShopDiscount = toSafeMoney(perShopDiscount.get(vendorKey) || 0);
     const base = Math.max(0, shopSubtotal - currentShopDiscount);
@@ -120,8 +128,15 @@ export const computeOrderPricing = ({ items, vouchers, shippingFee }) => {
     });
   }
 
+  let platformApplied = false;
   for (const voucher of platformVouchers) {
     const code = normalizeCode(voucher.code);
+
+    if (platformApplied) {
+      pushRejected(rejectedVouchers, code, "Mỗi đơn hàng chỉ được áp dụng một voucher nền tảng");
+      continue;
+    }
+
     const base = Math.max(0, subtotal - shopDiscount - platformDiscount);
     const minOrderValue = toSafeMoney(voucher.minOrderValue || 0);
     if (base < minOrderValue) {
@@ -136,6 +151,7 @@ export const computeOrderPricing = ({ items, vouchers, shippingFee }) => {
     }
 
     platformDiscount += discount;
+    platformApplied = true;
     appliedVouchers.push({
       voucherId: voucher._id,
       code,
@@ -144,8 +160,15 @@ export const computeOrderPricing = ({ items, vouchers, shippingFee }) => {
     });
   }
 
+  let shippingApplied = false;
   for (const voucher of shippingVouchers) {
     const code = normalizeCode(voucher.code);
+
+    if (shippingApplied) {
+      pushRejected(rejectedVouchers, code, "Mỗi đơn hàng chỉ được áp dụng một voucher vận chuyển");
+      continue;
+    }
+
     const base = Math.max(0, normalizedShippingFee - shippingDiscount);
     const minOrderValue = toSafeMoney(voucher.minOrderValue || 0);
     if (base < minOrderValue) {
@@ -160,6 +183,7 @@ export const computeOrderPricing = ({ items, vouchers, shippingFee }) => {
     }
 
     shippingDiscount += discount;
+    shippingApplied = true;
     appliedVouchers.push({
       voucherId: voucher._id,
       code,
@@ -229,22 +253,23 @@ export const claimVoucherUsage = async (appliedVouchers = []) => {
 
   try {
     for (const voucherId of uniqueVoucherIds) {
-      const voucher = await voucherModel.findById(voucherId).select("_id usageLimit usedCount");
-      if (!voucher) {
-        throw Object.assign(new Error("Voucher khong ton tai"), { status: 400 });
-      }
+      const result = await voucherModel.updateOne(
+        {
+          _id: voucherId,
+          $or: [
+            { usageLimit: { $lte: 0 } },
+            { $expr: { $lt: ["$usedCount", "$usageLimit"] } },
+          ],
+        },
+        { $inc: { usedCount: 1 } }
+      );
 
-      const limited = Number(voucher.usageLimit || 0) > 0;
-      if (limited) {
-        const result = await voucherModel.updateOne(
-          { _id: voucherId, usedCount: { $lt: Number(voucher.usageLimit) } },
-          { $inc: { usedCount: 1 } }
-        );
-        if (result.modifiedCount !== 1) {
-          throw Object.assign(new Error(`Voucher "${voucherId}" da het luot`), { status: 409 });
+      if (result.modifiedCount !== 1) {
+        const exists = await voucherModel.exists({ _id: voucherId });
+        if (!exists) {
+          throw Object.assign(new Error("Voucher không tồn tại"), { status: 400 });
         }
-      } else {
-        await voucherModel.updateOne({ _id: voucherId }, { $inc: { usedCount: 1 } });
+        throw Object.assign(new Error(`Voucher "${voucherId}" đã hết lượt`), { status: 409 });
       }
 
       rollbackQueue.push(voucherId);

@@ -10,12 +10,12 @@ Chương 3 tập trung trình bày cơ sở lý thuyết và các công nghệ c
 \subsection{Cơ sở lý thuyết về nhất quán dữ liệu và tranh chấp tài nguyên tải cao}
 Trong các hệ thống thương mại điện tử quy mô lớn, tính nhất quán dữ liệu ở tầng lưu trữ là yếu tố sống còn quyết định sự thành bại của doanh nghiệp. Vấn đề tranh chấp dữ liệu khi có hàng nghìn người cùng thực hiện mua một sản phẩm tại cùng một thời điểm (kịch bản Flash Sale) thường phát sinh lỗi nghiêm trọng về bán quá mức tồn kho thực tế (\textit{Overselling}).
 
-Về mặt lý thuyết, lỗi này xảy ra do mô hình xử lý giao dịch cổ điển áp dụng kỹ thuật đọc - chỉnh sửa - ghi (\textit{Read-Modify-Write}). Khi hai luồng yêu cầu đồng thời kiểm tra số lượng tồn kho của một sản phẩm (ví dụ còn $1$ sản phẩm), cả hai đều nhận được kết quả còn hàng và cùng tiến hành thực hiện trừ kho và tạo đơn, dẫn đến số lượng tồn kho thực tế bị âm ($-1$). Để giải quyết bài toán này từ Chương 2, hệ thống bắt buộc phải thực hiện thao tác kiểm tra điều kiện và cập nhật số lượng tồn kho một cách nguyên tử (\textit{Atomic Database Reservation}) kết hợp với cơ chế chống trùng lặp giao dịch bằng khóa \texttt{idempotencyKey} ở tầng ứng dụng.
+Về mặt lý thuyết, lỗi này xảy ra do mô hình xử lý giao dịch cổ điển áp dụng kỹ thuật đọc -- chỉnh sửa -- ghi (\textit{Read-Modify-Write}). Khi hai luồng yêu cầu đồng thời kiểm tra số lượng tồn kho của một sản phẩm (ví dụ còn $1$ sản phẩm), cả hai đều nhận được kết quả còn hàng và cùng tiến hành thực hiện trừ kho và tạo đơn, dẫn đến số lượng tồn kho thực tế bị âm ($-1$). Để giải quyết bài toán này từ Chương 2, hệ thống bắt buộc phải thực hiện thao tác kiểm tra điều kiện và cập nhật số lượng tồn kho một cách nguyên tử (\textit{Atomic Database Reservation}) kết hợp với cơ chế chống trùng lặp giao dịch bằng mã định danh chống trùng đơn ở tầng ứng dụng.
 
 \subsection{Cơ sở dữ liệu tài liệu MongoDB và thư viện Mongoose ORM}
-MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệu (\textit{Document-oriented}) lưu trữ dữ liệu dưới định dạng JSON/BSON linh hoạt. Thư viện Mongoose đóng vai trò là lớp ánh xạ đối tượng dữ liệu (Object Document Mapper - ODM) giúp định nghĩa Schema chặt chẽ và quản lý các kết nối tối ưu.
+MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệu (\textit{Document-oriented}) lưu trữ dữ liệu dưới định dạng JSON/BSON linh hoạt. Thư viện Mongoose đóng vai trò là lớp ánh xạ đối tượng dữ liệu (Object Document Mapper -- ODM) giúp định nghĩa Schema chặt chẽ và quản lý các kết nối tối ưu.
 
-\textbf{Giải quyết yêu cầu Chương 2:} 
+\textbf{Giải quyết yêu cầu Chương 2:}
 MongoDB giải quyết trọn vẹn yêu cầu lưu trữ thông tin sản phẩm đa nhà bán hàng với các cấu trúc biến thể phức tạp (màu sắc, kích thước, giá bán riêng biệt). Đặc biệt, MongoDB hỗ trợ các câu lệnh cập nhật nguyên tử ở cấp độ đơn tài liệu (\textit{Single-document Atomicity}) thông qua cú pháp cập nhật có điều kiện như toán tử \texttt{\$inc} kết hợp điều kiện lọc giá trị lớn hơn hoặc bằng lượng mua thực tế ngay dưới tầng lưu trữ:
 \begin{verbatim}
 db.products.updateOne(
@@ -26,18 +26,22 @@ db.products.updateOne(
 Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao \cite{nosql-performance}.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
-\begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Hệ quản trị cơ sở dữ liệu quan hệ truyền thống (RDBMS) như MySQL hoặc PostgreSQL.
-    \item \textbf{So sánh đối chiếu:}
-    \begin{longtable}{|p{3cm}|p{5.5cm}|p{6cm}|}
+Giải pháp thay thế phổ biến nhất là các hệ quản trị cơ sở dữ liệu quan hệ (RDBMS) như MySQL hoặc PostgreSQL. Bảng \ref{table:db_compare} dưới đây so sánh hai hướng tiếp cận trên ba tiêu chí quan trọng nhất đối với đồ án.
+
+\begin{table}[htbp]
+    \centering
+    \caption{So sánh MongoDB và RDBMS trong bài toán đa nhà bán hàng}
+    \label{table:db_compare}
+    \begin{tabular}{|p{3cm}|p{5.5cm}|p{6cm}|}
     \hline
     \textbf{Tiêu chí} & \textbf{RDBMS (MySQL / PostgreSQL)} & \textbf{MongoDB (Đề xuất trong đồ án)} \\ \hline
     \textbf{Mô hình dữ liệu} & Lược đồ tĩnh, yêu cầu liên kết nhiều bảng (\textit{JOIN}) phức tạp để biểu diễn biến thể. & Lược đồ động, lưu trữ biến thể lồng nhau (\textit{Nested Document}) trực quan, không cần JOIN. \\ \hline
     \textbf{Cơ chế khóa tải cao} & Sử dụng cơ chế khóa dòng vật lý (\textit{Pessimistic Locking} qua \texttt{SELECT FOR UPDATE}) gây tắc nghẽn luồng xử lý khi nhiều giao dịch tranh chấp cùng hàng. & Toán tử \texttt{\$inc} kết hợp điều kiện lọc thực hiện kiểm tra và cập nhật tồn kho trong một thao tác nguyên tử duy nhất ở cấp tài liệu, bao phủ cả tổng kho lẫn kho biến thể mà không cần \textit{JOIN} \cite{rdbms-vs-nosql}. \\ \hline
     \textbf{Khả năng mở rộng} & Mở rộng theo chiều dọc (\textit{Scaling Up}) tốn kém phần cứng; phân mảnh dữ liệu phức tạp. & Hỗ trợ phân mảnh tự động (\textit{Sharding}) mở rộng theo chiều ngang (\textit{Scaling Out}) dễ dàng. \\ \hline
-    \end{longtable}
-    \item \textbf{Lý do chọn lựa:} MongoDB không chỉ giúp cấu trúc dữ liệu sản phẩm đa nhà bán hàng với các biến thể lồng nhau trở nên gọn nhẹ, tự nhiên hơn so với mô hình bảng quan hệ, mà còn cho phép kiểm tra và cập nhật tồn kho trong một thao tác nguyên tử duy nhất ở cấp tài liệu mà không cần khóa nhiều bảng. Cần lưu ý rằng PostgreSQL cũng hỗ trợ câu lệnh \texttt{UPDATE ... WHERE stock >= qty} tương tự ở cấp hàng; tuy nhiên, lợi thế đặc trưng của MongoDB trong đồ án này là khả năng lưu biến thể sản phẩm dưới dạng mảng nhúng (\textit{embedded array}), cho phép một thao tác \texttt{\$inc} duy nhất cập nhật đồng thời cả tổng kho và kho biến thể mà không cần \textit{JOIN} hay nhiều câu truy vấn riêng biệt.
-\end{itemize}
+    \end{tabular}
+\end{table}
+
+MongoDB không chỉ giúp cấu trúc dữ liệu sản phẩm đa nhà bán hàng với các biến thể lồng nhau trở nên gọn nhẹ, tự nhiên hơn so với mô hình bảng quan hệ, mà còn cho phép kiểm tra và cập nhật tồn kho trong một thao tác nguyên tử duy nhất ở cấp tài liệu mà không cần khóa nhiều bảng. Cần lưu ý rằng PostgreSQL cũng hỗ trợ câu lệnh \texttt{UPDATE ... WHERE stock >= qty} tương tự ở cấp hàng; tuy nhiên, lợi thế đặc trưng của MongoDB trong đồ án này là khả năng lưu biến thể sản phẩm dưới dạng mảng nhúng (\textit{embedded array}), cho phép một thao tác \texttt{\$inc} duy nhất cập nhật đồng thời cả tổng kho và kho biến thể mà không cần \textit{JOIN} hay nhiều câu truy vấn riêng biệt.
 
 \section{Nền tảng lập trình Backend hiệu năng cao và Real-time Communication}
 \label{section:3.2}
@@ -49,28 +53,16 @@ Node.js là một môi trường chạy JavaScript mã nguồn mở hoạt độ
 Hệ thống sàn đa nhà bán hàng đòi hỏi backend phải xử lý nhiều kết nối đồng thời từ khách hàng và đối tác bán hàng mà vẫn duy trì thời gian phản hồi ổn định. Node.js tận dụng cơ chế bất đồng bộ giúp máy chủ tiếp nhận yêu cầu thanh toán, cập nhật kho, gửi thông báo mà không bị khóa luồng (\textit{Thread blocking}) như một số kiến trúc đa luồng truyền thống. Express framework gọn nhẹ giúp thiết lập hệ thống RESTful API và phân chia định tuyến rõ ràng.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
-\begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Java Spring Boot hoặc Python Django.
-    \item \textbf{So sánh đối chiếu:}
-    \begin{itemize}
-        \item \textbf{Java Spring Boot:} Là nền tảng mạnh cho hệ thống doanh nghiệp, nhưng thường yêu cầu cấu hình vận hành và bộ nhớ lớn hơn. Mô hình đa luồng truyền thống (\textit{Thread-per-request}) cũng cần được điều chỉnh cẩn thận khi số lượng kết nối đồng thời tăng cao.
-        \item \textbf{Python Django:} Hỗ trợ nhiều thư viện mạnh mẽ nhưng hiệu năng xử lý tác vụ I/O đồng thời kém hơn do bị giới hạn bởi khóa GIL (Global Interpreter Lock).
-    \end{itemize}
-    \item \textbf{Lý do chọn lựa:} Node.js phù hợp với bài toán I/O-intensive của sàn thương mại điện tử, cho phép xây dựng backend thống nhất bằng JavaScript và đáp ứng tốt các yêu cầu kết nối đồng thời, giao tiếp thời gian thực và tích hợp thanh toán \cite{springboot-vs-nodejs}.
-\end{itemize}
+Hai giải pháp thay thế thường được cân nhắc là Java Spring Boot và Python Django. Java Spring Boot là nền tảng mạnh cho hệ thống doanh nghiệp, nhưng thường yêu cầu cấu hình vận hành và bộ nhớ lớn hơn; mô hình đa luồng truyền thống (\textit{Thread-per-request}) cũng cần được điều chỉnh cẩn thận khi số lượng kết nối đồng thời tăng cao. Python Django hỗ trợ nhiều thư viện mạnh mẽ nhưng hiệu năng xử lý tác vụ I/O đồng thời kém hơn do bị giới hạn bởi khóa thông dịch toàn cục (Global Interpreter Lock). Node.js được lựa chọn vì phù hợp với bài toán I/O-intensive của sàn thương mại điện tử, cho phép xây dựng backend thống nhất bằng JavaScript và đáp ứng tốt các yêu cầu kết nối đồng thời, giao tiếp thời gian thực và tích hợp thanh toán \cite{springboot-vs-nodejs}.
 
 \subsection{Kênh truyền thông thời gian thực Socket.IO}
 Socket.IO là một thư viện JavaScript cho phép giao tiếp hai chiều, thời gian thực và dựa trên sự kiện giữa trình duyệt và máy chủ. Nó hoạt động trên nền tảng giao thức WebSocket nhưng bổ sung các cơ chế dự phòng an toàn.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân trong phân hệ chat, đồng thời phục vụ các luồng thông báo thời gian thực tại phía client khi backend phát sinh sự kiện mới. Ở tầng kết nối, máy chủ kiểm tra access token được gửi trong phần handshake để gắn socket với người dùng hợp lệ trước khi tham gia phòng chat hoặc nhận sự kiện.
+Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân trong phân hệ chat, đồng thời phục vụ các luồng thông báo thời gian thực tại phía client khi backend phát sinh sự kiện mới. Ở tầng kết nối, máy chủ kiểm tra token xác thực được gửi trong phần bắt tay kết nối để gắn socket với người dùng hợp lệ trước khi tham gia phòng chat hoặc nhận sự kiện.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
-\begin{itemize}
-    \item \textbf{Giải pháp thay thế:} HTTP Long Polling hoặc Server-Sent Events (SSE) \cite{websocket-standard}.
-    \item \textbf{So sánh đối chiếu:} HTTP Long Polling liên tục gửi yêu cầu kéo (\textit{Pull}) dữ liệu làm nghẽn băng thông mạng và quá tải CPU máy chủ. SSE chỉ hỗ trợ truyền tải dữ liệu một chiều từ Server về Client. Socket.IO thiết lập kết nối TCP toàn song công (\textit{Full-duplex}) duy nhất, giảm thiểu tối đa kích thước header gói tin và hỗ trợ cơ chế tự động kết nối lại (\textit{Auto-reconnection}) thông minh.
-    \item \textbf{Lý do chọn lựa:} Socket.IO phù hợp với yêu cầu chat và cập nhật trạng thái theo thời gian thực của hệ thống, đồng thời cho phép tích hợp xác thực access token ở bước handshake và quản lý room thuận tiện cho bài toán nhiều người dùng, nhiều cuộc hội thoại.
-\end{itemize}
+Hai giải pháp thay thế phổ biến là HTTP Long Polling và Server-Sent Events (SSE) \cite{websocket-standard}. HTTP Long Polling liên tục gửi yêu cầu kéo (\textit{Pull}) dữ liệu, làm nghẽn băng thông mạng và quá tải CPU máy chủ. SSE chỉ hỗ trợ truyền tải dữ liệu một chiều từ server về client, không đáp ứng được nhu cầu chat hai chiều. Socket.IO thiết lập kết nối TCP toàn song công (\textit{Full-duplex}) duy nhất, giảm thiểu tối đa kích thước header gói tin và hỗ trợ cơ chế tự động kết nối lại (\textit{Auto-reconnection}) thông minh. Socket.IO được lựa chọn vì phù hợp với yêu cầu chat và cập nhật trạng thái theo thời gian thực, đồng thời cho phép tích hợp xác thực token ở bước bắt tay kết nối và quản lý phòng thuận tiện cho bài toán nhiều người dùng, nhiều cuộc hội thoại.
 
 \section{Lớp đệm bộ nhớ cache và Cơ chế bảo mật đa tầng Redis}
 \label{section:3.3}
@@ -79,57 +71,35 @@ Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa 
 Redis (Remote Dictionary Server) là một hệ thống lưu trữ dữ liệu dạng Key-Value trong bộ nhớ RAM (\textit{In-memory Database}) có mã nguồn mở, hỗ trợ nhiều cấu trúc dữ liệu đa dạng bao gồm String, Hash, List, Set và Sorted Set, đồng thời đạt tốc độ đọc ghi cực cao (dưới $1$ mili-giây) \cite{redis-vs-memcached}.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Redis được tích hợp tại tầng backend để giải quyết hai nhóm vấn đề cốt lõi:
-\begin{itemize}
-    \item \textbf{Bảo mật Rate-limiting:} Theo dõi số lần gửi yêu cầu của từng địa chỉ IP hoặc email trong các khoảng thời gian cấu hình sẵn, từ đó giới hạn các API nhạy cảm như đăng nhập, xác minh email, quên mật khẩu, refresh token hoặc truy vấn thống kê vendor.
-    \item \textbf{Quản lý phiên xác thực phía server:} Lưu bản ghi phiên theo \texttt{sid} cùng \texttt{currentRefreshJti} để hỗ trợ refresh token rotation, xác minh access token còn gắn với phiên hợp lệ và thu hồi toàn bộ phiên đăng nhập khi người dùng đăng xuất hoặc khi refresh token không còn khớp.
-\end{itemize}
+Redis được tích hợp tại tầng backend để giải quyết hai nhóm vấn đề cốt lõi: (i) Bảo mật rate-limiting -- theo dõi số lần gửi yêu cầu của từng địa chỉ IP hoặc email trong các khoảng thời gian cấu hình sẵn, từ đó giới hạn tần suất truy cập các API nhạy cảm như đăng nhập, xác minh email, quên mật khẩu hoặc làm mới token; và (ii) Quản lý phiên xác thực phía server -- lưu bản ghi phiên kèm định danh phiên và mã nhận dạng token làm mới hiện tại để hỗ trợ xoay vòng token, xác minh token truy cập còn gắn với phiên hợp lệ và thu hồi toàn bộ phiên đăng nhập khi người dùng đăng xuất hoặc khi token làm mới không còn khớp.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
-\begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Lưu trữ bộ nhớ cache trực tiếp trong RAM nội bộ của Node.js (\textit{In-memory Node.js Cache}) hoặc sử dụng Memcached.
-    \item \textbf{So sánh đối chiếu:} RAM nội bộ của Node.js sẽ bị xóa hoàn toàn khi khởi động lại máy chủ và không thể chia sẻ dữ liệu giữa các tiến trình khi scale-up hệ thống bằng PM2. Memcached tuy nhanh nhưng chỉ hỗ trợ kiểu dữ liệu chuỗi đơn giản, thiếu các cấu trúc dữ liệu nâng cao như Set, Sorted Set của Redis.
-    \item \textbf{Lý do chọn lựa:} Redis cung cấp lớp lưu trữ bộ nhớ ngoài có độ trễ thấp, phù hợp cho các thao tác đếm theo cửa sổ thời gian và lưu trạng thái phiên xác thực ngắn hạn. Cách tiếp cận này giúp giảm tải cho MongoDB và tách biệt rõ dữ liệu giao dịch lâu dài với dữ liệu phiên ngắn hạn.
-\end{itemize}
+Hai giải pháp thay thế thường được xem xét là lưu trữ bộ nhớ cache trực tiếp trong RAM nội bộ của Node.js và sử dụng Memcached. RAM nội bộ của Node.js sẽ bị xóa hoàn toàn khi khởi động lại máy chủ và không thể chia sẻ dữ liệu giữa các tiến trình khi mở rộng quy mô hệ thống. Memcached tuy nhanh nhưng chỉ hỗ trợ kiểu dữ liệu chuỗi đơn giản, thiếu các cấu trúc dữ liệu nâng cao như Set và Sorted Set cần thiết cho bài toán đếm theo cửa sổ thời gian. Redis được lựa chọn vì cung cấp lớp lưu trữ bộ nhớ ngoài có độ trễ thấp, phù hợp cho việc lưu trạng thái phiên xác thực ngắn hạn, đồng thời giúp giảm tải cho MongoDB và tách biệt rõ dữ liệu giao dịch lâu dài với dữ liệu phiên ngắn hạn.
 
 \section{Cơ chế khuyến nghị cá nhân hóa lai có suy hao thời gian}
 \label{section:3.4}
 
 \subsection{Cơ sở lý thuyết hệ thống gợi ý cá nhân hóa}
-Hệ thống khuyến nghị sản phẩm đóng vai trò then chốt trong việc kích cầu tiêu dùng và tăng trưởng doanh số. Hai phương pháp tiếp cận phổ biến nhất là:
-\begin{itemize}
-    \item \textbf{Lọc dựa trên nội dung (Content-based Filtering):} Gợi ý các sản phẩm có thuộc tính, danh mục tương tự với những sản phẩm người dùng đã tương tác trong quá khứ \cite{recommender-systems}.
-    \item \textbf{Lọc cộng tác (Collaborative Filtering):} Tìm kiếm các hành vi tương đồng giữa những người dùng có chung sở thích để đưa ra gợi ý sản phẩm phù hợp.
-\end{itemize}
+Hệ thống khuyến nghị sản phẩm đóng vai trò then chốt trong việc kích cầu tiêu dùng và tăng trưởng doanh số. Hai phương pháp tiếp cận phổ biến nhất là lọc dựa trên nội dung (Content-based Filtering) và lọc cộng tác (Collaborative Filtering) \cite{recommender-systems}. Lọc dựa trên nội dung gợi ý các sản phẩm có thuộc tính và danh mục tương tự với những sản phẩm người dùng đã tương tác trong quá khứ. Lọc cộng tác tìm kiếm các hành vi tương đồng giữa những người dùng có chung sở thích để đưa ra gợi ý phù hợp. Mỗi phương pháp đều có hạn chế riêng: lọc nội dung thiếu khả năng khám phá ngoài vùng sở thích đã biết, trong khi lọc cộng tác gặp vấn đề khởi đầu lạnh (\textit{Cold Start}) với người dùng hoặc sản phẩm mới.
 
 \subsection{Khuyến nghị lai dựa trên tương tác người dùng và suy hao theo thời gian}
-Để giảm ảnh hưởng của bài toán khởi đầu lạnh (\textit{Cold Start}) và vẫn tận dụng được lịch sử hành vi người dùng, đồ án sử dụng cơ chế khuyến nghị lai gồm ba bước chính:
+Để giảm ảnh hưởng của bài toán khởi đầu lạnh và vẫn tận dụng được lịch sử hành vi người dùng, đồ án sử dụng cơ chế khuyến nghị lai gồm ba bước chính:
 \begin{itemize}
-    \item \textbf{Bước 1 - Ghi nhận tương tác:} Mỗi lần người dùng xem, nhấp, thêm vào giỏ, thêm yêu thích, đánh giá, mua hàng hoặc dành thời gian trên sản phẩm, hệ thống cập nhật hồ sơ tương tác tương ứng.
-    \item \textbf{Bước 2 - Tính điểm tương tác có suy hao thời gian:} Mỗi hồ sơ người dùng - sản phẩm được quy đổi thành một \textit{interactionScore} dựa trên trọng số hành vi và hệ số suy hao theo thời gian.
-    \item \textbf{Bước 3 - Sinh danh sách gợi ý lai:} Backend kết hợp hai nguồn gợi ý chính là \textit{item-based collaborative filtering} và \textit{content-based filtering}; nếu số lượng sản phẩm chưa đủ, hệ thống bổ sung thêm các sản phẩm phổ biến đang hoạt động như một lớp fallback.
+    \item \textbf{Bước 1 -- Ghi nhận tương tác:} Mỗi lần người dùng xem, nhấp, thêm vào giỏ, thêm yêu thích, đánh giá, mua hàng hoặc dành thời gian trên sản phẩm, hệ thống cập nhật hồ sơ tương tác tương ứng.
+    \item \textbf{Bước 2 -- Tính điểm tương tác có suy hao thời gian:} Mỗi hồ sơ người dùng -- sản phẩm được quy đổi thành một điểm tương tác dựa trên trọng số hành vi và hệ số suy hao theo thời gian.
+    \item \textbf{Bước 3 -- Sinh danh sách gợi ý lai:} Backend kết hợp hai nguồn gợi ý chính là lọc cộng tác dựa trên sản phẩm (\textit{item-based collaborative filtering}) và lọc dựa trên nội dung (\textit{content-based filtering}); nếu số lượng sản phẩm chưa đủ, hệ thống bổ sung thêm các sản phẩm phổ biến đang hoạt động như một lớp fallback.
 \end{itemize}
 
-Trong cài đặt hiện tại, điểm tương tác của một cặp người dùng - sản phẩm được tính theo dạng:
+Trong cài đặt hiện tại, điểm tương tác của một cặp người dùng -- sản phẩm được tính theo dạng:
 \begin{equation}
     Score_{interaction} = Score_{raw} \times e^{- \Delta t / 30}
 \end{equation}
-Trong đó:
-\begin{itemize}
-    \item $Score_{raw}$ là tổng điểm thô từ các hành vi như mua hàng, đánh giá, thêm vào giỏ, yêu thích, xem hoặc nhấp chuột.
-    \item $\Delta t$ là số ngày tính từ lần tương tác gần nhất.
-\end{itemize}
+Trong đó $Score_{raw}$ là tổng điểm thô từ các hành vi như mua hàng, đánh giá, thêm vào giỏ, yêu thích, xem hoặc nhấp chuột; và $\Delta t$ là số ngày tính từ lần tương tác gần nhất.
 
 Hằng số thời gian $\tau = 30$ ngày được tham khảo từ nghiên cứu về hệ thống lọc cộng tác có suy hao theo thời gian \cite{time-decay-cf}, cho thấy tín hiệu tương tác trong vòng một tháng có tính dự báo cao hơn đáng kể so với tương tác cũ hơn. Trong triển khai thực tế, giá trị này có thể được tinh chỉnh khi hệ thống tích lũy đủ dữ liệu hành vi người dùng để đánh giá lại.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-\begin{itemize}
-    \item \textbf{Lọc dựa trên nội dung (Content-based):} Hệ thống lấy các sản phẩm mà người dùng đã tương tác mạnh, sau đó mở rộng sang các sản phẩm cùng danh mục hoặc danh mục con.
-    \item \textbf{Lọc cộng tác dựa trên sản phẩm (Item-based Collaborative):} Hệ thống tìm các người dùng có giao cắt hành vi với sản phẩm tương tự, sau đó cộng dồn \textit{interactionScore} để xếp hạng ứng viên.
-    \item \textbf{Fallback theo độ phổ biến:} Khi dữ liệu cá nhân hóa chưa đủ, hệ thống bổ sung sản phẩm đang hoạt động theo các tiêu chí như số bán, điểm đánh giá và thời điểm tạo.
-\end{itemize}
-
-\textbf{Lý do chọn lựa:} Cách tiếp cận này bám sát dữ liệu hành vi thực tế đang được thu thập trong hệ thống, vừa hỗ trợ cá nhân hóa cho người dùng có lịch sử tương tác, vừa giữ được khả năng fallback ổn định khi dữ liệu còn ít.
+Về lọc dựa trên nội dung, hệ thống lấy các sản phẩm mà người dùng đã tương tác mạnh, sau đó mở rộng sang các sản phẩm cùng danh mục hoặc danh mục con. Về lọc cộng tác dựa trên sản phẩm, hệ thống tìm các người dùng có giao cắt hành vi với sản phẩm tương tự, sau đó cộng dồn điểm tương tác để xếp hạng ứng viên. Khi dữ liệu cá nhân hóa chưa đủ, hệ thống bổ sung sản phẩm đang hoạt động theo các tiêu chí như số bán, điểm đánh giá và thời điểm tạo như một lớp fallback. Cách tiếp cận lai này bám sát dữ liệu hành vi thực tế đang được thu thập trong hệ thống, vừa hỗ trợ cá nhân hóa cho người dùng có lịch sử tương tác, vừa giữ được khả năng fallback ổn định khi dữ liệu còn ít.
 
 \section{Công cụ giao dịch tài chính và Giao diện tương tác nâng cao}
 \label{section:3.5}
@@ -141,10 +111,7 @@ Cổng thanh toán điện tử đóng vai trò trung gian bảo mật luồng g
 Hệ thống tích hợp hai cổng thanh toán lớn: Stripe phục vụ cho các thanh toán thẻ tín dụng quốc tế theo chuẩn PCI-DSS; VNPay cung cấp phương thức thanh toán nội địa thông qua QR và Mobile Banking. Trong cài đặt hiện tại, Stripe xác nhận kết quả bằng webhook ở backend, còn VNPay sử dụng luồng callback hoặc redirect có chữ ký số để backend kiểm tra tính hợp lệ trước khi cập nhật đơn hàng.
 
 \textbf{Phương án thay thế và so sánh:}
-\begin{itemize}
-    \item \textbf{Giải pháp thay thế:} Chỉ sử dụng hình thức thanh toán thủ công (Chuyển khoản ngân hàng chụp ảnh hóa đơn gửi Admin duyệt).
-    \item \textbf{Lý do chọn lựa:} Thanh toán thủ công tốn thời gian, dễ sai lệch dữ liệu và không thuận lợi cho việc giữ kho hoặc hoàn kho tự động theo thời hạn thanh toán. Tích hợp Stripe và VNPay giúp chuẩn hóa luồng thanh toán, đồng bộ kết quả vào backend và hỗ trợ xử lý đơn hàng nhất quán hơn.
-\end{itemize}
+Giải pháp thay thế là chỉ sử dụng hình thức thanh toán thủ công như chuyển khoản ngân hàng kèm chụp ảnh hóa đơn để admin duyệt. Hình thức này tốn thời gian, dễ sai lệch dữ liệu và không thuận lợi cho việc giữ kho hoặc hoàn kho tự động theo thời hạn thanh toán. Tích hợp Stripe và VNPay giúp chuẩn hóa luồng thanh toán, đồng bộ kết quả vào backend và hỗ trợ xử lý đơn hàng nhất quán hơn.
 
 \subsection{React.js và Thư viện biểu đồ Recharts dành cho Dashboard Merchant}
 React.js là một thư viện JavaScript mã nguồn mở dùng để xây dựng giao diện người dùng dựa trên cơ chế thành phần (\textit{Component-based}) và sử dụng cây DOM ảo (\textit{Virtual DOM}) tối ưu hóa tốc độ kết xuất dữ liệu. Recharts là một thư viện vẽ biểu đồ chuyên biệt dành riêng cho hệ sinh thái React, hoạt động dựa trên các thành phần đồ họa vector SVG.
@@ -155,6 +122,6 @@ React.js hỗ trợ xây dựng giao diện Single Page Application với khả 
 \textbf{Lý do chọn lựa:} Recharts phù hợp với hệ sinh thái React của đồ án, có cách sử dụng theo component rõ ràng và thuận tiện cho việc xây dựng dashboard bán hàng. Việc dùng SVG cũng giúp biểu đồ hiển thị tốt khi thay đổi kích thước hoặc nhúng vào các layout quản trị khác nhau.
 
 \section*{Kết chương}
-Chương 3 đã trình bày cơ sở lý thuyết và các công nghệ chính được áp dụng trong đồ án, bao gồm MongoDB cho lưu trữ dữ liệu tài liệu và cập nhật nguyên tử, Node.js và Express cho backend bất đồng bộ, Redis cho rate-limit và quản lý phiên xác thực, Socket.IO cho giao tiếp thời gian thực, Stripe và VNPay cho thanh toán trực tuyến, cùng cơ chế khuyến nghị sản phẩm dựa trên tương tác người dùng. Từ nền tảng này, chương tiếp theo sẽ chuyển sang kiến trúc phần mềm chi tiết, thiết kế lớp, mô hình dữ liệu và hiện thực hệ thống ở mức cụ thể hơn.
+Chương 3 đã trình bày cơ sở lý thuyết và các công nghệ chính được áp dụng trong đồ án, bao gồm MongoDB cho lưu trữ dữ liệu tài liệu và cập nhật nguyên tử, Node.js và Express cho backend bất đồng bộ, Redis cho rate-limiting và quản lý phiên xác thực, Socket.IO cho giao tiếp thời gian thực, Stripe và VNPay cho thanh toán trực tuyến, cùng cơ chế khuyến nghị sản phẩm dựa trên tương tác người dùng. Từ nền tảng này, chương tiếp theo sẽ chuyển sang kiến trúc phần mềm chi tiết, thiết kế lớp, mô hình dữ liệu và hiện thực hệ thống ở mức cụ thể hơn.
 
 \end{document}

@@ -28,7 +28,7 @@ const listPublicVouchers = async (req, res) => {
 const listVouchers = async (req, res) => {
   try {
     const vouchers = await listVouchersService({
-      userId: req.body.userId,
+      userId: req.userId,
       filters: req.body || {},
     });
     res.json({ success: true, vouchers });
@@ -40,7 +40,7 @@ const listVouchers = async (req, res) => {
 const createVoucher = async (req, res) => {
   try {
     const voucher = await createVoucherService({
-      userId: req.body.userId,
+      userId: req.userId,
       payload: req.body,
     });
     res.status(201).json({ success: true, voucher });
@@ -52,7 +52,7 @@ const createVoucher = async (req, res) => {
 const updateVoucher = async (req, res) => {
   try {
     const voucher = await updateVoucherService({
-      userId: req.body.userId,
+      userId: req.userId,
       voucherId: req.body.voucherId,
       payload: req.body,
     });
@@ -65,7 +65,7 @@ const updateVoucher = async (req, res) => {
 const toggleVoucherActive = async (req, res) => {
   try {
     const voucher = await toggleVoucherActiveService({
-      userId: req.body.userId,
+      userId: req.userId,
       voucherId: req.body.voucherId,
       isActive: req.body.isActive,
     });
@@ -78,7 +78,7 @@ const toggleVoucherActive = async (req, res) => {
 const deleteVoucher = async (req, res) => {
   try {
     await deleteVoucherService({
-      userId: req.body.userId,
+      userId: req.userId,
       voucherId: req.body.voucherId,
     });
     res.json({ success: true, message: "Voucher deleted" });

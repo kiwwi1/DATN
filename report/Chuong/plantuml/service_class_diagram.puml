@@ -1,0 +1,73 @@
+@startuml
+hide circle
+skinparam shadowing false
+skinparam classBackgroundColor white
+skinparam classBorderColor #3A78C2
+skinparam ArrowColor #3A78C2
+
+title Bieu do lop cac dich vu chinh (Backend Services)
+
+class VoucherService {
+  +computeOrderPricing(items, vouchers, shippingFee)
+  +calcVoucherDiscount(amount, voucher)
+  +assertVoucherValid(voucher, code, now)
+  +loadAndValidateVouchers(codes, vendorIds)
+  +claimVoucherUsage(appliedVouchers)
+  +releaseVoucherUsage(appliedVouchers)
+  -pushRejected(list, code, reason)
+  -normalizeCode(value)
+  -toIdKey(idLike)
+}
+
+class OrderService {
+  +placeOrder(userId, items, address, paymentMethod, vouchers, key)
+  +cancelOrder(orderId, userId, reason)
+  +getOrdersByUser(userId)
+  +getOrdersByVendor(vendorId)
+  +sweepExpiredReservations()
+  -reserveStockAtomic(items)
+  -releaseStock(items)
+  -buildPricingSnapshot(items, vouchers, fee)
+}
+
+class ProductService {
+  +searchProducts(q, page, limit, userId, filters)
+  +getProductById(productId)
+  +createProduct(vendorId, data)
+  +updateProduct(productId, vendorId, data)
+  +deleteProduct(productId, vendorId)
+  -normalizeText(text)
+  -buildRelevanceScore(product, userId)
+}
+
+class AuthSessionService {
+  +login(userId)
+  +logout(sid)
+  +refreshTokens(refreshToken)
+  +verifyAccessToken(token)
+  -createSessionId()
+  -createAccessToken(userId, sid)
+  -createRefreshToken(userId, sid, jti)
+  -hashToken(token)
+}
+
+class NotificationService {
+  +createNotification(userId, type, data)
+  +markAsRead(notificationId, userId)
+  +getNotifications(userId, audience)
+  +pushRealtime(userId, payload)
+}
+
+class ChatService {
+  +getOrCreateConversation(buyerId, vendorId)
+  +sendMessage(conversationId, senderId, content)
+  +getMessages(conversationId, page)
+  +markConversationRead(conversationId, userId)
+}
+
+OrderService --> VoucherService : tinh gia
+OrderService --> ProductService : kiem tra ton kho
+OrderService --> NotificationService : gui thong bao
+AuthSessionService ..> OrderService : xac thuc nguoi dung
+
+@enduml

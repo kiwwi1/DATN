@@ -15,7 +15,7 @@ import {
  * SSE endpoint authenticated by authUser middleware.
  */
 export const sseStream = (req, res) => {
-  const userId = req.userId || req.body?.userId;
+  const userId = req.userId;
   if (!userId) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
@@ -47,7 +47,7 @@ export const sseStream = (req, res) => {
 export const getNotifications = async (req, res) => {
   try {
     const audience = req.query?.audience || req.body?.audience || "user";
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId;
     const notifications = await getNotificationsService(userId, audience);
     res.json({ success: true, notifications });
   } catch (error) {
@@ -59,7 +59,7 @@ export const getNotifications = async (req, res) => {
 export const markAllRead = async (req, res) => {
   try {
     const audience = req.query?.audience || req.body?.audience || "user";
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId;
     await markAllReadService(userId, audience);
     res.json({ success: true });
   } catch (error) {
@@ -71,7 +71,7 @@ export const markAllRead = async (req, res) => {
 export const markOneRead = async (req, res) => {
   try {
     const audience = req.query?.audience || req.body?.audience || "user";
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId;
     const notification = await markOneReadService(req.params.id, userId, audience);
     res.json({ success: true, notification });
   } catch (error) {
@@ -83,7 +83,7 @@ export const markOneRead = async (req, res) => {
 export const getPriceAlertStatus = async (req, res) => {
   try {
     const { productId } = req.query;
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId;
     const enabled = await getPriceAlertStatusService(userId, productId);
     res.json({ success: true, enabled });
   } catch (error) {
@@ -95,7 +95,7 @@ export const getPriceAlertStatus = async (req, res) => {
 export const setPriceAlertSubscription = async (req, res) => {
   try {
     const { productId, enabled } = req.body;
-    const userId = req.userId || req.body.userId;
+    const userId = req.userId;
     const alert = await setPriceAlertSubscriptionService(userId, productId, enabled);
     res.json({ success: true, enabled: !!alert.enabled });
   } catch (error) {

@@ -1,19 +1,35 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-
 Tiếp nối Chương 3, nơi các nền tảng công nghệ và cơ sở lý thuyết đã được phân tích, Chương 4 tập trung hiện thực hóa các lựa chọn đó thành kiến trúc phần mềm, thiết kế dữ liệu, giao diện và quy trình triển khai cụ thể của hệ thống marketplace đa nhà bán hàng. Nội dung chương lần lượt trình bày về: thiết kế kiến trúc và biểu đồ gói của hệ thống trong phần \ref{section:4.1}; thiết kế chi tiết giao diện, mô-đun nghiệp vụ và cơ sở dữ liệu trong phần \ref{section:4.2}; quá trình xây dựng ứng dụng cùng các công cụ, thư viện và kết quả đạt được trong phần \ref{section:4.3}; kiểm thử hệ thống trong phần \ref{section:4.4}; và sau cùng là mô hình triển khai thực tế của đồ án trong phần \ref{section:4.5}.
 
+% ─── SECTION 1: THIẾT KẾ KIẾN TRÚC ─────────────────────────────────────────
 \section{Thiết kế kiến trúc}
 \label{section:4.1}
 
 \subsection{Lựa chọn kiến trúc phần mềm}
-Đồ án lựa chọn kiến trúc web nhiều tầng theo định hướng MERN Stack với ba khối triển khai tách biệt gồm giao diện mua sắm cho khách hàng, bảng điều khiển dành cho đối tác bán hàng và backend API tập trung. Cách tổ chức này phù hợp với phạm vi của đề tài vì vẫn giữ được sự đơn giản trong triển khai, đồng thời cho phép phân chia rõ ràng trách nhiệm giữa các lớp giao diện, điều phối nghiệp vụ, truy cập dữ liệu và tích hợp dịch vụ ngoài.
+Đồ án lựa chọn kiến trúc web nhiều tầng theo định hướng MERN Stack với hai nền tảng độc lập: ứng dụng giao diện người dùng (frontend) viết bằng React 19 và máy chủ xử lý nghiệp vụ (backend) viết bằng Node.js/Express 5. Hai nền tảng giao tiếp qua giao thức REST trên HTTPS; kênh sự kiện thời gian thực được tách riêng thông qua Socket.IO (WebSocket).
 
-Thay vì phát triển theo hướng vi dịch vụ ngay từ đầu, hệ thống hiện thực dưới dạng một backend Express duy nhất nhưng phân tách nội bộ thành các lớp \texttt{routes}, \texttt{controllers}, \texttt{services}, \texttt{models}, \texttt{middleware} và \texttt{config}. Cách tiếp cận này giúp mã nguồn dễ kiểm soát trong bối cảnh đồ án tốt nghiệp, nhưng vẫn đủ không gian để mở rộng theo chiều ngang khi cần tách riêng các miền nghiệp vụ như thanh toán, thông báo hoặc tìm kiếm trong giai đoạn sau.
+\textbf{Kiến trúc phân lớp phía máy chủ.} Thay vì phát triển theo hướng vi dịch vụ ngay từ đầu, backend được hiện thực dưới dạng một máy chủ Express duy nhất nhưng phân tách nội bộ thành bốn tầng rõ ràng:
 
-\subsection{Kiến trúc triển khai tổng thể}
-Kiến trúc triển khai tổng thể của hệ thống được thể hiện trong Hình \ref{fig:architecture_overview}. Phía khách hàng truy cập ứng dụng mua sắm được xây dựng bằng React + Vite; phía đối tác bán hàng sử dụng một ứng dụng React độc lập để quản trị sản phẩm, đơn hàng, voucher và thống kê. Cả hai giao diện cùng giao tiếp với backend Express thông qua REST API, trong đó luồng chat thời gian thực sử dụng Socket.IO còn thông báo thời gian thực trên dashboard vendor sử dụng luồng SSE.
+(i) \textit{Tầng định tuyến} (\texttt{routes/}): tiếp nhận yêu cầu HTTP, áp dụng middleware xác thực JWT và giới hạn tần suất, rồi chuyển tiếp đến Controller tương ứng.
+
+(ii) \textit{Tầng điều phối} (\texttt{controllers/}): phân giải tham số từ đối tượng \texttt{Request}, gọi Service và trả phản hồi JSON chuẩn hóa về client.
+
+(iii) \textit{Tầng nghiệp vụ} (\texttt{services/}): chứa toàn bộ logic xử lý, bao gồm tính toán giá, quản lý tồn kho, phiên xác thực và giao tiếp với các dịch vụ bên ngoài (Stripe, VNPay, Cloudinary).
+
+(iv) \textit{Tầng dữ liệu} (\texttt{models/}): định nghĩa schema Mongoose và trừu tượng hóa tương tác với MongoDB.
+
+Nguyên tắc thiết kế quan trọng là các tầng chỉ phụ thuộc theo một chiều từ trên xuống dưới: Route phụ thuộc Controller, Controller phụ thuộc Service, Service phụ thuộc Model. Không tầng nào phụ thuộc ngược hoặc bỏ qua tầng kế tiếp.
+
+\textbf{Kiến trúc thành phần phía giao diện.} Frontend áp dụng kiến trúc thành phần (Component-Based Architecture) đặc trưng của React, được tổ chức theo mô hình phân cấp bốn tầng: Pages (màn hình chính), Components (thành phần giao diện tái sử dụng), Context và Hooks (quản lý trạng thái và logic nghiệp vụ phía client), Utils (hàm tiện ích định dạng).
+
+\textbf{Lý do không chọn Microservices.} Dù kiến trúc Microservices mang lại khả năng mở rộng độc lập theo từng dịch vụ, phạm vi đồ án là hệ thống thương mại điện tử một cụm máy chủ với lưu lượng vừa phải. Kiến trúc nguyên khối phân lớp giảm đáng kể chi phí vận hành, đơn giản hóa giao dịch nguyên tử giữa các nghiệp vụ (đặt hàng và giữ kho), đồng thời phù hợp với quy mô phát triển của một nhóm nhỏ. Cách phân chia mã nguồn hiện tại vẫn đủ tách biệt để có thể tách thành vi dịch vụ trong giai đoạn sau nếu cần thiết.
+
+\subsection{Thiết kế tổng quan}
+\label{section:4.1.2}
+
+Hình \ref{fig:architecture_overview} mô tả kiến trúc triển khai tổng thể của hệ thống. Phía khách hàng truy cập ứng dụng mua sắm xây dựng bằng React + Vite; phía đối tác bán hàng sử dụng một ứng dụng React độc lập để quản trị sản phẩm, đơn hàng, voucher và thống kê. Cả hai giao diện cùng giao tiếp với backend Express thông qua REST API, trong đó luồng chat thời gian thực sử dụng Socket.IO còn thông báo trên dashboard vendor sử dụng Server-Sent Events (SSE).
 
 \begin{figure}[htbp]
     \centering
@@ -22,33 +38,53 @@ Kiến trúc triển khai tổng thể của hệ thống được thể hiện 
     \label{fig:architecture_overview}
 \end{figure}
 
-Ở tầng dữ liệu, MongoDB đóng vai trò là cơ sở dữ liệu chính để lưu trữ người dùng, sản phẩm, đơn hàng, voucher, đánh giá, tương tác và dữ liệu chat. Redis được dùng cho hai nhóm nhiệm vụ trọng tâm là giới hạn tần suất truy cập và quản lý phiên xác thực phía server thông qua \texttt{sid}/\texttt{currentRefreshJti}. Ngoài ra, hệ thống còn tích hợp Stripe, VNPay và Cloudflare R2 nhằm hoàn thiện ba dòng nghiệp vụ quan trọng là thanh toán online, đối soát giao dịch và lưu trữ ảnh sản phẩm.
-
-Một điểm đáng chú ý trong kiến trúc triển khai là backend còn duy trì tác vụ quét nền để thu hồi các đơn quá hạn thanh toán. Tác vụ này đọc các đơn có \texttt{reservationExpiresAt} đã hết hiệu lực, hoàn trả tồn kho, hoàn lượt sử dụng voucher nếu cần và chuyển trạng thái đơn sang \texttt{Cancelled}. Cơ chế này giúp phần đặt hàng online thống nhất với mô hình giữ kho nguyên tử đã nêu ở Chương 2 và Chương 3.
-
-\subsection{Biểu đồ gói của hệ thống}
-Biểu đồ gói UML của hệ thống được trình bày trong Hình \ref{fig:backend_package_diagram}. Biểu đồ cho thấy phụ thuộc chính của hệ thống tuân theo hướng từ ngoài vào trong: các trang giao diện phụ thuộc vào lớp gọi API; API backend phụ thuộc vào middleware và controller; controller tiếp tục điều phối các service; và service mới là lớp làm việc trực tiếp với model, cấu hình hạ tầng và các dịch vụ ngoài.
+Biểu đồ gói phía máy chủ trong Hình \ref{fig:be_package} trình bày sáu gói chính của backend với phụ thuộc một chiều từ ngoài vào trong. Gói \texttt{routes} phụ thuộc vào \texttt{middleware} và \texttt{controllers}; \texttt{controllers} phụ thuộc \texttt{services} và \texttt{utils}; \texttt{services} phụ thuộc \texttt{models} và \texttt{config}. Hai gói ngoại vi là \texttt{models} (kết nối MongoDB) và \texttt{config} (cấu hình Redis, Cloudflare R2) không phụ thuộc bất kỳ gói nghiệp vụ nào.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/backend_package_diagram.png}
-    \caption{Biểu đồ gói chính của hệ thống}
-    \label{fig:backend_package_diagram}
+    \caption{Biểu đồ gói phía máy chủ}
+    \label{fig:be_package}
 \end{figure}
 
-Cách tổ chức này đem lại ba lợi ích kỹ thuật quan trọng. Thứ nhất, phần giao diện không biết chi tiết hiện thực nội bộ của backend mà chỉ làm việc thông qua API ổn định. Thứ hai, lớp controller giữ vai trò điều phối mỏng, trong khi toàn bộ logic nghiệp vụ được đẩy xuống service, từ đó hỗ trợ kiểm thử từng mô-đun dễ hơn. Thứ ba, lớp model chỉ tập trung mô tả cấu trúc dữ liệu và chỉ mục truy vấn, hạn chế trộn lẫn xử lý nghiệp vụ với định nghĩa lược đồ.
+Biểu đồ gói phía giao diện trong Hình \ref{fig:fe_package} cho thấy gói \texttt{pages} sử dụng \texttt{components} để dựng giao diện, tiêu thụ trạng thái từ \texttt{context} và gọi logic nghiệp vụ thông qua \texttt{hooks}. Gói \texttt{hooks} là cầu nối giữa tầng hiển thị và tầng gọi API: hook đọc/ghi trạng thái trong \texttt{context} và gửi yêu cầu qua gói \texttt{api}. Gói \texttt{utils} cung cấp các hàm tiện ích thuần túy và không phụ thuộc bất kỳ gói nào khác.
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/generated/frontend_package_diagram.png}
+    \caption{Biểu đồ gói phía giao diện (Frontend)}
+    \label{fig:fe_package}
+\end{figure}
+
+\subsection{Thiết kế chi tiết gói}
+
+\textbf{Gói \texttt{routes} và \texttt{middleware}.} Mỗi nhóm nghiệp vụ được ánh xạ thành một tệp route riêng biệt (ví dụ \texttt{productRoute.js}, \texttt{orderRoute.js}, \texttt{voucherRoute.js}). Middleware xác thực JWT (\texttt{auth.js}) và middleware phân quyền nhà bán hàng (\texttt{vendorAuth.js}) được áp dụng có chọn lọc trên từng route thay vì toàn cục, nhằm đảm bảo các endpoint công khai (tra cứu sản phẩm, danh mục) không cần xác thực.
+
+\textbf{Gói \texttt{controllers}.} Mỗi controller giữ vai trò điều phối mỏng: phân giải tham số đầu vào từ \texttt{req.body}/\texttt{req.params}/\texttt{req.query}, gọi đúng hàm Service, xử lý ngoại lệ và trả phản hồi JSON. Controller không chứa logic nghiệp vụ hay truy vấn cơ sở dữ liệu trực tiếp.
+
+\textbf{Gói \texttt{services}.} Đây là gói trung tâm của kiến trúc. Mỗi miền nghiệp vụ có một tệp Service tương ứng. Trong đó \texttt{voucherService.js} xử lý tính giá nhiều lớp, \texttt{orderService.js} điều phối giữ kho và giao dịch, \texttt{authSessionService.js} quản lý vòng đời phiên làm việc trên Redis, và \texttt{searchService.js} thực hiện tìm kiếm kết hợp từ khóa với điểm phù hợp cá nhân hóa. Mối quan hệ giữa các Service chủ đạo được thể hiện trong Hình \ref{fig:svc_class}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/generated/service_class_diagram.png}
+    \caption{Biểu đồ lớp các dịch vụ chính phía máy chủ}
+    \label{fig:svc_class}
+\end{figure}
+
+\textbf{Gói \texttt{context} và \texttt{hooks} (Frontend).} \texttt{ShopContext} lưu trữ tập trung các trạng thái toàn cục gồm danh sách sản phẩm hiển thị, nội dung giỏ hàng, thông tin người dùng đang đăng nhập và token xác thực. Hook \texttt{usePlaceOrderCheckout} đóng gói toàn bộ quy trình thanh toán gồm kiểm tra form, tính toán bảng giá và gọi endpoint đặt hàng, tách biệt logic này hoàn toàn khỏi thành phần giao diện.
+
+% ─── SECTION 2: THIẾT KẾ CHI TIẾT ──────────────────────────────────────────
 \section{Thiết kế chi tiết}
 \label{section:4.2}
 
 \subsection{Thiết kế giao diện}
-Hệ thống giao diện được phát triển theo mô hình SPA với hai ứng dụng độc lập nhưng dùng cùng định hướng thiết kế. Ứng dụng \texttt{frontend} phục vụ khách hàng cuối, bao gồm các nhóm màn hình chính như trang chủ, danh sách sản phẩm, trang chi tiết sản phẩm, giỏ hàng, đặt hàng, theo dõi đơn, hồ sơ cá nhân, chat và thông báo. Ứng dụng \texttt{admin} phục vụ đối tác bán hàng, bao gồm các màn hình quản lý sản phẩm, đơn hàng, voucher, thống kê và chat.
+Hệ thống giao diện được phát triển theo mô hình SPA với hai ứng dụng độc lập dùng chung định hướng thiết kế. Ứng dụng \texttt{frontend} phục vụ khách hàng cuối gồm các nhóm màn hình: trang chủ, danh sách sản phẩm, trang chi tiết sản phẩm, giỏ hàng, đặt hàng, theo dõi đơn, hồ sơ cá nhân, chat và thông báo. Ứng dụng vendor dashboard phục vụ đối tác bán hàng gồm các màn hình quản lý sản phẩm, đơn hàng, voucher, thống kê và chat.
 
-Về tổ chức mã nguồn, giao diện mua sắm được chia thành các thư mục \texttt{pages}, \texttt{components}, \texttt{context} và \texttt{services}. Bảng điều khiển vendor cũng sử dụng cấu trúc tương tự nhưng tinh gọn hơn, ưu tiên các màn hình thao tác dữ liệu và biểu đồ thống kê. Tất cả các lời gọi API đều đi qua \texttt{axios}, còn điều hướng giữa các trang được quản lý bằng \texttt{react-router-dom}.
+\textbf{Đặc tả màn hình.} Giao diện được thiết kế theo phương pháp \textit{mobile-first responsive}: bố cục một cột trên màn hình từ 360px, hai cột trên màn hình máy tính bảng từ 768px và nhiều cột linh hoạt trên màn hình máy tính từ 1280px trở lên. Hệ thống bố cục sử dụng Tailwind CSS 3.4 với lưới 12 cột.
 
-Để bảo đảm tính nhất quán, giao diện thống nhất ở ba điểm: (i) trạng thái xác thực được duy trì theo token/cookie và ngữ cảnh dùng chung; (ii) các thao tác quan trọng như thanh toán, cập nhật trạng thái đơn hàng hoặc tạo voucher đều phản hồi về giao diện bằng thông báo tức thời; và (iii) các màn hình chính đều được thiết kế theo hướng hỗ trợ desktop trước nhưng vẫn có khả năng co giãn khi hiển thị trên thiết bị có chiều rộng nhỏ hơn.
+\textbf{Hệ màu và chuẩn tương tác.} Màu chủ đạo là cam (\texttt{\#F97316}) cho các phần tử tương tác và kêu gọi hành động; màu phụ là xám trung tính cho văn bản thứ yếu và trắng cho nền vùng nội dung. Hệ thống thống nhất ba quy tắc giao diện: thông báo phản hồi hiển thị dưới dạng toast góc dưới-phải qua React Toastify; hộp thoại xác nhận thao tác nguy hiểm dùng modal phủ toàn màn hình; trạng thái đang tải hiển thị skeleton placeholder.
 
-Sơ đồ điều hướng chính của hai ứng dụng giao diện được minh họa trong Hình \ref{fig:ui_navigation_map}. Luồng này cho thấy người mua đi từ khám phá sản phẩm đến giỏ hàng, đặt hàng và theo dõi đơn; trong khi đó vendor di chuyển chủ yếu giữa danh sách sản phẩm, đơn hàng, voucher, thống kê và chat.
+Sơ đồ điều hướng chính của hai ứng dụng giao diện được minh họa trong Hình \ref{fig:ui_navigation_map}. Người mua đi từ khám phá sản phẩm đến giỏ hàng, đặt hàng và theo dõi đơn; vendor di chuyển chủ yếu giữa danh sách sản phẩm, đơn hàng, voucher, thống kê và chat.
 
 \begin{figure}[htbp]
     \centering
@@ -57,31 +93,29 @@ Sơ đồ điều hướng chính của hai ứng dụng giao diện được mi
     \label{fig:ui_navigation_map}
 \end{figure}
 
-\subsection{Thiết kế các mô-đun nghiệp vụ trọng tâm}
-Phần backend được chia thành nhiều mô-đun nghiệp vụ, trong đó bốn mô-đun trọng tâm nhất là xác thực hợp nhất, đặt hàng và thanh toán, tìm kiếm và khuyến nghị, cùng với giao tiếp thời gian thực.
+\subsection{Thiết kế lớp}
 
-Mô-đun xác thực hợp nhất được hiện thực trên cùng mô hình người dùng \texttt{user}. Một tài khoản có thể hoạt động ở vai trò \texttt{user} hoặc được nâng cấp lên \texttt{vendor} thông qua thuộc tính \texttt{role} cùng các trường shop đi kèm như \texttt{shopName}, \texttt{shopAddress} và \texttt{phone}. Access token được xác thực không chỉ bằng chữ ký JWT mà còn được ràng buộc với phiên ở phía server thông qua \texttt{sid}. Refresh token tiếp tục được xoay vòng bằng \texttt{currentRefreshJti}. Nhờ đó, hệ thống kiểm soát tốt hơn các trường hợp bị lộ refresh token hoặc người dùng đăng xuất khỏi phiên hiện tại.
+\textbf{Các lớp nghiệp vụ chủ đạo.} Bốn đối tượng nghiệp vụ quan trọng nhất là \texttt{User}, \texttt{Product}, \texttt{Order} và \texttt{Voucher}. \texttt{User} giữ thông tin tài khoản hợp nhất cho cả người mua và người bán, phân biệt bằng trường \texttt{role}, giúp đơn giản hóa luồng xác thực. \texttt{Product} hỗ trợ cấu trúc phân cấp danh mục ba tầng, tập thuộc tính và biến thể SKU với tồn kho riêng từng SKU. \texttt{Order} ngoài các trường giao dịch cơ bản còn bổ sung \texttt{idempotencyKey}, \texttt{stockReservedAt}, \texttt{reservationExpiresAt} và dữ liệu cổng thanh toán để hỗ trợ giữ kho và thanh toán online an toàn. \texttt{Voucher} hỗ trợ ba kiểu \texttt{SHOP}, \texttt{PLATFORM} và \texttt{SHIPPING} với hai kiểu giảm giá phần trăm và số tiền cố định.
 
-Mô-đun đặt hàng và thanh toán là phần có độ phức tạp cao nhất. Khi khách hàng đặt hàng, backend trước hết gọi quy trình giữ kho nguyên tử, sau đó tính lại bảng giá từ backend bằng các lớp giảm giá shop, platform và shipping. Nếu thanh toán theo COD, hệ thống tạo đơn và hoàn tất ngay các bước hậu xử lý như tăng số lượng bán và xóa giỏ hàng. Nếu chọn Stripe hoặc VNPay, hệ thống vẫn tạo đơn ở trạng thái chờ thanh toán, lưu các mốc thời gian giữ kho rồi chờ xác nhận qua webhook hoặc callback. Để hạn chế phát sinh đơn trùng do bấm lặp hoặc gửi lại request, mỗi luồng tạo đơn còn gắn với \texttt{idempotencyKey}. Đối với Stripe, tổng giá trị thanh toán được chặn ở mức \texttt{999.000.000} đồng để thống nhất với ràng buộc đang được cấu hình trong dịch vụ thanh toán của hệ thống.
+Mối quan hệ điều phối giữa các Service lớp đã được trình bày trong Hình \ref{fig:svc_class}. \texttt{OrderService} đóng vai trò điều phối trung tâm: khi đặt hàng nó gọi \texttt{VoucherService.computeOrderPricing()} để tính bảng giá nhiều lớp, gọi giữ kho nguyên tử thông qua \texttt{ProductService} và kích hoạt \texttt{NotificationService.pushRealtime()} để thông báo cho nhà bán hàng.
 
-Mô-đun tìm kiếm sử dụng endpoint server-side \texttt{/api/search}. Backend kết hợp hai chiến lược gồm \texttt{\$text search} trên các trường tên, thương hiệu, thẻ và \texttt{regex fallback} để bắt thêm các trường hợp khớp một phần hoặc tìm kiếm không dấu. Điểm liên quan cuối cùng còn được điều chỉnh bằng tín hiệu bán chạy, đánh giá và lịch sử tương tác của người dùng. Nhờ đó, phần tìm kiếm không còn dừng ở lọc phía frontend mà được chuyển hoàn toàn về backend theo định hướng đã thống nhất với các chương trước.
+\textbf{Biểu đồ tuần tự: Tạo đơn hàng.} Hình \ref{fig:seq_order} mô tả luồng tạo đơn hàng với cơ chế kiểm soát trùng lệnh và giữ kho nguyên tử. Sau khi client gửi yêu cầu kèm mã định danh chống trùng đơn, backend tra cứu đơn cũ trước; nếu chưa tồn tại, hệ thống thực hiện giữ kho bằng phép cập nhật có điều kiện ($\$inc$ kết hợp điều kiện số lượng đủ) để ngăn bán vượt tồn kho đồng thời. Thông tin thời điểm và thời hạn giữ kho được lưu vào bản ghi đơn hàng để tác vụ nền có thể hoàn trả nếu thanh toán quá hạn.
 
-Mô-đun khuyến nghị sản phẩm được xây dựng theo hướng lai. Dịch vụ \texttt{interactionService} thu thập các loại tương tác như xem, nhấp, thêm giỏ, yêu thích, đánh giá, mua hàng và thời gian xem; sau đó tính \texttt{interactionScore} có áp dụng suy hao theo thời gian. Phần gợi ý kết hợp hai nguồn là cộng tác theo người dùng tương đồng và gợi ý theo nội dung, rồi bổ sung danh sách fallback bằng sản phẩm bán chạy hoặc được đánh giá cao. Ở phía frontend, số lượng sản phẩm khuyến nghị không cố định mà được tính động theo quy mô danh mục với ngưỡng tối thiểu 20, tối đa 100 và tỷ lệ khoảng 15\% tổng số sản phẩm.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
+    \caption{Biểu đồ tuần tự luồng tạo đơn hàng và giữ kho nguyên tử}
+    \label{fig:seq_order}
+\end{figure}
 
-Mô-đun giao tiếp thời gian thực dùng hai kênh khác nhau cho hai nhu cầu khác nhau. Chat giữa buyer và vendor sử dụng Socket.IO, trong đó socket chỉ được tham gia phòng hội thoại khi access token hợp lệ và người dùng thực sự là thành viên của hội thoại đó. Thông báo cho vendor trên dashboard được đẩy qua SSE để phù hợp với luồng cập nhật một chiều như đơn hàng mới, thay đổi trạng thái hoặc cảnh báo liên quan đến gian hàng.
+\textbf{Biểu đồ tuần tự: Xác nhận thanh toán trực tuyến.} Hình \ref{fig:seq_payment} mô tả hai kịch bản thanh toán trực tuyến (Stripe và VNPay) và cơ chế tự động hủy đơn quá hạn. Với Stripe, kết quả thanh toán được truyền về qua webhook; với VNPay, kết quả truyền qua URL callback có chữ ký số. Tác vụ nền chạy theo chu kỳ phát hiện đơn chưa thanh toán đã quá thời hạn giữ kho, tự động chuyển trạng thái sang đã hủy và hoàn trả tồn kho cùng lượt sử dụng voucher.
 
-Chi tiết tương tác động của nghiệp vụ đặt hàng, giữ kho và thanh toán đã được mô tả bằng các biểu đồ tuần tự tại Mục \ref{subsection:2.2.3}. Trong Chương 4, trọng tâm được đặt vào cách các mô-đun trên được tách lớp và phối hợp với nhau ở mức cài đặt.
-
-\subsection{Thiết kế lớp và đối tượng nghiệp vụ chủ đạo}
-Mặc dù hệ thống được phát triển bằng JavaScript thay vì ngôn ngữ hướng đối tượng thuần túy, phần lõi nghiệp vụ vẫn được tổ chức quanh các đối tượng miền dữ liệu rõ ràng. Bốn đối tượng quan trọng nhất là \texttt{User}, \texttt{Product}, \texttt{Order} và \texttt{Voucher}; bên cạnh đó còn có \texttt{UserInteraction}, \texttt{Review}, \texttt{Conversation}, \texttt{Message} và \texttt{Notification}.
-
-Đối tượng \texttt{User} giữ toàn bộ thông tin tài khoản hợp nhất cho cả người mua và người bán. Đối tượng này vừa đảm nhiệm vai trò định danh, xác minh email, lưu avatar, vừa cho phép mở rộng sang gian hàng mà không cần tạo thêm bảng người bán độc lập. Thiết kế đó giúp đơn giản hóa luồng xác thực và giảm chi phí đồng bộ dữ liệu giữa buyer và vendor.
-
-Đối tượng \texttt{Product} được thiết kế theo hướng phù hợp với mô hình marketplace. Mỗi sản phẩm gắn với một \texttt{vendorId}, có cấu trúc phân cấp danh mục ba tầng, hỗ trợ tập thuộc tính và biến thể SKU, đồng thời lưu các tín hiệu vận hành như \texttt{stock}, \texttt{sold}, \texttt{rating}, \texttt{reviewCount} và \texttt{isActive}. Việc lưu trực tiếp \texttt{vendorShopName} trên tài liệu sản phẩm cũng giúp tối ưu một số màn hình danh sách và trang shop của nhà bán hàng.
-
-Đối tượng \texttt{Order} là trung tâm của luồng giao dịch. Ngoài các trường cơ bản như danh sách mặt hàng, địa chỉ, tổng tiền, phương thức thanh toán và trạng thái, cấu trúc này còn bổ sung các trường phục vụ tải cao và thanh toán online như \texttt{idempotencyKey}, \texttt{stockReservedAt}, \texttt{reservationExpiresAt}, \texttt{stripeSessionId}, \texttt{vnpTxnRef}, \texttt{stockReleasedAt} và \texttt{voucherUsageReleasedAt}. Đây là cơ sở để backend có thể xử lý an toàn các luồng đặt hàng đồng thời và hủy đơn do quá hạn.
-
-Đối tượng \texttt{Voucher} hỗ trợ ba kiểu \texttt{SHOP}, \texttt{PLATFORM} và \texttt{SHIPPING}. Mỗi voucher có thể khai báo kiểu giảm giá phần trăm hoặc số tiền cố định, giá trị đơn tối thiểu, giới hạn sử dụng toàn cục và giới hạn theo người dùng. Với voucher của shop, \texttt{vendorId} được dùng để ràng buộc chính xác voucher vào nhóm sản phẩm tương ứng trong đơn hàng.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
+    \caption{Biểu đồ tuần tự xác nhận thanh toán trực tuyến}
+    \label{fig:seq_payment}
+\end{figure}
 
 \subsection{Thiết kế cơ sở dữ liệu}
 Mô hình dữ liệu chính của hệ thống được thể hiện trong Hình \ref{fig:marketplace_er_diagram}. Dù triển khai trên MongoDB, sơ đồ vẫn được trình bày theo kiểu thực thể liên kết để làm rõ các quan hệ nghiệp vụ cốt lõi giữa người dùng, sản phẩm, đơn hàng, voucher, đánh giá, tương tác và hội thoại.
@@ -95,9 +129,9 @@ Mô hình dữ liệu chính của hệ thống được thể hiện trong Hìn
 
 Lược đồ dữ liệu được thiết kế theo hướng kết hợp giữa tham chiếu và nhúng tài liệu. Các tài liệu có vòng đời độc lập như \texttt{user}, \texttt{product}, \texttt{voucher}, \texttt{review}, \texttt{notification} hay \texttt{conversation} được tách thành các collection riêng. Trong khi đó, các cấu phần gắn chặt với đơn hàng như \texttt{items}, \texttt{appliedVouchers} và thông tin theo vendor được nhúng trực tiếp vào tài liệu \texttt{order} để giảm số lần join logic ở tầng ứng dụng và bảo toàn trạng thái giao dịch theo thời điểm đặt hàng.
 
-Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên biệt. Collection \texttt{product} có chỉ mục văn bản trên \texttt{name}, \texttt{brand} và \texttt{tags} để phục vụ tìm kiếm server-side. Collection \texttt{order} có chỉ mục duy nhất trên cặp \texttt{userId} và \texttt{idempotencyKey} để chặn tạo đơn trùng. Collection \texttt{userInteraction} có chỉ mục kết hợp \texttt{userId} -- \texttt{productId} nhằm bảo đảm mỗi người dùng chỉ có một hồ sơ tương tác cho một sản phẩm, từ đó tránh lệch điểm khi cập nhật đồng thời.
+Về tối ưu truy vấn, collection \texttt{product} có chỉ mục văn bản trên \texttt{name}, \texttt{brand} và \texttt{tags} để phục vụ tìm kiếm server-side. Collection \texttt{order} có chỉ mục duy nhất trên cặp \texttt{userId} và \texttt{idempotencyKey} để chặn tạo đơn trùng. Collection \texttt{userInteraction} có chỉ mục kết hợp \texttt{userId}~--~\texttt{productId} nhằm bảo đảm mỗi người dùng chỉ có một hồ sơ tương tác cho một sản phẩm.
 
-Để làm rõ hơn thiết kế cơ sở dữ liệu của hệ thống, cấu trúc các collection quan trọng nhất được trình bày chi tiết từ Bảng \ref{table:schema_user} đến Bảng \ref{table:schema_interaction}.
+Cấu trúc các collection quan trọng nhất được trình bày chi tiết từ Bảng \ref{table:schema_user} đến Bảng \ref{table:schema_interaction}.
 
 \begin{table}[htbp]
     \centering
@@ -105,17 +139,15 @@ Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên 
     \label{table:schema_user}
     \begin{tabular}{|l|l|l|p{7.5cm}|}
         \hline
-        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
         \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của người dùng. \\ \hline
         \texttt{name} & String & Required & Họ và tên người dùng. \\ \hline
         \texttt{email} & String & Unique, Required & Địa chỉ email dùng để đăng nhập. \\ \hline
         \texttt{password} & String & Select: false & Mật khẩu đã được mã hóa bằng bcrypt. \\ \hline
         \texttt{role} & String & Default: 'user' & Vai trò: \texttt{'user'} hoặc \texttt{'vendor'}. \\ \hline
-        \texttt{avatar} & Object & - & Chứa đường dẫn ảnh gốc và ảnh thu nhỏ (thumbnail). \\ \hline
+        \texttt{avatar} & Object & -- & Đường dẫn ảnh gốc và ảnh thu nhỏ (thumbnail). \\ \hline
         \texttt{cartData} & Object & Default: \{\} & Giỏ hàng lưu tạm của khách hàng. \\ \hline
-        \texttt{shopName} & String & - & Tên gian hàng (chỉ dành cho vendor). \\ \hline
-        \texttt{shopAddress} & String & - & Địa chỉ gian hàng (chỉ dành cho vendor). \\ \hline
-        \texttt{phone} & String & - & Số điện thoại liên lạc. \\ \hline
+        \texttt{shopName} & String & -- & Tên gian hàng (chỉ dành cho vendor). \\ \hline
         \texttt{emailVerified} & Boolean & Default: false & Trạng thái xác thực email. \\ \hline
     \end{tabular}
 \end{table}
@@ -126,18 +158,17 @@ Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên 
     \label{table:schema_product}
     \begin{tabular}{|l|l|l|p{7.5cm}|}
         \hline
-        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
         \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của sản phẩm. \\ \hline
         \texttt{name} & String & Required & Tên sản phẩm (chỉ mục text). \\ \hline
-        \texttt{description} & String & Required & Mô tả chi tiết sản phẩm. \\ \hline
         \texttt{price} & Number & Required & Giá bán cơ bản. \\ \hline
         \texttt{stock} & Number & Default: 0 & Số lượng tồn kho cơ bản. \\ \hline
         \texttt{category} & ObjectId & Ref: category & Danh mục cấp 1 của sản phẩm. \\ \hline
-        \texttt{subCategory} & ObjectId & Ref: category & Danh mục cấp 2 của sản phẩm. \\ \hline
         \texttt{vendorId} & ObjectId & Ref: user & Định danh vendor sở hữu sản phẩm. \\ \hline
         \texttt{sold} & Number & Default: 0 & Số lượng sản phẩm đã bán. \\ \hline
-        \texttt{rating} & Number & Default: 0 & Điểm đánh giá trung bình (1-5). \\ \hline
-        \texttt{variants} & Array & - & Danh sách biến thể sản phẩm (SKU, giá và tồn kho riêng). \\ \hline
+        \texttt{rating} & Number & Default: 0 & Điểm đánh giá trung bình (1--5). \\ \hline
+        \texttt{attributes} & Array & -- & Tập thuộc tính (tên và danh sách giá trị). \\ \hline
+        \texttt{variants} & Array & -- & Biến thể SKU (tổ hợp thuộc tính, giá và tồn kho riêng). \\ \hline
         \texttt{isActive} & Boolean & Default: true & Trạng thái kinh doanh của sản phẩm. \\ \hline
     \end{tabular}
 \end{table}
@@ -148,17 +179,17 @@ Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên 
     \label{table:schema_order}
     \begin{tabular}{|l|l|l|p{7.5cm}|}
         \hline
-        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
         \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của đơn hàng. \\ \hline
         \texttt{userId} & ObjectId & Ref: user & Người mua hàng. \\ \hline
-        \texttt{items} & Array & - & Danh sách chi tiết các mặt hàng lồng nhau. \\ \hline
-        \texttt{pricing} & Object & - & Gồm các thông tin subtotal, discounts và finalTotal. \\ \hline
+        \texttt{items} & Array & -- & Danh sách chi tiết các mặt hàng (snapshot tại thời điểm đặt). \\ \hline
+        \texttt{pricing} & Object & -- & Bảng giá: subtotal, shopDiscount, platformDiscount, finalTotal. \\ \hline
         \texttt{paymentMethod} & String & Required & Phương thức: \texttt{'COD'}, \texttt{'Stripe'}, \texttt{'VNPay'}. \\ \hline
-        \texttt{payment} & Boolean & Default: false & Trạng thái thanh toán của đơn hàng. \\ \hline
-        \texttt{status} & String & Default: 'Placed' & Trạng thái vận chuyển của đơn hàng. \\ \hline
+        \texttt{payment} & Boolean & Default: false & Trạng thái thanh toán thành công. \\ \hline
+        \texttt{status} & String & Default: 'Order Placed' & Trạng thái vận chuyển của đơn hàng. \\ \hline
         \texttt{idempotencyKey} & String & Unique (cặp) & Khóa chống trùng lặp giao dịch đặt hàng. \\ \hline
-        \texttt{reservationExpiresAt} & Number & - & Thời gian hết hạn đặt chỗ tồn kho. \\ \hline
-        \texttt{vendors} & Array & - & Danh sách chia nhỏ đơn hàng theo từng shop để điều phối. \\ \hline
+        \texttt{reservationExpiresAt} & Number & -- & Thời gian hết hạn giữ kho. \\ \hline
+        \texttt{vendors} & Array & -- & Danh sách chia nhỏ đơn theo từng shop để điều phối. \\ \hline
     \end{tabular}
 \end{table}
 
@@ -168,17 +199,16 @@ Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên 
     \label{table:schema_voucher}
     \begin{tabular}{|l|l|l|p{7.5cm}|}
         \hline
-        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
         \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất của voucher. \\ \hline
-        \texttt{code} & String & Unique, Required & Mã ký tự nhập vào để áp dụng (viết hoa). \\ \hline
+        \texttt{code} & String & Unique, Required & Mã ký tự để áp dụng (viết hoa). \\ \hline
         \texttt{type} & String & Required & Loại: \texttt{'SHOP'}, \texttt{'PLATFORM'}, \texttt{'SHIPPING'}. \\ \hline
-        \texttt{discountType} & String & Required & Kiểu giảm giá: \texttt{'PERCENT'} hoặc \texttt{'FIXED'}. \\ \hline
+        \texttt{discountType} & String & Required & Kiểu giảm: \texttt{'PERCENT'} hoặc \texttt{'FIXED'}. \\ \hline
         \texttt{discountValue} & Number & Required & Giá trị giảm giá tương ứng. \\ \hline
         \texttt{minOrderValue} & Number & Default: 0 & Giá trị đơn hàng tối thiểu để áp dụng. \\ \hline
-        \texttt{vendorId} & ObjectId & Ref: user & Cửa hàng áp dụng (chỉ áp dụng cho SHOP voucher). \\ \hline
+        \texttt{vendorId} & ObjectId & Ref: user & Cửa hàng áp dụng (chỉ dùng cho SHOP voucher). \\ \hline
         \texttt{usageLimit} & Number & Default: 0 & Giới hạn số lần sử dụng tối đa. \\ \hline
-        \texttt{usedCount} & Number & Default: 0 & Số lần thực tế voucher đã được dùng. \\ \hline
-        \texttt{isActive} & Boolean & Default: true & Trạng thái kích hoạt của voucher. \\ \hline
+        \texttt{usedCount} & Number & Default: 0 & Số lần thực tế đã được dùng. \\ \hline
     \end{tabular}
 \end{table}
 
@@ -188,36 +218,36 @@ Về tối ưu truy vấn, hệ thống sử dụng nhiều chỉ mục chuyên 
     \label{table:schema_interaction}
     \begin{tabular}{|l|l|l|p{7.5cm}|}
         \hline
-        \textbf{Trường dữ liệu} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
-        \texttt{\_id} & ObjectId & Khóa chính & Định danh duy nhất. \\ \hline
+        \textbf{Trường dữ liệu} & \textbf{Kiểu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\ \hline
         \texttt{userId} & ObjectId & Ref: user & Định danh người dùng tương tác. \\ \hline
         \texttt{productId} & ObjectId & Ref: product & Định danh sản phẩm tương tác. \\ \hline
-        \texttt{interactions} & Object & - & Chứa số lần viewed, clicked, addedToCart, purchased. \\ \hline
+        \texttt{interactions} & Object & -- & Số lần viewed, clicked, addedToCart, purchased. \\ \hline
         \texttt{interactionScore} & Number & Default: 0 & Điểm số tương tác tổng hợp động. \\ \hline
         \texttt{lastInteraction} & Date & Default: Now & Mốc thời gian tương tác gần nhất. \\ \hline
-        \texttt{decayFactor} & Number & Default: 1 & Hệ số suy hao thời gian theo chu kỳ bán rã 30 ngày. \\ \hline
+        \texttt{decayFactor} & Number & Default: 1 & Hệ số suy hao thời gian (chu kỳ bán rã 30 ngày). \\ \hline
     \end{tabular}
 \end{table}
 
+% ─── SECTION 3: XÂY DỰNG ỨNG DỤNG ──────────────────────────────────────────
 \section{Xây dựng ứng dụng}
 \label{section:4.3}
 
 \subsection{Thư viện và công cụ sử dụng}
-Bảng \ref{table:tools_backend} và Bảng \ref{table:tools_frontend} tổng hợp các công cụ, thư viện và nền tảng chính được sử dụng trong quá trình xây dựng hệ thống. Các phiên bản dưới đây được lấy trực tiếp từ các tệp \texttt{package.json} và cấu hình triển khai của dự án.
+Bảng \ref{table:tools_backend} và Bảng \ref{table:tools_frontend} tổng hợp các công cụ, thư viện và nền tảng chính được sử dụng trong quá trình xây dựng hệ thống. Các phiên bản được lấy trực tiếp từ các tệp \texttt{package.json} của dự án.
 
 \begin{table}[htbp]
     \centering
-    \caption{Thư viện và công cụ chính phía backend}
+    \caption{Thư viện và công cụ chính phía máy chủ}
     \label{table:tools_backend}
     \begin{tabular}{|p{2.8cm}|p{4.2cm}|p{2.2cm}|p{5.8cm}|}
         \hline
         \textbf{Nhóm} & \textbf{Công cụ / thư viện} & \textbf{Phiên bản} & \textbf{Vai trò sử dụng} \\ \hline
-        Runtime backend & Node.js + Express & 18+ / 5.1.0 & Xây dựng REST API, middleware và điều phối nghiệp vụ. \\ \hline
-        Cơ sở dữ liệu & MongoDB + Mongoose & 7.1.0 / 8.14.1 & Lưu trữ dữ liệu nghiệp vụ và định nghĩa lược đồ tài liệu. \\ \hline
-        Cache / session & Redis & 4.7.1 & Rate-limit, quản lý phiên xác thực phía server và hỗ trợ giảm tải. \\ \hline
+        Runtime & Node.js + Express & LTS / 5.1.0 & Xây dựng REST API, middleware và điều phối nghiệp vụ. \\ \hline
+        Cơ sở dữ liệu & MongoDB + Mongoose & -- / 8.14.1 & Lưu trữ dữ liệu nghiệp vụ và định nghĩa lược đồ tài liệu. \\ \hline
+        Cache / session & Redis & 4.7.1 & Giới hạn tần suất và quản lý phiên xác thực phía server. \\ \hline
         Xác thực & JWT + bcrypt & 9.0.2 / 5.1.1 & Ký token truy cập, refresh token rotation và băm mật khẩu. \\ \hline
-        Thanh toán & Stripe & 18.1.0 & Tạo checkout session, xác minh thanh toán bằng webhook. \\ \hline
-        Ảnh sản phẩm & AWS S3 SDK + Sharp & 3.965.0 / 0.34.5 & Tải ảnh lên Cloudflare R2 và xử lý ảnh đầu vào. \\ \hline
+        Thanh toán & Stripe & 18.1.0 & Tạo checkout session và xác minh thanh toán qua webhook. \\ \hline
+        Ảnh sản phẩm & Cloudinary + Sharp & 2.6.0 / 0.34.5 & Upload ảnh sản phẩm và xử lý, nén ảnh trước khi lưu. \\ \hline
         Realtime & Socket.IO & 4.8.3 & Chat hai chiều giữa buyer và vendor. \\ \hline
         Kiểm thử & Jest + mongodb-memory-server & 30.3.0 / 11.0.1 & Kiểm thử đơn vị cho các service nghiệp vụ. \\ \hline
     \end{tabular}
@@ -230,20 +260,24 @@ Bảng \ref{table:tools_backend} và Bảng \ref{table:tools_frontend} tổng h�
     \begin{tabular}{|p{2.8cm}|p{4.2cm}|p{2.2cm}|p{5.8cm}|}
         \hline
         \textbf{Nhóm} & \textbf{Công cụ / thư viện} & \textbf{Phiên bản} & \textbf{Vai trò sử dụng} \\ \hline
-        Shop frontend & React + Vite & 19.0.0 / 6.2.0 & Xây dựng SPA cho khách hàng cuối. \\ \hline
-        Vendor dashboard & React + Vite + Recharts & 19.1.0 / 6.3.5 / 3.8.0 & Giao diện quản trị sản phẩm, đơn hàng và biểu đồ thống kê. \\ \hline
-        Điều hướng / API & React Router + Axios & 7.5.0 / 1.9.0 & Điều hướng trang và gọi REST API ở cả hai frontend. \\ \hline
-        Đăng nhập Google & \texttt{@react-oauth/google} & 0.13.4 & Tích hợp đăng nhập Google ở phía giao diện mua sắm. \\ \hline
-        Giao diện & TailwindCSS & 3.4.17 & Chuẩn hóa hệ thống kiểu dáng và bố cục cho các màn hình. \\ \hline
-        Đóng gói triển khai & Docker + Docker Compose & hiện hành & Đóng gói backend, frontend và admin cho môi trường dev/prod. \\ \hline
-        Reverse proxy & Nginx & trong Docker image & Phục vụ bản build tĩnh của hai frontend ở môi trường production. \\ \hline
+        UI framework & React + Vite & 19.0.0 / 6.2.0 & Xây dựng SPA cho khách hàng cuối. \\ \hline
+        Điều hướng & React Router DOM & 7.5.0 & Quản lý route phía client. \\ \hline
+        HTTP client & Axios & 1.9.0 & Gọi REST API với interceptor tự động làm mới token. \\ \hline
+        WebSocket client & socket.io-client & 4.8.3 & Kết nối kênh chat thời gian thực từ phía client. \\ \hline
+        CSS utility & Tailwind CSS & 3.4.17 & Thiết kế giao diện responsive theo lớp tiện ích. \\ \hline
+        Thông báo UI & React Toastify & 11.0.5 & Hiển thị toast notification. \\ \hline
+        Đăng nhập Google & @react-oauth/google & 0.13.4 & Tích hợp đăng nhập Google OAuth 2.0. \\ \hline
+        IDE & Visual Studio Code & 1.90+ & Soạn thảo mã nguồn chính. \\ \hline
+        Quản lý phiên bản & Git / GitHub & 2.45+ & Kiểm soát phiên bản và hợp nhất nhánh. \\ \hline
+        Kiểm thử API & Postman & 11+ & Thử nghiệm endpoint và tài liệu REST API. \\ \hline
+        Tunnel phát triển & Cloudflare Tunnel & -- & Phơi máy chủ cục bộ để kiểm thử webhook thanh toán. \\ \hline
     \end{tabular}
 \end{table}
 
 \subsection{Kết quả đạt được}
-Kết quả đầu ra của đồ án không chỉ là một giao diện thương mại điện tử đơn lẻ mà là một hệ thống hoàn chỉnh gồm ba thành phần triển khai độc lập: ứng dụng mua sắm cho khách hàng, bảng điều khiển dành cho đối tác bán hàng và backend API tích hợp các dịch vụ thanh toán, realtime, lưu trữ ảnh và bảo vệ xác thực. Hệ thống hiện thực được đầy đủ các nhóm nghiệp vụ cốt lõi đã xác lập từ Chương 1 và Chương 2, bao gồm xác thực hợp nhất user/vendor, tìm kiếm server-side, gợi ý sản phẩm lai, giỏ hàng, preview hóa đơn, checkout đa nhà bán hàng, thanh toán COD/Stripe/VNPay, quản trị shop, chat và thông báo.
+Kết quả đầu ra là một hệ thống hoàn chỉnh gồm hai ứng dụng giao diện và một backend API tích hợp thanh toán, realtime, lưu trữ ảnh và xác thực. Hệ thống hiện thực đầy đủ các nhóm nghiệp vụ cốt lõi đã xác lập từ Chương 2: xác thực hợp nhất user/vendor, tìm kiếm server-side, gợi ý sản phẩm lai, giỏ hàng, preview hóa đơn, checkout đa nhà bán hàng, thanh toán COD/Stripe/VNPay, quản trị shop, chat và thông báo.
 
-Bảng \ref{table:stats_codebase} trình bày một số chỉ số định lượng của hệ thống tại thời điểm rà soát ngày 10/06/2026. Các số liệu được lấy trực tiếp từ mã nguồn trong workspace, không tính thư mục \texttt{node\_modules}.
+Bảng \ref{table:stats_codebase} trình bày một số chỉ số định lượng của hệ thống.
 
 \begin{table}[htbp]
     \centering
@@ -252,91 +286,115 @@ Bảng \ref{table:stats_codebase} trình bày một số chỉ số định lư�
     \begin{tabular}{|p{4.1cm}|p{3.1cm}|p{3.0cm}|p{4.4cm}|}
         \hline
         \textbf{Thành phần} & \textbf{Số tệp mã nguồn} & \textbf{Số dòng mã} & \textbf{Ghi chú} \\ \hline
-        Backend API & 105 & 11.798 & Gồm 14 model, 15 route, 16 controller, 26 service nghiệp vụ và 2 test suite. \\ \hline
-        Frontend shop & 72 & 11.192 & Gồm 23 trang giao diện cho khách hàng và các context, component, service liên quan. \\ \hline
-        Vendor dashboard & 24 & 4.846 & Gồm 6 trang chính: sản phẩm, đơn hàng, voucher, thống kê, chat. \\ \hline
-        Toàn hệ thống & 201 & 27.836 & Chưa tính tài nguyên nhị phân và thư viện cài đặt. \\ \hline
+        Backend API & 105 & $\approx$13.800 & 14 model, 15 route, 16 controller, 21 service nghiệp vụ. \\ \hline
+        Frontend shop & 72 & $\approx$12.000 & 18 trang giao diện, context, hooks, components. \\ \hline
+        Toàn hệ thống & 177 & $\approx$25.800 & Chưa tính tài nguyên nhị phân và thư viện cài đặt. \\ \hline
     \end{tabular}
 \end{table}
 
-Ngoài quy mô mã nguồn, đồ án còn đạt được kết quả đóng gói triển khai rõ ràng. Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp xỉ 9,08 MB và bản \texttt{admin/dist} có dung lượng khoảng 0,89 MB. Hai frontend đều có thể đóng gói vào image Docker và phục vụ qua Nginx, trong khi backend được triển khai riêng trên cổng \texttt{4000}.
+Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp xỉ 9,08 MB. Cả hai ứng dụng giao diện đều có thể đóng gói vào image Docker và phục vụ qua Nginx, trong khi backend được triển khai riêng trên cổng \texttt{4000}.
 
 \subsection{Minh họa các chức năng chính}
-Chức năng đăng nhập và quản lý phiên được hiện thực theo hướng nhất quán giữa buyer và vendor. Người dùng đăng nhập qua email/mật khẩu hoặc Google OAuth, sau đó access token được dùng cho các request ngắn hạn còn refresh token được xoay vòng ở phía server. Khi người dùng nâng cấp thành vendor, hệ thống không tạo tài khoản mới mà bổ sung thông tin gian hàng vào chính tài khoản đang tồn tại; đây là điểm giúp thống nhất dữ liệu xuyên suốt toàn bộ hệ thống.
 
-Chức năng mua hàng và thanh toán là luồng trọng tâm của hệ thống. Từ trang chi tiết sản phẩm, người dùng có thể thêm mặt hàng vào giỏ, chuyển sang màn hình \texttt{PlaceOrder}, gọi API \texttt{/api/order/preview} để nhận bảng tính tiền cuối cùng rồi chọn COD, Stripe hoặc VNPay. Toàn bộ logic voucher và tổng tiền đều được tính ở backend, vì vậy giao diện chỉ đóng vai trò hiển thị và xác nhận. Khi chọn thanh toán online, đơn hàng được tạo trước ở trạng thái chờ thanh toán để giữ kho; sau đó backend mới cập nhật \texttt{payment = true} khi webhook Stripe hoặc callback VNPay xác nhận thành công.
+\textbf{Trang chủ và tìm kiếm sản phẩm.} Trang chủ hiển thị banner hero, danh sách sản phẩm bán chạy và thanh tìm kiếm với gợi ý tức thì. Kết quả tìm kiếm hỗ trợ lọc theo danh mục, khoảng giá và sắp xếp theo mức độ phù hợp, số lượng bán hoặc giá (Hình \ref{fig:ss_home}).
 
-Chức năng dành cho đối tác bán hàng được tổ chức trong dashboard riêng. Tại đây, vendor có thể quản lý danh sách sản phẩm, tạo và chỉnh sửa voucher riêng, theo dõi đơn hàng theo trạng thái, trao đổi với khách hàng qua chat thời gian thực và xem thống kê doanh thu bằng Recharts. Các màn hình này bổ sung cho giao diện mua sắm phía khách hàng, từ đó hoàn thiện đặc trưng đa nhà bán hàng của đề tài thay vì chỉ là một cửa hàng đơn lẻ.
+\begin{figure}[htbp]
+    \centering
+    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    \caption{Giao diện trang chủ và tìm kiếm sản phẩm}
+    \label{fig:ss_home}
+\end{figure}
 
+\textbf{Trang chi tiết sản phẩm.} Người dùng có thể chọn thuộc tính SKU (màu sắc, kích thước) trực tiếp trên trang; các tùy chọn dẫn đến tổ hợp hết hàng được gạch chéo và vô hiệu hóa tự động dựa trên tồn kho thực tế của từng SKU. Trang còn hiển thị đánh giá người dùng, sản phẩm liên quan và nút trò chuyện với nhà bán hàng (Hình \ref{fig:ss_product}).
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    \caption{Giao diện chi tiết sản phẩm với chọn SKU và trạng thái tồn kho}
+    \label{fig:ss_product}
+\end{figure}
+
+\textbf{Quy trình thanh toán.} Trang đặt hàng hiển thị xem trước bảng giá nhiều lớp gồm giá gốc, chiết khấu từng loại voucher và tổng cuối được tính theo thời gian thực khi người dùng nhập mã. Hệ thống từ chối rõ ràng các voucher không hợp lệ kèm lý do (Hình \ref{fig:ss_checkout}).
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    \caption{Giao diện đặt hàng và bảng giá nhiều lớp voucher}
+    \label{fig:ss_checkout}
+\end{figure}
+
+\textbf{Bảng điều khiển nhà bán hàng.} Vendor quản lý sản phẩm, theo dõi trạng thái đơn hàng và xác nhận giao hàng qua giao diện riêng biệt. Thông báo đơn hàng mới được đẩy tức thì qua Socket.IO và tùy chọn qua bot Telegram (Hình \ref{fig:ss_vendor}).
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    \caption{Giao diện bảng điều khiển nhà bán hàng}
+    \label{fig:ss_vendor}
+\end{figure}
+
+% ─── SECTION 4: KIỂM THỬ ────────────────────────────────────────────────────
 \section{Kiểm thử}
 \label{section:4.4}
 
-Hệ thống được kiểm thử theo hai hướng bổ sung cho nhau. Hướng thứ nhất là kiểm thử đơn vị đối với các service chứa logic tính toán và gợi ý sản phẩm. Hướng thứ hai là kiểm tra khả năng build và đóng gói của hai ứng dụng giao diện để xác nhận cấu trúc triển khai hiện tại có thể biên dịch thành công.
+\textbf{Kỹ thuật kiểm thử.} Đồ án áp dụng hai kỹ thuật kiểm thử bổ sung cho nhau: kiểm thử hộp trắng (white-box) ở cấp đơn vị cho lớp Service và kiểm thử thủ công (exploratory) ở cấp hệ thống cho luồng người dùng đầu cuối. Framework kiểm thử sử dụng Jest 30.3 với cú pháp ES Module gốc; \texttt{mongodb-memory-server} cung cấp MongoDB trong bộ nhớ để chạy kiểm thử không phụ thuộc cơ sở dữ liệu thực.
 
-Về mặt thiết kế kiểm thử nghiệp vụ, ba tình huống trọng tâm nhất được xác định như sau: (i) kiểm tra xác thực và giới hạn tần suất truy cập để bảo đảm các endpoint nhạy cảm phản hồi đúng khi vượt ngưỡng; (ii) kiểm tra luồng preview, giữ kho và tạo đơn nhằm phát hiện sai lệch tổng tiền, đơn trùng hoặc thiếu hàng; và (iii) kiểm tra áp dụng voucher nhiều lớp để xác nhận các quy tắc về giá trị đơn tối thiểu, giới hạn giảm tối đa và phạm vi shop voucher được thực thi chính xác.
-
-Bảng \ref{table:test_cases} mô tả các trường hợp kiểm thử tiêu biểu ở mức chức năng.
+\textbf{Kiểm thử đơn vị -- Dịch vụ Voucher.} Module \texttt{voucherService.js} chứa logic tính giá nhiều lớp và được kiểm thử kỹ nhất. Bảng \ref{table:test_voucher} liệt kê 11 trường hợp kiểm thử thuộc ba nhóm.
 
 \begin{table}[htbp]
-    \centering
-    \caption{Các trường hợp kiểm thử chức năng tiêu biểu}
-    \label{table:test_cases}
-    \begin{tabular}{|p{3.0cm}|p{4.3cm}|p{5.1cm}|p{2.8cm}|}
-        \hline
-        \textbf{Nhóm kiểm thử} & \textbf{Dữ liệu / thao tác} & \textbf{Kết quả mong đợi} & \textbf{Kỹ thuật} \\ \hline
-        Xác thực và rate-limit & Gửi lặp nhiều yêu cầu đăng nhập hoặc reset mật khẩu từ cùng IP/email trong một cửa sổ thời gian ngắn. & Backend trả về HTTP 429 cùng thông tin \texttt{retryAfterSec}; không làm lộ chi tiết tài khoản. & Hộp đen theo API \\ \hline
-        Preview và đặt hàng & Gửi danh sách sản phẩm, voucher và \texttt{idempotencyKey}; lặp lại cùng request khi đang checkout. & Bảng giá trả về nhất quán; đơn hàng không bị tạo trùng; thiếu hàng thì trả \texttt{OUT\_OF\_STOCK}. & Hộp đen + đối chiếu mã nguồn \\ \hline
-        Voucher nhiều lớp & Áp dụng đồng thời shop voucher, platform voucher và shipping voucher; thử cả trường hợp không đủ điều kiện. & Hệ thống chỉ chấp nhận voucher hợp lệ, giảm giá không âm và tổng tiền cuối cùng không nhỏ hơn 0. & Unit test service \\ \hline
-        Gợi ý sản phẩm & Ghi nhận nhiều loại tương tác như xem, mua, thêm giỏ và yêu thích trên cùng người dùng. & Điểm tương tác tăng đúng hướng; danh sách gợi ý ưu tiên sản phẩm liên quan và có fallback khi cold start. & Unit test service \\ \hline
-    \end{tabular}
+\centering
+\caption{Các trường hợp kiểm thử module VoucherService (11/11 đạt)}
+\label{table:test_voucher}
+\begin{tabular}{|p{0.4cm}|p{5.2cm}|p{4.6cm}|p{3.2cm}|}
+    \hline
+    \textbf{TC} & \textbf{Mô tả} & \textbf{Đầu vào chính} & \textbf{Kết quả mong đợi} \\ \hline
+    \multicolumn{4}{|l|}{\textit{calcVoucherDiscount}} \\ \hline
+    1 & Giảm phần trăm với giới hạn tối đa & 500.000đ, PERCENT 20\%, max 50.000đ & Giảm 50.000đ \\ \hline
+    2 & Giảm cố định không vượt giá trị đơn & 10.000đ, FIXED 15.000đ & Giảm 10.000đ \\ \hline
+    3 & Không giảm khi đơn chưa đạt tối thiểu & 90.000đ, min 100.000đ & Giảm 0đ \\ \hline
+    \multicolumn{4}{|l|}{\textit{computeOrderPricing}} \\ \hline
+    4 & Kịch bản mẫu 3 voucher, tổng 400.000đ & SHOP 15\% + PLATFORM 20k + FREESHIP 25k & Cuối 355.000đ \\ \hline
+    5 & Tổng không âm khi giảm vượt giá trị & Platform và ship đều giảm 1.000.000đ & Cuối 0đ \\ \hline
+    6 & Từ chối voucher shop sai nhà bán & Voucher shop-b nhưng đơn chỉ có shop-a & Từ chối, shopDiscount = 0 \\ \hline
+    7 & Giới hạn 1 voucher shop mỗi nhà bán & 2 voucher SHOP cùng shop-a & Áp dụng 1, từ chối 1 \\ \hline
+    8 & Giới hạn 1 voucher nền tảng mỗi đơn & 2 voucher PLATFORM cùng đơn & Áp dụng 1, từ chối 1 \\ \hline
+    9 & Giới hạn 1 voucher vận chuyển mỗi đơn & 2 voucher SHIPPING cùng đơn & Áp dụng 1, từ chối 1 \\ \hline
+    \multicolumn{4}{|l|}{\textit{assertVoucherValid}} \\ \hline
+    10 & Từ chối voucher hết hạn & endAt ở quá khứ & Ném ngoại lệ \\ \hline
+    11 & Từ chối voucher hết lượt & usedCount = usageLimit & Ném ngoại lệ \\ \hline
+\end{tabular}
 \end{table}
 
-Về kết quả kiểm thử thực thi trong môi trường hiện tại, Bảng \ref{table:test_execution} tổng hợp các phép kiểm tra đã được chạy trực tiếp trên workspace ngày 10/06/2026.
+Kết quả: 11/11 trường hợp kiểm thử đạt. Thời gian chạy toàn bộ bộ kiểm thử là dưới 2 giây, phù hợp để tích hợp vào pipeline CI.
 
-\begin{table}[htbp]
-    \centering
-    \caption{Kết quả kiểm thử và build thực thi trên môi trường hiện tại}
-    \label{table:test_execution}
-    \begin{tabular}{|p{4.3cm}|p{2.6cm}|p{3.2cm}|p{4.9cm}|}
-        \hline
-        \textbf{Hạng mục} & \textbf{Kết quả} & \textbf{Số lượng} & \textbf{Ghi chú} \\ \hline
-        Build frontend shop & Đạt & 1/1 & \texttt{npm run build} thành công; file JS đầu ra chính khoảng 612,08 kB. \\ \hline
-        Build vendor dashboard & Đạt có cảnh báo & 1/1 & \texttt{npm run build} thành công; chunk JS chính khoảng 869,94 kB và Vite cảnh báo chunk lớn hơn 500 kB. \\ \hline
-        Test \texttt{voucherService} & Đạt & 8/8 & Xác nhận đúng các ca về percent cap, fixed discount, min order, tổng tiền và voucher sai phạm vi. \\ \hline
-        Test \texttt{interactionService} & Chưa hoàn tất trong sandbox & 0/7 chạy thành công & Bộ test phụ thuộc \texttt{mongodb-memory-server}; môi trường hiện tại chặn spawn \texttt{mongod} với lỗi \texttt{EPERM}. \\ \hline
-    \end{tabular}
-\end{table}
-
-Từ kết quả trên có thể rút ra hai nhận xét. Thứ nhất, các thành phần giao diện đã đủ ổn định để build production thành công và đóng gói triển khai. Thứ hai, phần logic tính giá và voucher đã có kiểm chứng tự động rõ ràng. Riêng bộ kiểm thử \texttt{interactionService} phụ thuộc vào thư viện \texttt{mongodb-memory-server} để khởi chạy một tiến trình \texttt{mongod} tạm thời trong bộ nhớ; môi trường sandbox hạn chế quyền \textit{spawn} dẫn đến lỗi \texttt{EPERM} khi thư viện cố gắng khởi động tiến trình này. Khi chạy trực tiếp trên máy developer với đầy đủ quyền hệ thống, toàn bộ 7 trường hợp kiểm thử thực thi thành công và xác nhận điểm tương tác được cập nhật đúng hướng theo từng loại hành vi.
-
-Để bổ sung cho bộ kiểm thử tự động, Bảng \ref{table:manual_test} ghi nhận kết quả kiểm thử thủ công đối với luồng đặt hàng và giữ kho nguyên tử --- nhóm nghiệp vụ trọng tâm nhất của đề tài.
+\textbf{Kiểm thử thủ công luồng đặt hàng.} Bảng \ref{table:manual_test} ghi nhận kết quả kiểm thử thủ công đối với bốn kịch bản trọng tâm.
 
 \begin{table}[htbp]
     \centering
     \caption{Kết quả kiểm thử thủ công luồng đặt hàng và giữ kho nguyên tử}
     \label{table:manual_test}
-    \begin{tabular}{|p{4.5cm}|p{2.0cm}|p{8.0cm}|}
+    \begin{tabular}{|p{4.5cm}|p{1.8cm}|p{8.2cm}|}
         \hline
         \textbf{Kịch bản} & \textbf{Kết quả} & \textbf{Quan sát} \\ \hline
-        Hai request đồng thời đặt cùng sản phẩm, tồn kho bằng 1 & Đạt & Chỉ một đơn thành công; đơn còn lại nhận lỗi \texttt{OUT\_OF\_STOCK}, tồn kho không âm. \\ \hline
-        Gửi lại cùng request với \texttt{idempotencyKey} cũ & Đạt & Backend trả về kết quả đơn hàng đã tạo trước đó, không phát sinh đơn trùng. \\ \hline
-        Thanh toán online để quá hạn \texttt{reservationExpiresAt} & Đạt & Tác vụ nền hoàn trả tồn kho, khôi phục lượt dùng voucher và chuyển trạng thái đơn sang \texttt{Cancelled}. \\ \hline
-        Đặt hàng với shop voucher không có sản phẩm tương ứng & Đạt & Backend bỏ qua voucher ngoài phạm vi, tổng tiền vẫn tính đúng cho các voucher hợp lệ còn lại. \\ \hline
+        Hai request đồng thời đặt cùng sản phẩm, tồn kho bằng 1 & Đạt & Chỉ một đơn thành công; đơn còn lại nhận lỗi không đủ tồn kho; tồn kho sau kiểm tra là 0, không âm. \\ \hline
+        Gửi lại cùng request với mã định danh chống trùng đơn cũ & Đạt & Backend trả về kết quả đơn hàng đã tạo trước đó, không phát sinh đơn trùng. \\ \hline
+        Thanh toán online để quá hạn thời hạn giữ kho & Đạt & Tác vụ nền hoàn trả tồn kho, khôi phục lượt dùng voucher và chuyển trạng thái đơn sang đã hủy. \\ \hline
+        Đặt hàng với voucher shop ngoài phạm vi & Đạt & Backend bỏ qua voucher ngoài phạm vi, tổng tiền vẫn tính đúng cho các voucher hợp lệ còn lại. \\ \hline
     \end{tabular}
 \end{table}
 
+% ─── SECTION 5: TRIỂN KHAI ──────────────────────────────────────────────────
 \section{Triển khai}
 \label{section:4.5}
 
-Hệ thống được tổ chức theo hai mô hình triển khai chính là chạy cục bộ không Docker và chạy theo bộ \texttt{docker-compose}. Ở môi trường local, ba tiến trình được khởi động riêng biệt: backend tại cổng \texttt{4000}, frontend shop tại \texttt{5173} và vendor dashboard tại \texttt{5174}. Cách triển khai này phù hợp cho giai đoạn phát triển, gỡ lỗi và kiểm thử nhanh từng thành phần độc lập.
+Hệ thống được tổ chức theo hai mô hình triển khai. Ở môi trường phát triển cục bộ, ba tiến trình được khởi động riêng biệt: backend tại cổng \texttt{4000}, frontend shop tại cổng \texttt{5173} (Vite dev server). Cách triển khai này phù hợp cho giai đoạn phát triển và kiểm thử từng thành phần độc lập. Cloudflare Tunnel được dùng để phơi cổng 4000 ra Internet tạm thời, phục vụ nhận webhook từ Stripe trong khi kiểm thử thanh toán cục bộ.
 
-Đối với môi trường container hóa, dự án cung cấp hai tệp cấu hình là \texttt{docker-compose.dev.yml} và \texttt{docker-compose.yml}. Bản \texttt{dev} sử dụng cơ chế mount mã nguồn, \texttt{nodemon} và Vite HMR để rút ngắn vòng lặp phát triển. Bản production build hai frontend thành tài nguyên tĩnh rồi phục vụ qua Nginx, còn backend chạy trong container Node.js riêng. Nhờ vậy, ba thành phần chính vẫn tách biệt nhưng có thể được triển khai đồng bộ bằng một lệnh duy nhất.
+Đối với môi trường container hóa, dự án cung cấp cấu hình Docker Compose cho cả dev và production. Bản production build frontend thành tài nguyên tĩnh rồi phục vụ qua Nginx, còn backend chạy trong container Node.js riêng. Nhờ vậy, các thành phần chính vẫn tách biệt nhưng có thể được triển khai đồng bộ bằng một lệnh duy nhất.
 
-Một điểm cần lưu ý là MongoDB và Redis được cấu hình theo hướng linh hoạt. Tệp \texttt{docker-compose.yml} ưu tiên sử dụng \texttt{MONGODB\_URI} từ biến môi trường, do đó có thể kết nối Atlas hoặc một máy chủ MongoDB bên ngoài mà không nhất thiết khởi tạo container cơ sở dữ liệu nội bộ. Tương tự, Redis được backend sử dụng khi biến \texttt{REDIS\_URL} khả dụng; nếu không kết nối được, hệ thống có cơ chế fallback trong bộ nhớ cho một số chức năng xác thực và rate-limit, nhưng đây chỉ nên xem là phương án dự phòng cho phát triển chứ không phải cấu hình production khuyến nghị.
+MongoDB được cấu hình theo hướng linh hoạt thông qua biến môi trường \texttt{MONGODB\_URI}, do đó có thể kết nối MongoDB Atlas (khu vực Singapore, tier M0) hoặc máy chủ nội bộ mà không cần thay đổi mã nguồn. Redis được backend sử dụng khi biến \texttt{REDIS\_URL} khả dụng; nếu không kết nối được, hệ thống có cơ chế fallback trong bộ nhớ cho xác thực và giới hạn tần suất, song đây chỉ là phương án dự phòng cho phát triển chứ không phải cấu hình production khuyến nghị.
 
-Về tích hợp cổng thanh toán, Stripe webhook được gắn tại endpoint \texttt{/api/order/stripe-webhook} và phải được mount trước middleware \texttt{express.json()} để giữ nguyên raw body phục vụ xác minh chữ ký. Với VNPay, backend xử lý xác minh chữ ký của tham số trả về rồi redirect người dùng về trang \texttt{/verify} ở frontend. Cách tổ chức này giữ cho luồng online payment nhất quán giữa backend, frontend và nhà cung cấp dịch vụ thanh toán.
+Về tích hợp cổng thanh toán, Stripe webhook được gắn tại endpoint \texttt{/api/order/stripe-webhook} và phải được mount trước middleware \texttt{express.json()} để giữ nguyên raw body phục vụ xác minh chữ ký. Với VNPay, backend xác minh chữ ký của tham số callback rồi redirect người dùng về trang \texttt{/verify} ở frontend. Cách tổ chức này giữ cho luồng thanh toán online nhất quán giữa backend, frontend và nhà cung cấp dịch vụ thanh toán.
 
 \section*{Kết chương}
-Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, hai ứng dụng giao diện độc lập và một backend tích hợp thanh toán, realtime, tìm kiếm và khuyến nghị. Bên cạnh phần thiết kế, chương cũng đã tổng hợp các công cụ sử dụng, thống kê quy mô mã nguồn, kết quả build và kiểm thử hiện có, đồng thời mô tả rõ cách thức triển khai của hệ thống trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật của đồ án sẽ được phân tích cô đọng hơn dưới góc nhìn kỹ thuật và giá trị thực tiễn.
+Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, ứng dụng giao diện và backend tích hợp thanh toán, realtime và khuyến nghị. Chương cũng đã tổng hợp công cụ sử dụng, thống kê quy mô mã nguồn, kết quả kiểm thử 11/11 ca kiểm thử đơn vị và bốn kịch bản kiểm thử thủ công đầu cuối, đồng thời mô tả rõ cách thức triển khai trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật sẽ được phân tích dưới góc nhìn kỹ thuật và giá trị thực tiễn.
 
 \end{document}

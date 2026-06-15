@@ -132,6 +132,33 @@ const Product = () => {
     if (!row || typeof row !== "object") return false;
     return Object.values(row).some((qty) => Number(qty) > 0);
   }, [cartItems, productId]);
+
+  // Tính sẵn map: { [attrName]: { [value]: boolean } }
+  // true = có ít nhất 1 variant còn hàng khi chọn value đó cùng với các attr đã chọn.
+  const optionAvailabilityMap = useMemo(() => {
+    if (
+      !productData ||
+      !Array.isArray(productData.variants) ||
+      productData.variants.length === 0 ||
+      !Array.isArray(productData.attributes)
+    ) return null;
+
+    const result = {};
+    for (const attr of productData.attributes) {
+      result[attr.name] = {};
+      for (const value of attr.values) {
+        const hypothetical = { ...selectedAttributes, [attr.name]: value };
+        result[attr.name][value] = productData.variants.some((v) => {
+          const combo = v.combination || {};
+          return (
+            Object.entries(hypothetical).every(([k, val]) => combo[k] === val) &&
+            Number(v.stock) > 0
+          );
+        });
+      }
+    }
+    return result;
+  }, [productData, selectedAttributes]);
   const fetchProductData = useCallback(() => {
     products.map((item) => {
       if (item._id == productId) {
@@ -420,22 +447,41 @@ const Product = () => {
                     )}
                   </p>
                   <div className="flex gap-2 flex-wrap">
-                    {attr.values.map((value, valueIndex) => (
-                      <button
-                        onClick={() => setSelectedAttributes({
-                          ...selectedAttributes,
-                          [attr.name]: value
-                        })}
-                        className={`border-2 py-2 px-4 rounded-lg transition-all ${
-                          selectedAttributes[attr.name] === value
-                            ? "border-orange-500 bg-orange-50 text-orange-600 font-medium" 
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                        key={valueIndex}
-                      >
-                        {value}
-                      </button>
-                    ))}
+                    {attr.values.map((value, valueIndex) => {
+                      const isSelected = selectedAttributes[attr.name] === value;
+                      const isAvailable = optionAvailabilityMap
+                        ? (optionAvailabilityMap[attr.name]?.[value] ?? true)
+                        : true;
+                      return (
+                        <button
+                          key={valueIndex}
+                          onClick={() => setSelectedAttributes({ ...selectedAttributes, [attr.name]: value })}
+                          disabled={!isAvailable}
+                          title={!isAvailable ? "Hết hàng" : undefined}
+                          className={`relative border-2 py-2 px-4 rounded-lg transition-all ${
+                            isSelected && isAvailable
+                              ? "border-orange-500 bg-orange-50 text-orange-600 font-medium"
+                              : isSelected && !isAvailable
+                              ? "border-red-300 bg-red-50 text-red-400 font-medium"
+                              : isAvailable
+                              ? "border-gray-300 hover:border-gray-400"
+                              : "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
+                          }`}
+                        >
+                          {value}
+                          {!isAvailable && (
+                            <span
+                              className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg"
+                              aria-hidden="true"
+                            >
+                              <svg className="w-full h-full" preserveAspectRatio="none">
+                                <line x1="0" y1="100%" x2="100%" y2="0" stroke="#d1d5db" strokeWidth="1.5" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

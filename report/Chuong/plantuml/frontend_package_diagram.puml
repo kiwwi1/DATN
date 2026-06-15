@@ -1,0 +1,58 @@
+@startuml
+top to bottom direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam ArrowColor #3A78C2
+skinparam PackageBorderColor #3A78C2
+
+title Bieu do goi giao dien nguoi dung (React)
+
+package "pages" as Pages {
+  package "auth" as PAuth
+  package "main" as PMain
+  package "shop" as PShop
+  package "profile" as PProfile
+}
+
+package "components" as Components {
+  package "layout" as CLayout
+  package "home" as CHome
+  package "product" as CProduct
+  package "cart" as CCart
+  package "checkout" as CCheckout
+  package "ui" as CUI
+}
+
+package "context" as Context {
+  [ShopContext]
+}
+
+package "hooks" as Hooks {
+  [usePlaceOrderCheckout]
+  [useSocket]
+}
+
+package "api" as API {
+  [searchApi]
+}
+
+package "utils" as Utils {
+  [imageUtils]
+  [priceFormat]
+}
+
+Pages --> Components : su dung
+Pages --> Context : tieu thu state
+Pages --> Hooks : goi hook
+Pages --> API : tuy chinh fetch
+
+Hooks --> Context : doc/ghi state
+Hooks --> API : goi endpoint
+
+Components --> Context : doc state
+Components --> Utils : dinh dang
+
+API --> Context : cap nhat token
+
+@enduml

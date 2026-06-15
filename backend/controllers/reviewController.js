@@ -9,7 +9,7 @@ import {
 
 const canReview = async (req, res) => {
     try {
-        const userId = req.body.userId;
+        const userId = req.userId;
         const { productId } = req.params;
         const { orderId } = req.body;
         const result = await canReviewService(userId, productId, orderId);
@@ -22,7 +22,7 @@ const canReview = async (req, res) => {
 
 const createReview = async (req, res) => {
     try {
-        const userId = req.body.userId;
+        const userId = req.userId;
         const review = await createReviewService(userId, req.body, req.files || []);
         res.status(201).json({ success: true, message: "Đánh giá đã gửi", review });
     } catch (error) {
@@ -33,7 +33,7 @@ const createReview = async (req, res) => {
 
 const getMyReviewedProducts = async (req, res) => {
     try {
-        const keys = await getMyReviewedProductsService(req.body.userId);
+        const keys = await getMyReviewedProductsService(req.userId);
         res.json({ success: true, keys });
     } catch (error) {
         console.error("getMyReviewedProducts:", error);
@@ -56,7 +56,7 @@ const getReviewsByProduct = async (req, res) => {
 
 const updateReview = async (req, res) => {
     try {
-        const review = await updateReviewService(req.params.id, req.body.userId, req.body, req.files || []);
+        const review = await updateReviewService(req.params.id, req.userId, req.body, req.files || []);
         res.json({ success: true, message: "Đã cập nhật đánh giá", review });
     } catch (error) {
         console.error("updateReview:", error);
@@ -66,7 +66,7 @@ const updateReview = async (req, res) => {
 
 const deleteReview = async (req, res) => {
     try {
-        await deleteReviewService(req.params.id, req.body.userId);
+        await deleteReviewService(req.params.id, req.userId);
         res.json({ success: true, message: "Đã xóa đánh giá" });
     } catch (error) {
         console.error("deleteReview:", error);

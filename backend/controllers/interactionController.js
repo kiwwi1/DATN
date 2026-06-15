@@ -16,7 +16,8 @@ const MAX_RECOMMENDATION_LIMIT = 100;
 
 const trackInteraction = async (req, res) => {
     try {
-        const { userId, productId, interactionType, value } = req.body;
+        const { productId, interactionType, value } = req.body;
+        const userId = req.userId;
         if (!productId || !interactionType) {
             return res.status(400).json({ success: false, message: "productId and interactionType are required" });
         }
@@ -33,7 +34,7 @@ const trackInteraction = async (req, res) => {
 
 const getRecommendations = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.userId;
         const parsedLimit = Number.parseInt(req.query.limit, 10);
         const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
             ? Math.min(parsedLimit, MAX_RECOMMENDATION_LIMIT)

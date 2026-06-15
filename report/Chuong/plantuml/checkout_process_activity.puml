@@ -11,39 +11,39 @@ title Biểu đồ hoạt động quy trình Đặt hàng - Giữ kho - Thanh to
 start
 
 :Khách hàng bắt đầu checkout;
-:Gọi API preview hóa đơn;
+:Gọi API xem trước hóa đơn;
 :Backend tải sản phẩm, voucher\nvà tính bảng giá nhiều lớp;
-:Hiển thị kết quả preview cho người dùng;
+:Hiển thị kết quả xem trước cho người dùng;
 :Khách hàng chọn phương thức thanh toán\nvà xác nhận đặt hàng;
-:Kiểm tra idempotencyKey;
-:Giữ kho nguyên tử\n(reserveStockByUnits);
+:Kiểm tra mã chống trùng đơn;
+:Giữ kho nguyên tử;
 
 if (Đủ hàng trong kho?) then (Có)
-  :Tạo đơn với thông tin giữ kho\nstockReservedAt, reservationExpiresAt;
+  :Tạo đơn với thông tin\nthời điểm và thời hạn giữ kho;
 
   if (Phương thức thanh toán?) then (COD)
-    :Đặt trạng thái đơn = "Order Placed";
-    :Cập nhật sold,\nxóa giỏ hàng,\ngửi thông báo vendor;
+    :Tạo đơn ở trạng thái Đã đặt hàng;
+    :Cập nhật số lượng bán,\nxóa giỏ hàng,\ngửi thông báo cho nhà bán;
     stop
   else (Stripe/VNPay)
-    :Giữ payment = false;
-    :Tạo Stripe Session hoặc VNPay URL;
+    :Giữ cờ chờ thanh toán;
+    :Tạo phiên Stripe hoặc đường dẫn VNPay;
     :Điều hướng khách hàng đến\ncổng thanh toán;
 
     if (Thanh toán thành công?) then (Có)
       :Nhận Stripe webhook hoặc\nVNPay callback hợp lệ;
-      :Cập nhật payment = true;
-      :Cập nhật sold,\nxóa giỏ hàng,\ngửi thông báo vendor;
+      :Cập nhật trạng thái\nthanh toán thành công;
+      :Cập nhật số lượng bán,\nxóa giỏ hàng,\ngửi thông báo cho nhà bán;
       stop
     else (Không / quá hạn)
       :Tác vụ nền phát hiện đơn quá hạn;
-      :Chuyển trạng thái đơn = "Cancelled";
-      :Hoàn kho và hoàn lượt voucher;
+      :Chuyển trạng thái đơn sang Đã hủy;
+      :Hoàn trả tồn kho và\nhoàn lượt sử dụng voucher;
       stop
     endif
   endif
 else (Không)
-  :Trả lỗi OUT_OF_STOCK;
+  :Trả lỗi không đủ tồn kho;
   stop
 endif
 

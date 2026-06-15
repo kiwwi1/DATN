@@ -19,45 +19,45 @@ participant "Client (React)" as Client
 participant "Backend (Node.js)" as BE
 database "Database\n(MongoDB/Redis)" as DB
 participant "Cổng thanh toán\n(Stripe/VNPay)" as PG
-participant "Reservation Sweeper" as Sweeper
+participant "Tác vụ nền\n(Reservation Sweeper)" as Sweeper
 
 == Stripe ==
-Client -> BE: Yêu cầu thanh toán Stripe\ncho order đã tạo
-BE -> PG: Create Checkout Session
-PG --> BE: sessionUrl
-BE -> DB: Lưu stripeSessionId,\nstripeSessionUrl
-BE --> Client: orderId, sessionUrl
-Client -> PG: Redirect sang Stripe
+Client -> BE: Yêu cầu khởi tạo thanh toán Stripe\ncho đơn hàng đã tạo
+BE -> PG: Tạo phiên thanh toán Stripe
+PG --> BE: Đường dẫn phiên thanh toán
+BE -> DB: Lưu thông tin phiên thanh toán Stripe
+BE --> Client: Mã đơn hàng, đường dẫn phiên
+Client -> PG: Điều hướng sang Stripe
 Buyer -> PG: Xác nhận thanh toán
-PG --> BE: Stripe webhook\ncheckout.session.completed
-BE -> DB: Mark payment = true
-BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
+PG --> BE: Stripe webhook: thanh toán hoàn tất
+BE -> DB: Cập nhật trạng thái\nthanh toán thành công
+BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
 BE --> PG: HTTP 200
-PG --> Client: Redirect /verify?success=true&orderId=...
+PG --> Client: Điều hướng về trang xác nhận đơn hàng
 Client --> Buyer: Hiển thị thanh toán thành công
 
 == VNPay ==
-Client -> BE: Yêu cầu thanh toán VNPay\ncho order đã tạo
-BE -> PG: Tạo VNPay URL
-PG --> BE: paymentUrl
-BE -> DB: Lưu vnpPaymentUrl
-BE --> Client: orderId, paymentUrl
-Client -> PG: Redirect sang VNPay
+Client -> BE: Yêu cầu khởi tạo thanh toán VNPay\ncho đơn hàng đã tạo
+BE -> PG: Tạo đường dẫn thanh toán VNPay
+PG --> BE: Đường dẫn thanh toán
+BE -> DB: Lưu đường dẫn thanh toán VNPay
+BE --> Client: Mã đơn hàng, đường dẫn thanh toán
+Client -> PG: Điều hướng sang VNPay
 Buyer -> PG: Xác nhận thanh toán
-PG --> BE: GET /api/order/vnpay-return?... (signed)
-BE -> DB: Xác minh chữ ký,\nmark payment = true
-BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
-BE --> PG: Redirect /verify?vnpay=1&success=true&orderId=...
+PG --> BE: GET callback có chữ ký số
+BE -> DB: Xác minh chữ ký số,\ncập nhật trạng thái thanh toán thành công
+BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
+BE --> PG: Điều hướng về trang xác nhận đơn hàng
 PG --> Client: Trả kết quả về frontend
 Client --> Buyer: Hiển thị kết quả thanh toán
 
 == Quá hạn thanh toán ==
 loop Định kỳ
-  Sweeper -> DB: Tìm đơn chưa thanh toán\nquá reservationExpiresAt
+  Sweeper -> DB: Tìm đơn chưa thanh toán\nquá thời hạn giữ kho
   DB --> Sweeper: Danh sách đơn quá hạn
-  Sweeper -> DB: Chuyển status = "Cancelled"
-  Sweeper -> DB: releaseStockByUnits()
-  Sweeper -> DB: releaseVoucherUsage()
+  Sweeper -> DB: Chuyển trạng thái đơn sang Đã hủy
+  Sweeper -> DB: Hoàn trả tồn kho
+  Sweeper -> DB: Hoàn lượt sử dụng voucher
 end
 
 @enduml

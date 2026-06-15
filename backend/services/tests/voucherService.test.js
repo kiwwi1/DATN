@@ -121,6 +121,45 @@ describe("computeOrderPricing", () => {
     expect(pricing.shopDiscount).toBe(0);
     expect(pricing.rejectedVouchers.length).toBe(1);
   });
+
+  it("rejects second shop voucher for the same vendor", () => {
+    const items = [{ price: 200000, quantity: 1, vendorId: "shop-a" }];
+    const vouchers = [
+      { _id: "v1", code: "SHOP10", type: "SHOP", vendorId: "shop-a", discountType: "FIXED", discountValue: 10000, minOrderValue: 0 },
+      { _id: "v2", code: "SHOP20", type: "SHOP", vendorId: "shop-a", discountType: "FIXED", discountValue: 20000, minOrderValue: 0 },
+    ];
+    const pricing = computeOrderPricing({ items, vouchers, shippingFee: 0 });
+    expect(pricing.appliedVouchers.length).toBe(1);
+    expect(pricing.appliedVouchers[0].code).toBe("SHOP10");
+    expect(pricing.rejectedVouchers.length).toBe(1);
+    expect(pricing.rejectedVouchers[0].code).toBe("SHOP20");
+  });
+
+  it("rejects second platform voucher in the same order", () => {
+    const items = [{ price: 300000, quantity: 1, vendorId: "shop-a" }];
+    const vouchers = [
+      { _id: "p1", code: "PLAT10", type: "PLATFORM", discountType: "FIXED", discountValue: 10000, minOrderValue: 0 },
+      { _id: "p2", code: "PLAT20", type: "PLATFORM", discountType: "FIXED", discountValue: 20000, minOrderValue: 0 },
+    ];
+    const pricing = computeOrderPricing({ items, vouchers, shippingFee: 0 });
+    expect(pricing.appliedVouchers.length).toBe(1);
+    expect(pricing.appliedVouchers[0].code).toBe("PLAT10");
+    expect(pricing.rejectedVouchers.length).toBe(1);
+    expect(pricing.rejectedVouchers[0].code).toBe("PLAT20");
+  });
+
+  it("rejects second shipping voucher in the same order", () => {
+    const items = [{ price: 100000, quantity: 1, vendorId: "shop-a" }];
+    const vouchers = [
+      { _id: "s1", code: "SHIP5", type: "SHIPPING", discountType: "FIXED", discountValue: 5000, minOrderValue: 0 },
+      { _id: "s2", code: "SHIP10", type: "SHIPPING", discountType: "FIXED", discountValue: 10000, minOrderValue: 0 },
+    ];
+    const pricing = computeOrderPricing({ items, vouchers, shippingFee: 30000 });
+    expect(pricing.appliedVouchers.length).toBe(1);
+    expect(pricing.appliedVouchers[0].code).toBe("SHIP5");
+    expect(pricing.rejectedVouchers.length).toBe(1);
+    expect(pricing.rejectedVouchers[0].code).toBe("SHIP10");
+  });
 });
 
 describe("assertVoucherValid", () => {

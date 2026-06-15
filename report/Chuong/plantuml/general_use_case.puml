@@ -20,6 +20,7 @@ rectangle "Sàn thương mại điện tử đa nhà bán hàng" {
   package "Mua hàng và thanh toán" {
     usecase "Xem gợi ý\ncá nhân hóa" as UC_Rec
     usecase "Mua sắm, đặt hàng\nvà thanh toán" as UC_Shopping
+    usecase "Chat và thông báo\nthời gian thực" as UC_Chat
   }
 
   package "Quản lý gian hàng" {
@@ -42,10 +43,12 @@ UC_Stats -[hidden]right-> UC_Monitor
 Buyer --> UC_Auth
 Buyer --> UC_Rec
 Buyer --> UC_Shopping
+Buyer --> UC_Chat
 
 Vendor --> UC_Auth
 Vendor --> UC_Merchant
 Vendor --> UC_Stats
+Vendor --> UC_Chat
 
 Ops --> UC_OpsData
 Ops --> UC_Monitor

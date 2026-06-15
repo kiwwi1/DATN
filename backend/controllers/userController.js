@@ -99,7 +99,7 @@ const verifyEmail = async (req, res) => {
 const registerVendor = async (req, res) => {
     try {
         const { shopName, shopAddress, phone } = req.body;
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId;
         await registerVendorService(userId, shopName, shopAddress, phone);
         res.json({ success: true, message: "Vendor registered successfully" });
     } catch (error) {
@@ -109,7 +109,7 @@ const registerVendor = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
     try {
-        const user = await getUserProfileService(req.userId || req.body.userId);
+        const user = await getUserProfileService(req.userId);
         res.json({ success: true, user });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -119,7 +119,7 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
     try {
         const { name, email, phone } = req.body;
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId;
         await updateUserProfileService(userId, { name, email, phone }, req.file);
         const user = await getUserProfileService(userId);
         res.json({ success: true, message: "Profile updated successfully", user });
@@ -184,7 +184,7 @@ const logoutUser = async (req, res) => {
 
 const changePassword = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId;
         const { currentPassword, newPassword } = req.body;
         await changePasswordService(userId, currentPassword, newPassword);
         res.json({ success: true, message: "Đổi mật khẩu thành công" });
@@ -195,7 +195,7 @@ const changePassword = async (req, res) => {
 
 const getNotificationPrefs = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId;
         const prefs = await getNotificationPrefsService(userId);
         res.json({ success: true, prefs });
     } catch (error) {
@@ -205,7 +205,7 @@ const getNotificationPrefs = async (req, res) => {
 
 const updateNotificationPrefs = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
+        const userId = req.userId;
         const prefs = await updateNotificationPrefsService(userId, req.body);
         res.json({ success: true, prefs });
     } catch (error) {

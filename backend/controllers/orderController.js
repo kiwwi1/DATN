@@ -29,7 +29,8 @@ const buildOrderErrorResponse = (res, error, fallbackMessage) => {
 
 const placeOrder = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
+        const { items, amount, address, addressId, voucherCodes } = req.body;
+        const userId = req.userId;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
@@ -44,7 +45,8 @@ const placeOrder = async (req, res) => {
 
 const placeOrderStripe = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
+        const { items, amount, address, addressId, voucherCodes } = req.body;
+        const userId = req.userId;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
@@ -62,7 +64,7 @@ const verifyStripePayment = async (req, res) => {
     try {
         const { orderId } = req.body;
         if (!orderId) return res.status(400).json({ success: false, message: "Order ID is required" });
-        const result = await getStripePaymentStatusService(orderId, req.body.userId);
+        const result = await getStripePaymentStatusService(orderId, req.userId);
         return res.json({ success: true, ...result });
     } catch (error) {
         return buildOrderErrorResponse(res, error, "Failed to fetch Stripe payment status");
@@ -87,7 +89,8 @@ const stripeWebhook = async (req, res) => {
 
 const placeOrderVNPay = async (req, res) => {
     try {
-        const { userId, items, amount, address, addressId, voucherCodes } = req.body;
+        const { items, amount, address, addressId, voucherCodes } = req.body;
+        const userId = req.userId;
         if (addressId) {
             await markAddressUsedService(userId, addressId);
         }
@@ -147,7 +150,7 @@ const allOrders = async (req, res) => {
 
 const userOrders = async (req, res) => {
     try {
-        const orders = await userOrdersService(req.body.userId);
+        const orders = await userOrdersService(req.userId);
         res.json({ success: true, orders });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -193,7 +196,7 @@ const updateVendorOrderStatus = async (req, res) => {
 const cancelOrder = async (req, res) => {
     try {
         const { orderId, cancelReason } = req.body;
-        const userId = req.body.userId;
+        const userId = req.userId;
         if (!orderId) return res.status(400).json({ success: false, message: "Order ID is required" });
         const order = await cancelOrderService({ orderId, userId, cancelReason, cancelledBy: "user" });
         res.json({ success: true, message: "Đơn hàng đã được hủy thành công", order });

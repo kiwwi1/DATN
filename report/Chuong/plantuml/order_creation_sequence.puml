@@ -19,62 +19,62 @@ participant "Client (React)" as Client
 participant "Backend (Node.js)" as BE
 database "Database\n(MongoDB/Redis)" as DB
 
-== Preview hóa đơn ==
+== Xem trước hóa đơn ==
 Buyer -> Client: Chọn sản phẩm, voucher\nvà bấm Checkout
-Client -> BE: POST /api/order/preview
+Client -> BE: Yêu cầu xem trước hóa đơn
 BE -> DB: Tải sản phẩm,\nbiến thể, voucher
 DB --> BE: Dữ liệu định giá
-BE -> BE: computeOrderPricing()
+BE -> BE: Tính giá và áp dụng\nvoucher nhiều lớp
 BE --> Client: Bảng kê giá,\nvoucher hợp lệ / bị từ chối
 
 == Tạo đơn và giữ kho ==
 Buyer -> Client: Chọn phương thức thanh toán\nvà xác nhận đặt hàng
 
 alt COD
-  Client -> BE: POST /api/order/place-order
-  BE -> DB: Kiểm tra idempotencyKey
-  BE -> DB: reserveStockByUnits()
-  alt Hết hàng
-    DB --> BE: Không đủ tồn kho
-    BE --> Client: OUT_OF_STOCK
-    Client --> Buyer: Thông báo hết hàng
+  Client -> BE: Yêu cầu đặt hàng (COD)
+  BE -> DB: Kiểm tra mã chống trùng đơn
+  BE -> DB: Giữ kho nguyên tử
+  alt Không đủ tồn kho
+    DB --> BE: Thiếu hàng
+    BE --> Client: Thông báo hết hàng
+    Client --> Buyer: Hiển thị sản phẩm không đủ kho
   else Giữ kho thành công
-    DB --> BE: Giữ kho thành công
-    BE -> DB: Tạo order\nstatus = "Order Placed"
-    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
-    BE -> DB: updateProductSold()\nclearOrderedItemsFromCart()
-    BE --> Client: orderId, success
+    DB --> BE: Xác nhận đã giữ kho
+    BE -> DB: Tạo đơn ở trạng thái\nĐã đặt hàng
+    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
+    BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
+    BE --> Client: Mã đơn hàng, thành công
     Client --> Buyer: Hiển thị đơn đã tạo
   end
 
 else Stripe
-  Client -> BE: POST /api/order/place-order-stripe
-  BE -> DB: Kiểm tra idempotencyKey
-  BE -> DB: reserveStockByUnits()
-  alt Hết hàng
-    DB --> BE: Không đủ tồn kho
-    BE --> Client: OUT_OF_STOCK
-    Client --> Buyer: Thông báo hết hàng
+  Client -> BE: Yêu cầu đặt hàng (Stripe)
+  BE -> DB: Kiểm tra mã chống trùng đơn
+  BE -> DB: Giữ kho nguyên tử
+  alt Không đủ tồn kho
+    DB --> BE: Thiếu hàng
+    BE --> Client: Thông báo hết hàng
+    Client --> Buyer: Hiển thị sản phẩm không đủ kho
   else Giữ kho thành công
-    DB --> BE: Giữ kho thành công
-    BE -> DB: Tạo order\nstatus = "Order Placed",\npayment = false
-    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
-    BE --> Client: orderId,\nchuẩn bị tạo Stripe Session
+    DB --> BE: Xác nhận đã giữ kho
+    BE -> DB: Tạo đơn ở trạng thái Đã đặt hàng,\ncờ chờ thanh toán
+    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
+    BE --> Client: Mã đơn hàng,\nchuẩn bị tạo phiên Stripe
   end
 
 else VNPay
-  Client -> BE: POST /api/order/place-order-vnpay
-  BE -> DB: Kiểm tra idempotencyKey
-  BE -> DB: reserveStockByUnits()
-  alt Hết hàng
-    DB --> BE: Không đủ tồn kho
-    BE --> Client: OUT_OF_STOCK
-    Client --> Buyer: Thông báo hết hàng
+  Client -> BE: Yêu cầu đặt hàng (VNPay)
+  BE -> DB: Kiểm tra mã chống trùng đơn
+  BE -> DB: Giữ kho nguyên tử
+  alt Không đủ tồn kho
+    DB --> BE: Thiếu hàng
+    BE --> Client: Thông báo hết hàng
+    Client --> Buyer: Hiển thị sản phẩm không đủ kho
   else Giữ kho thành công
-    DB --> BE: Giữ kho thành công
-    BE -> DB: Tạo order\nstatus = "Order Placed",\npayment = false
-    BE -> DB: Lưu voucher,\nstockReservedAt,\nreservationExpiresAt
-    BE --> Client: orderId,\nchuẩn bị tạo VNPay URL
+    DB --> BE: Xác nhận đã giữ kho
+    BE -> DB: Tạo đơn ở trạng thái Đã đặt hàng,\ncờ chờ thanh toán
+    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
+    BE --> Client: Mã đơn hàng,\nchuẩn bị tạo đường dẫn VNPay
   end
 end
 

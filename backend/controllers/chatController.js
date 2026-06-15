@@ -8,7 +8,7 @@ import {
 export const initConversation = async (req, res) => {
     try {
         const { vendorId } = req.body;
-        const buyerId = req.body.userId;
+        const buyerId = req.userId;
         const conversation = await initConversationService(buyerId, vendorId);
         res.json({ success: true, conversation });
     } catch (error) {
@@ -18,7 +18,7 @@ export const initConversation = async (req, res) => {
 
 export const listConversations = async (req, res) => {
     try {
-        const conversations = await getConversationsService(req.body.userId);
+        const conversations = await getConversationsService(req.userId);
         res.json({ success: true, conversations });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
@@ -30,7 +30,7 @@ export const getMessages = async (req, res) => {
         const { id } = req.params;
         const { messages, conversation, viewerRole } = await getMessagesService(
             id,
-            req.body.userId
+            req.userId
         );
         res.json({ success: true, conversation, messages, viewerRole });
     } catch (error) {
@@ -42,7 +42,7 @@ export const sendMessage = async (req, res) => {
     try {
         const { id } = req.params;
         const { content, productId } = req.body;
-        const message = await sendMessageService(id, req.body.userId, content, productId);
+        const message = await sendMessageService(id, req.userId, content, productId);
 
         if (productId) {
             await message.populate("productId", "name price image vendorId");

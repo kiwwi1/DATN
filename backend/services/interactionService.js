@@ -14,6 +14,7 @@ const ALLOWED_INTERACTIONS = new Set([
     "timeSpent",
 ]);
 const BOOLEAN_INTERACTIONS = new Set(["reviewed", "wishlisted"]);
+const HIGH_SIGNAL_INTERACTIONS = new Set(["purchased", "addedToCart", "wishlisted", "rated", "reviewed"]);
 
 const REC_CACHE_TTL_SEC = 300;
 const REDIS_PREFIX = process.env.REDIS_PREFIX ?? "datn";
@@ -266,8 +267,12 @@ export const trackInteractionService = async (userId, productId, interactionType
         { $set: { interactionScore: score, decayFactor: updated.decayFactor } }
     );
 
-    // Invalidate recommendation cache so next fetch reflects new interaction
-    await invalidateUserRecCache(String(userId));
+    // Only invalidate recommendation cache for high-signal interactions.
+    // Low-signal events (viewed, clicked, searched, timeSpent) shift scores
+    // only marginally and would thrash the cache during active browsing sessions.
+    if (HIGH_SIGNAL_INTERACTIONS.has(interactionType)) {
+        await invalidateUserRecCache(String(userId));
+    }
 
     return score;
 };

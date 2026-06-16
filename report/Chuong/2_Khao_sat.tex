@@ -132,87 +132,183 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
 Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đóng vai trò quan trọng trong việc vận hành toàn hệ thống.
 
 \subsection{Đặc tả ca sử dụng 1: Đăng nhập hệ thống hợp nhất và Bảo mật}
-\begin{itemize}
-    \item \textbf{Tên ca sử dụng:} Đăng nhập hệ thống (Login).
-    \item \textbf{Tác nhân chính:} Khách hàng, Đối tác bán hàng.
-    \item \textbf{Tiền điều kiện:} Người dùng đã đăng ký tài khoản và xác minh email thành công.
-    \item \textbf{Hậu điều kiện:} Người dùng đăng nhập thành công, nhận được token truy cập và token làm mới trong cookie bảo mật, đồng thời được gắn với phiên xác thực quản lý phía server để điều hướng theo đúng quyền hạn.
-    \item \textbf{Luồng sự kiện chính:}
-    \begin{enumerate}
-        \item Người dùng truy cập trang đăng nhập, điền email và mật khẩu hoặc chọn đăng nhập qua Google.
-        \item Hệ thống kiểm tra tần suất yêu cầu theo IP và email. Nếu vượt ngưỡng cho phép, trả về lỗi HTTP 429 và thông tin thời gian chờ.
-        \item Hệ thống kiểm tra thông tin tài khoản trong cơ sở dữ liệu, đối chiếu mật khẩu bằng thuật toán băm hoặc xác thực với nhà cung cấp OAuth tương ứng.
-        \item Nếu hợp lệ, hệ thống cấp token truy cập, token làm mới và tạo bản ghi phiên xác thực phía server phục vụ cơ chế xoay vòng token.
-        \item Hệ thống ghi token vào cookie với các cờ bảo mật phù hợp, sau đó giao diện lấy thông tin hồ sơ và mở quyền truy cập tương ứng.
-    \end{enumerate}
-    \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
-    \begin{itemize}
-        \item \textit{Tại bước 3 (Thông tin sai):} Hệ thống trả về lỗi chung ``Invalid credentials'' mà không chỉ rõ email hay mật khẩu sai để giảm nguy cơ dò tìm tài khoản.
-        \item \textit{Tại bước 3 (Email chưa xác minh):} Hệ thống trả về lỗi ``Email chưa được xác minh'' và yêu cầu người dùng hoàn tất bước xác minh trước khi đăng nhập.
-    \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Đặc tả ca sử dụng 1: Đăng nhập hệ thống (Login)}
+\label{table:uc1_login}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\hline
+\textbf{Trường thông tin} & \textbf{Nội dung} \\
+\hline
+Tên ca sử dụng & Đăng nhập hệ thống (Login) \\
+\hline
+Tác nhân chính & Khách hàng, Đối tác bán hàng \\
+\hline
+Tiền điều kiện & Người dùng đã đăng ký tài khoản và xác minh email thành công \\
+\hline
+Hậu điều kiện & Người dùng đăng nhập thành công, nhận được token truy cập và token làm mới trong cookie bảo mật, đồng thời được gắn với phiên xác thực quản lý phía server để điều hướng theo đúng quyền hạn \\
+\hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{enumerate}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item Người dùng truy cập trang đăng nhập, điền email và mật khẩu hoặc chọn đăng nhập qua Google.
+    \item Hệ thống kiểm tra tần suất yêu cầu theo IP và email. Nếu vượt ngưỡng cho phép, trả về lỗi HTTP~429 và thông tin thời gian chờ.
+    \item Hệ thống kiểm tra thông tin tài khoản trong cơ sở dữ liệu, đối chiếu mật khẩu bằng thuật toán băm hoặc xác thực với nhà cung cấp OAuth tương ứng.
+    \item Nếu hợp lệ, hệ thống cấp token truy cập, token làm mới và tạo bản ghi phiên xác thực phía server phục vụ cơ chế xoay vòng token.
+    \item Hệ thống ghi token vào cookie với các cờ bảo mật phù hợp, sau đó giao diện lấy thông tin hồ sơ và mở quyền truy cập tương ứng.
+\end{enumerate}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+Luồng ngoại lệ &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{itemize}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item \textit{Bước 3 -- Thông tin sai:} Hệ thống trả về lỗi chung ``Invalid credentials'' mà không chỉ rõ trường nào sai để giảm nguy cơ dò tìm tài khoản.
+    \item \textit{Bước 3 -- Email chưa xác minh:} Hệ thống trả về lỗi ``Email chưa được xác minh'' và yêu cầu người dùng hoàn tất bước xác minh trước khi đăng nhập.
 \end{itemize}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Đặc tả ca sử dụng 2: Đặt hàng và Giữ kho nguyên tử (Place Order)}
-\begin{itemize}
-    \item \textbf{Tên ca sử dụng:} Đặt hàng và Giữ kho nguyên tử (Place Order).
-    \item \textbf{Tác nhân chính:} Khách hàng.
-    \item \textbf{Tiền điều kiện:} Khách hàng đã đăng nhập hệ thống và có ít nhất một sản phẩm hợp lệ trong giỏ hàng.
-    \item \textbf{Hậu điều kiện:} Đơn hàng được tạo thành công trong cơ sở dữ liệu với thông tin giữ kho, trạng thái và cờ thanh toán phù hợp với phương thức đã chọn; số lượng kho của các sản phẩm liên quan được cập nhật nhất quán.
-    \item \textbf{Luồng sự kiện chính:}
-    \begin{enumerate}
-        \item Khách hàng nhấn nút ``Đặt hàng'' trên giao diện thanh toán. Client gửi yêu cầu kèm giỏ hàng, địa chỉ giao hàng, danh sách mã voucher, phương thức thanh toán và mã chống trùng đơn.
-        \item Backend kiểm tra trùng lặp thông qua mã chống trùng đơn và định danh người dùng. Nếu đơn hàng đã tồn tại, hệ thống trả lại kết quả trước đó để tránh tạo đơn lặp.
-        \item Hệ thống thực hiện thao tác giữ kho nguyên tử: kiểm tra và giảm trừ tổng kho cùng kho biến thể trực tiếp tại tầng dữ liệu bằng câu lệnh cập nhật nguyên tử.
-        \item Hệ thống tải thông tin voucher, kiểm tra điều kiện hợp lệ và ghi nhận lượt sử dụng theo đúng luồng nghiệp vụ.
-        \item Đơn hàng được tạo với bảng kê tài chính đầy đủ, kèm thông tin thời điểm và thời hạn giữ kho.
-        \item Nếu thanh toán bằng COD, đơn hàng được ghi nhận ở trạng thái Đã đặt hàng và hệ thống tiếp tục cập nhật số lượng bán, giỏ hàng và thông báo liên quan. Nếu thanh toán online, đơn hàng vẫn ở trạng thái Đã đặt hàng với cờ chờ thanh toán và hệ thống tạo liên kết Stripe hoặc VNPay để chuyển khách hàng sang bước thanh toán.
-    \end{enumerate}
-    \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
-    \begin{itemize}
-        \item \textit{Tại bước 3 (Hết hàng hoặc thiếu hàng):} Nếu một sản phẩm không đủ tồn kho, hệ thống trả về thông báo hết hàng kèm thông tin sản phẩm thiếu. Mọi phần tồn kho đã được giữ trước đó trong cùng giao dịch sẽ được hoàn lại tự động và quá trình tạo đơn bị hủy.
-    \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Đặc tả ca sử dụng 2: Đặt hàng và Giữ kho nguyên tử (Place Order)}
+\label{table:uc2_placeorder}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\hline
+\textbf{Trường thông tin} & \textbf{Nội dung} \\
+\hline
+Tên ca sử dụng & Đặt hàng và Giữ kho nguyên tử (Place Order) \\
+\hline
+Tác nhân chính & Khách hàng \\
+\hline
+Tiền điều kiện & Khách hàng đã đăng nhập hệ thống và có ít nhất một sản phẩm hợp lệ trong giỏ hàng \\
+\hline
+Hậu điều kiện & Đơn hàng được tạo thành công trong cơ sở dữ liệu với thông tin giữ kho, trạng thái và cờ thanh toán phù hợp với phương thức đã chọn; số lượng kho của các sản phẩm liên quan được cập nhật nhất quán \\
+\hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{enumerate}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item Khách hàng nhấn nút ``Đặt hàng'' trên giao diện thanh toán. Client gửi yêu cầu kèm giỏ hàng, địa chỉ giao hàng, danh sách mã voucher, phương thức thanh toán và mã chống trùng đơn.
+    \item Backend kiểm tra trùng lặp thông qua mã chống trùng đơn và định danh người dùng. Nếu đơn hàng đã tồn tại, hệ thống trả lại kết quả trước đó để tránh tạo đơn lặp.
+    \item Hệ thống thực hiện thao tác giữ kho nguyên tử: kiểm tra và giảm trừ tổng kho cùng kho biến thể trực tiếp tại tầng dữ liệu bằng câu lệnh cập nhật nguyên tử.
+    \item Hệ thống tải thông tin voucher, kiểm tra điều kiện hợp lệ và ghi nhận lượt sử dụng theo đúng luồng nghiệp vụ.
+    \item Đơn hàng được tạo với bảng kê tài chính đầy đủ, kèm thông tin thời điểm và thời hạn giữ kho.
+    \item Nếu thanh toán bằng COD, đơn hàng được ghi nhận ở trạng thái Đã đặt hàng và hệ thống cập nhật số lượng bán, giỏ hàng và thông báo. Nếu thanh toán online, hệ thống tạo liên kết Stripe hoặc VNPay để chuyển khách hàng sang bước thanh toán.
+\end{enumerate}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+Luồng ngoại lệ &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{itemize}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item \textit{Bước 3 -- Hết hàng hoặc thiếu hàng:} Nếu một sản phẩm không đủ tồn kho, hệ thống trả về thông báo hết hàng kèm thông tin sản phẩm thiếu. Mọi phần tồn kho đã được giữ trong cùng giao dịch sẽ được hoàn lại tự động và quá trình tạo đơn bị hủy.
 \end{itemize}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Đặc tả ca sử dụng 3: Áp dụng mã giảm giá đa lớp (Apply Vouchers)}
-\begin{itemize}
-    \item \textbf{Tên ca sử dụng:} Áp dụng mã giảm giá đa lớp (Apply Vouchers).
-    \item \textbf{Tác nhân chính:} Khách hàng.
-    \item \textbf{Tiền điều kiện:} Khách hàng đang ở màn hình thanh toán đơn hàng.
-    \item \textbf{Hậu điều kiện:} Số tiền giảm giá được tính toán nhất quán theo các lớp giá và khuyến mãi, đồng thời hiển thị chi tiết trên hóa đơn thanh toán của khách hàng.
-    \item \textbf{Luồng sự kiện chính:}
-    \begin{enumerate}
-        \item Khách hàng điền hoặc chọn các mã voucher trên giao diện giỏ hàng hoặc thanh toán.
-        \item Hệ thống gửi danh sách sản phẩm và mã giảm giá lên API xem trước đơn hàng tại backend.
-        \item Backend tải dữ liệu voucher từ cơ sở dữ liệu, xác thực tính hợp lệ như thời hạn, trạng thái kích hoạt và số lượt còn lại.
-        \item Công cụ tính giá tại backend áp dụng thứ tự xử lý gồm giá bán hiện hành của sản phẩm, giảm giá theo shop, giảm giá nền tảng và giảm giá phí vận chuyển.
-        \item Hệ thống trả về bảng kê tính toán chi tiết cùng danh sách voucher được chấp nhận và voucher bị từ chối kèm lý do cụ thể.
-    \end{enumerate}
-    \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
-    \begin{itemize}
-        \item \textit{Voucher không đạt giá trị đơn tối thiểu:} Trả về lý do từ chối cụ thể để hiển thị thân thiện trên màn hình thanh toán.
-        \item \textit{Voucher của shop không có sản phẩm tương ứng trong đơn:} Bỏ qua voucher đó và ghi nhận trạng thái từ chối áp dụng.
-    \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Đặc tả ca sử dụng 3: Áp dụng mã giảm giá đa lớp (Apply Vouchers)}
+\label{table:uc3_voucher}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\hline
+\textbf{Trường thông tin} & \textbf{Nội dung} \\
+\hline
+Tên ca sử dụng & Áp dụng mã giảm giá đa lớp (Apply Vouchers) \\
+\hline
+Tác nhân chính & Khách hàng \\
+\hline
+Tiền điều kiện & Khách hàng đang ở màn hình thanh toán đơn hàng \\
+\hline
+Hậu điều kiện & Số tiền giảm giá được tính toán nhất quán theo các lớp giá và khuyến mãi, đồng thời hiển thị chi tiết trên hóa đơn thanh toán của khách hàng \\
+\hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{enumerate}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item Khách hàng điền hoặc chọn các mã voucher trên giao diện giỏ hàng hoặc thanh toán.
+    \item Hệ thống gửi danh sách sản phẩm và mã giảm giá lên API xem trước đơn hàng tại backend.
+    \item Backend tải dữ liệu voucher từ cơ sở dữ liệu, xác thực tính hợp lệ như thời hạn, trạng thái kích hoạt và số lượt còn lại.
+    \item Công cụ tính giá tại backend áp dụng thứ tự xử lý gồm giá bán hiện hành của sản phẩm, giảm giá theo shop, giảm giá nền tảng và giảm giá phí vận chuyển.
+    \item Hệ thống trả về bảng kê tính toán chi tiết cùng danh sách voucher được chấp nhận và voucher bị từ chối kèm lý do cụ thể.
+\end{enumerate}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+Luồng ngoại lệ &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{itemize}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item \textit{Voucher không đạt giá trị đơn tối thiểu:} Trả về lý do từ chối cụ thể để hiển thị thân thiện trên màn hình thanh toán.
+    \item \textit{Voucher của shop không có sản phẩm tương ứng trong đơn:} Bỏ qua voucher đó và ghi nhận trạng thái từ chối áp dụng.
 \end{itemize}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Đặc tả ca sử dụng 4: Quản lý và Xem thống kê số liệu bán hàng (Merchant Stats)}
-\begin{itemize}
-    \item \textbf{Tên ca sử dụng:} Xem báo cáo thống kê doanh số (View Sales Stats).
-    \item \textbf{Tác nhân chính:} Đối tác bán hàng (Vendor).
-    \item \textbf{Tiền điều kiện:} Tài khoản có quyền nhà bán hàng và đang truy cập bảng quản trị gian hàng.
-    \item \textbf{Hậu điều kiện:} Hiển thị các chỉ số doanh thu, đơn hàng và danh sách sản phẩm cần chú ý về tồn kho trên giao diện quản trị.
-    \item \textbf{Luồng sự kiện chính:}
-    \begin{enumerate}
-        \item Thương nhân truy cập vào mục ``Thống kê'' trên bảng điều khiển.
-        \item Client gửi yêu cầu lấy dữ liệu thống kê doanh thu kèm thông tin xác thực phiên.
-        \item Backend xác thực phiên, xác định định danh gian hàng của người dùng và kiểm tra quyền truy cập.
-        \item Hệ thống tổng hợp dữ liệu doanh thu theo ngày, số lượng đơn theo trạng thái và doanh số theo tháng.
-        \item Client nhận dữ liệu tổng hợp, hiển thị các thẻ chỉ số và vẽ biểu đồ bằng thư viện Recharts.
-    \end{enumerate}
-    \item \textbf{Luồng sự kiện phát sinh (Ngoại lệ):}
-    \begin{itemize}
-        \item \textit{Sản phẩm dưới ngưỡng tồn:} Hệ thống lọc ra các sản phẩm của gian hàng có tổng số lượng tồn kho ở mức thấp để hiển thị cảnh báo giúp thương nhân chủ động bổ sung hàng hóa.
-    \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Đặc tả ca sử dụng 4: Xem báo cáo thống kê doanh số (View Sales Stats)}
+\label{table:uc4_stats}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\hline
+\textbf{Trường thông tin} & \textbf{Nội dung} \\
+\hline
+Tên ca sử dụng & Xem báo cáo thống kê doanh số (View Sales Stats) \\
+\hline
+Tác nhân chính & Đối tác bán hàng (Vendor) \\
+\hline
+Tiền điều kiện & Tài khoản có quyền nhà bán hàng và đang truy cập bảng quản trị gian hàng \\
+\hline
+Hậu điều kiện & Hiển thị các chỉ số doanh thu, đơn hàng và danh sách sản phẩm cần chú ý về tồn kho trên giao diện quản trị \\
+\hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{enumerate}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item Thương nhân truy cập vào mục ``Thống kê'' trên bảng điều khiển.
+    \item Client gửi yêu cầu lấy dữ liệu thống kê doanh thu kèm thông tin xác thực phiên.
+    \item Backend xác thực phiên, xác định định danh gian hàng của người dùng và kiểm tra quyền truy cập.
+    \item Hệ thống tổng hợp dữ liệu doanh thu theo ngày, số lượng đơn theo trạng thái và doanh số theo tháng.
+    \item Client nhận dữ liệu tổng hợp, hiển thị các thẻ chỉ số và vẽ biểu đồ bằng thư viện Recharts.
+\end{enumerate}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+Luồng ngoại lệ &
+\begin{minipage}[t]{10.3cm}
+\vspace{3pt}
+\begin{itemize}[leftmargin=1.5em, topsep=0pt, parsep=0pt, itemsep=2pt, partopsep=0pt]
+    \item \textit{Sản phẩm dưới ngưỡng tồn:} Hệ thống lọc ra các sản phẩm của gian hàng có tổng số lượng tồn kho ở mức thấp để hiển thị cảnh báo giúp thương nhân chủ động bổ sung hàng hóa.
 \end{itemize}
+\vspace{3pt}
+\end{minipage} \\
+\hline
+\end{tabular}
+\end{table}
 
 \section{Yêu cầu phi chức năng}
 \label{section:2.4}

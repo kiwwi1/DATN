@@ -19,8 +19,12 @@ MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệ
 MongoDB giải quyết trọn vẹn yêu cầu lưu trữ thông tin sản phẩm đa nhà bán hàng với các cấu trúc biến thể phức tạp (màu sắc, kích thước, giá bán riêng biệt). Đặc biệt, MongoDB hỗ trợ các câu lệnh cập nhật nguyên tử ở cấp độ đơn tài liệu (\textit{Single-document Atomicity}) thông qua cú pháp cập nhật có điều kiện như toán tử \texttt{\$inc} kết hợp điều kiện lọc giá trị lớn hơn hoặc bằng lượng mua thực tế ngay dưới tầng lưu trữ:
 \begin{verbatim}
 db.products.updateOne(
-  { _id: productId, "variants.key": variantKey, "variants.stock": { $gte: quantity } },
-  { $inc: { "variants.$.stock": -quantity, "totalStock": -quantity } }
+  {
+    _id: productId, isActive: true, stock: { $gte: quantity },
+    variants: { $elemMatch: { variantKey, stock: { $gte: quantity } } }
+  },
+  { $inc: { stock: -quantity, "variants.$[variant].stock": -quantity } },
+  { arrayFilters: [{ "variant.variantKey": variantKey }] }
 )
 \end{verbatim}
 Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao \cite{nosql-performance}.
@@ -59,7 +63,7 @@ Hai giải pháp thay thế thường được cân nhắc là Java Spring Boot 
 Socket.IO là một thư viện JavaScript cho phép giao tiếp hai chiều, thời gian thực và dựa trên sự kiện giữa trình duyệt và máy chủ. Nó hoạt động trên nền tảng giao thức WebSocket nhưng bổ sung các cơ chế dự phòng an toàn.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Socket.IO được sử dụng để hỗ trợ giao tiếp tức thời giữa khách hàng và thương nhân trong phân hệ chat, đồng thời phục vụ các luồng thông báo thời gian thực tại phía client khi backend phát sinh sự kiện mới. Ở tầng kết nối, máy chủ kiểm tra token xác thực được gửi trong phần bắt tay kết nối để gắn socket với người dùng hợp lệ trước khi tham gia phòng chat hoặc nhận sự kiện.
+Socket.IO được sử dụng riêng cho phân hệ chat, hỗ trợ giao tiếp tức thời hai chiều giữa khách hàng và thương nhân. Các luồng thông báo thời gian thực một chiều như cập nhật trạng thái đơn hàng và thông báo hệ thống được phục vụ thông qua kênh Server-Sent Events (SSE) riêng biệt, phù hợp với đặc tính đẩy dữ liệu một chiều của loại thông báo này. Ở tầng kết nối Socket.IO, máy chủ kiểm tra token xác thực được gửi trong phần bắt tay kết nối để gắn socket với người dùng hợp lệ trước khi tham gia phòng chat.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 Hai giải pháp thay thế phổ biến là HTTP Long Polling và Server-Sent Events (SSE) \cite{websocket-standard}. HTTP Long Polling liên tục gửi yêu cầu kéo (\textit{Pull}) dữ liệu, làm nghẽn băng thông mạng và quá tải CPU máy chủ. SSE chỉ hỗ trợ truyền tải dữ liệu một chiều từ server về client, không đáp ứng được nhu cầu chat hai chiều. Socket.IO thiết lập kết nối TCP toàn song công (\textit{Full-duplex}) duy nhất, giảm thiểu tối đa kích thước header gói tin và hỗ trợ cơ chế tự động kết nối lại (\textit{Auto-reconnection}) thông minh. Socket.IO được lựa chọn vì phù hợp với yêu cầu chat và cập nhật trạng thái theo thời gian thực, đồng thời cho phép tích hợp xác thực token ở bước bắt tay kết nối và quản lý phòng thuận tiện cho bài toán nhiều người dùng, nhiều cuộc hội thoại.
@@ -85,9 +89,9 @@ Hệ thống khuyến nghị sản phẩm đóng vai trò then chốt trong vi�
 \subsection{Khuyến nghị lai dựa trên tương tác người dùng và suy hao theo thời gian}
 Để giảm ảnh hưởng của bài toán khởi đầu lạnh và vẫn tận dụng được lịch sử hành vi người dùng, đồ án sử dụng cơ chế khuyến nghị lai gồm ba bước chính:
 \begin{itemize}
-    \item \textbf{Bước 1 -- Ghi nhận tương tác:} Mỗi lần người dùng xem, nhấp, thêm vào giỏ, thêm yêu thích, đánh giá, mua hàng hoặc dành thời gian trên sản phẩm, hệ thống cập nhật hồ sơ tương tác tương ứng.
+    \item \textbf{Bước 1 -- Ghi nhận tương tác:} Mỗi lần người dùng xem, nhấp, tìm kiếm, thêm vào giỏ, yêu thích, viết nhận xét, đánh giá sao, mua hàng hoặc dành thời gian trên sản phẩm, hệ thống cập nhật hồ sơ tương tác tương ứng.
     \item \textbf{Bước 2 -- Tính điểm tương tác có suy hao thời gian:} Mỗi hồ sơ người dùng -- sản phẩm được quy đổi thành một điểm tương tác dựa trên trọng số hành vi và hệ số suy hao theo thời gian.
-    \item \textbf{Bước 3 -- Sinh danh sách gợi ý lai:} Backend kết hợp hai nguồn gợi ý chính là lọc cộng tác dựa trên sản phẩm (\textit{item-based collaborative filtering}) và lọc dựa trên nội dung (\textit{content-based filtering}); nếu số lượng sản phẩm chưa đủ, hệ thống bổ sung thêm các sản phẩm phổ biến đang hoạt động như một lớp fallback.
+    \item \textbf{Bước 3 -- Sinh danh sách gợi ý lai:} Backend kết hợp hai nguồn gợi ý chính là lọc cộng tác dựa trên người dùng (\textit{user-based collaborative filtering}) và lọc dựa trên nội dung (\textit{content-based filtering}); nếu số lượng sản phẩm chưa đủ, hệ thống bổ sung thêm các sản phẩm phổ biến đang hoạt động như một lớp fallback.
 \end{itemize}
 
 Trong cài đặt hiện tại, điểm tương tác của một cặp người dùng -- sản phẩm được tính theo dạng:
@@ -99,7 +103,7 @@ Trong đó $Score_{raw}$ là tổng điểm thô từ các hành vi như mua hà
 Hằng số thời gian $\tau = 30$ ngày được tham khảo từ nghiên cứu về hệ thống lọc cộng tác có suy hao theo thời gian \cite{time-decay-cf}, cho thấy tín hiệu tương tác trong vòng một tháng có tính dự báo cao hơn đáng kể so với tương tác cũ hơn. Trong triển khai thực tế, giá trị này có thể được tinh chỉnh khi hệ thống tích lũy đủ dữ liệu hành vi người dùng để đánh giá lại.
 
 \textbf{Giải quyết yêu cầu Chương 2:}
-Về lọc dựa trên nội dung, hệ thống lấy các sản phẩm mà người dùng đã tương tác mạnh, sau đó mở rộng sang các sản phẩm cùng danh mục hoặc danh mục con. Về lọc cộng tác dựa trên sản phẩm, hệ thống tìm các người dùng có giao cắt hành vi với sản phẩm tương tự, sau đó cộng dồn điểm tương tác để xếp hạng ứng viên. Khi dữ liệu cá nhân hóa chưa đủ, hệ thống bổ sung sản phẩm đang hoạt động theo các tiêu chí như số bán, điểm đánh giá và thời điểm tạo như một lớp fallback. Cách tiếp cận lai này bám sát dữ liệu hành vi thực tế đang được thu thập trong hệ thống, vừa hỗ trợ cá nhân hóa cho người dùng có lịch sử tương tác, vừa giữ được khả năng fallback ổn định khi dữ liệu còn ít.
+Về lọc dựa trên nội dung, hệ thống lấy các sản phẩm mà người dùng đã tương tác mạnh, sau đó mở rộng sang các sản phẩm cùng danh mục hoặc danh mục con. Về lọc cộng tác dựa trên người dùng, hệ thống tính độ tương đồng cosine giữa vector tương tác của người dùng hiện tại và các người dùng khác có chung sản phẩm tương tác, sau đó tổng hợp điểm có trọng số theo độ tương đồng để xếp hạng sản phẩm ứng viên. Khi dữ liệu cá nhân hóa chưa đủ, hệ thống bổ sung sản phẩm đang hoạt động theo các tiêu chí như số bán, điểm đánh giá và thời điểm tạo như một lớp fallback. Cách tiếp cận lai này bám sát dữ liệu hành vi thực tế đang được thu thập trong hệ thống, vừa hỗ trợ cá nhân hóa cho người dùng có lịch sử tương tác, vừa giữ được khả năng fallback ổn định khi dữ liệu còn ít.
 
 \section{Công cụ giao dịch tài chính và Giao diện tương tác nâng cao}
 \label{section:3.5}

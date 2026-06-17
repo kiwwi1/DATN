@@ -1,0 +1,28 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam ParticipantPadding 10
+skinparam BoxPadding 5
+skinparam maxMessageSize 50
+skinparam sequence {
+  ArrowColor #3A78C2
+  LifeLineBorderColor #7AA7E0
+  LifeLineBackgroundColor #F8FBFF
+  ParticipantBorderColor #3A78C2
+  ParticipantBackgroundColor white
+}
+
+title Biểu đồ tuần tự tác vụ nền hủy đơn hàng quá hạn thanh toán
+
+participant "Tác vụ nền\n(Reservation Sweeper)" as Sweeper
+database "Database\n(MongoDB/Redis)" as DB
+
+== Quá hạn thanh toán ==
+loop Định kỳ (cron job)
+  Sweeper -> DB: Tìm các đơn hàng đã quá hạn thanh toán
+  DB --> Sweeper: Danh sách đơn hàng quá hạn
+  Sweeper -> DB: Chuyển trạng thái đơn sang Đã hủy
+  Sweeper -> DB: Hoàn trả tồn kho sản phẩm & lượt dùng voucher
+end
+
+@enduml

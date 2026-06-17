@@ -8,45 +8,67 @@ skinparam usecase {
   BorderColor #3A78C2
 }
 
+' Adjust spacing
+skinparam nodesep 60
+skinparam ranksep 100
+
 actor "Khách hàng\n(Buyer)" as Buyer
 actor "Đối tác bán hàng\n(Vendor)" as Vendor
 actor "Vận hành hệ thống" as Ops
 
 rectangle "Sàn thương mại điện tử đa nhà bán hàng" {
-  package "Quản lý tài khoản\nvà bảo mật" {
+  package "Quản lý tài khoản và Bảo mật\n(Auth & Security)" {
     usecase "Quản lý tài khoản,\nđăng nhập và xác thực" as UC_Auth
   }
 
-  package "Mua hàng và thanh toán" {
-    usecase "Xem gợi ý\ncá nhân hóa" as UC_Rec
-    usecase "Mua sắm, đặt hàng\nvà thanh toán" as UC_Shopping
+  package "Mua hàng và Thanh toán\n(Ordering & Payment)" {
+    usecase "Xem sản phẩm\ncá nhân hóa" as UC_Rec
+    usecase "Tìm kiếm và\nQuản lý giỏ hàng" as UC_Cart
+    usecase "Đặt hàng và Thanh toán" as UC_Order
+    usecase "Theo dõi đơn hàng\nvà Đánh giá" as UC_TrackReview
     usecase "Chat và thông báo\nthời gian thực" as UC_Chat
+    
+    UC_Rec -[hidden]down-> UC_Cart
+    UC_Cart -[hidden]down-> UC_Order
+    UC_Order -[hidden]down-> UC_TrackReview
+    UC_TrackReview -[hidden]down-> UC_Chat
   }
 
-  package "Quản lý gian hàng" {
-    usecase "Quản lý sản phẩm,\nshop voucher và đơn hàng" as UC_Merchant
-    usecase "Xem thống kê\ndoanh thu" as UC_Stats
+  package "Quản lý gian hàng\n(Merchant Console)" {
+    usecase "Quản lý sản phẩm\nvà tồn kho" as UC_Product
+    usecase "Cấu hình mã giảm giá\n(Shop Voucher)" as UC_Voucher
+    usecase "Quản lý đơn hàng\nvà trạng thái đơn" as UC_OrderMgr
+    usecase "Xem báo cáo thống kê\ndoanh số" as UC_Stats
+    
+    UC_Product -[hidden]down-> UC_Voucher
+    UC_Voucher -[hidden]down-> UC_OrderMgr
+    UC_OrderMgr -[hidden]down-> UC_Stats
   }
 
-  package "Vận hành dữ liệu\nvà cấu hình nền tảng" {
-    usecase "Quản lý danh mục,\nvoucher nền tảng" as UC_OpsData
+  package "Vận hành dữ liệu và Cấu hình nền tảng\n(System Operations)" {
+    usecase "Quản lý danh mục và\nvoucher nền tảng" as UC_OpsData
     usecase "Theo dõi hoạt động\nchung" as UC_Monitor
+    
+    UC_OpsData -[hidden]down-> UC_Monitor
   }
 }
 
+' Layout alignment across packages
 UC_Auth -[hidden]right-> UC_Rec
-UC_Rec -[hidden]right-> UC_Merchant
-UC_Merchant -[hidden]right-> UC_OpsData
-UC_Shopping -[hidden]right-> UC_Stats
-UC_Stats -[hidden]right-> UC_Monitor
+UC_Rec -[hidden]right-> UC_Product
+UC_Product -[hidden]right-> UC_OpsData
 
 Buyer --> UC_Auth
 Buyer --> UC_Rec
-Buyer --> UC_Shopping
+Buyer --> UC_Cart
+Buyer --> UC_Order
+Buyer --> UC_TrackReview
 Buyer --> UC_Chat
 
 Vendor --> UC_Auth
-Vendor --> UC_Merchant
+Vendor --> UC_Product
+Vendor --> UC_Voucher
+Vendor --> UC_OrderMgr
 Vendor --> UC_Stats
 Vendor --> UC_Chat
 

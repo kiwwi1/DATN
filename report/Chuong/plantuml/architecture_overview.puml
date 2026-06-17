@@ -5,6 +5,10 @@ skinparam componentStyle rectangle
 skinparam packageStyle rectangle
 skinparam linetype ortho
 
+' Increase spacing to give the layout engine more room for lines and labels
+skinparam nodesep 100
+skinparam ranksep 150
+
 title Tong quan kien truc trien khai he thong marketplace
 
 actor Buyer
@@ -20,6 +24,13 @@ rectangle "Backend API\nExpress 5 + Node.js" as Backend {
   component "Socket.IO Chat" as Chat
   component "SSE Notification\nStream" as SSE
   component "Reservation Sweep" as Sweep
+  
+  Routes -right-> Controllers
+  Controllers -right-> Services
+  
+  Routes -[hidden]down-> Chat
+  Chat -[hidden]down-> SSE
+  Services -[hidden]down-> Sweep
 }
 
 database "MongoDB\nMongoose" as Mongo
@@ -28,24 +39,30 @@ cloud "Stripe" as Stripe
 cloud "VNPay" as VNPay
 cloud "Cloudflare R2\nImage storage" as R2
 
-Buyer --> Shop : browse, cart,\ncheckout
-Vendor --> Admin : manage products,\norders, stats
+' Force vertical alignment on the right side
+VNPay -[hidden]down-> Stripe
+Stripe -[hidden]down-> R2
+R2 -[hidden]down-> Redis
+Redis -[hidden]down-> Mongo
 
-Shop --> Routes : HTTPS / REST
-Admin --> Routes : HTTPS / REST
-Shop --> Chat : websocket
-Admin --> Chat : websocket
-Admin --> SSE : event stream
+Buyer ---> Shop : browse, cart,\ncheckout
+Vendor ---> Admin : manage products,\norders, stats
+
+Shop ---> Routes : HTTPS / REST
+Admin ---> Routes : HTTPS / REST
+Shop ---> Chat : websocket
+Admin ---> Chat : websocket
+Admin ---> SSE : event stream
 
 Routes --> Controllers
 Controllers --> Services
-Services --> Mongo
-Services --> Redis
-Services --> Stripe
-Services --> VNPay
-Services --> R2
-Chat --> Mongo : conversations,\nmessages
-SSE --> Mongo : notifications
-Sweep --> Services : expire pending\nreservations
+Services ---> Mongo
+Services ---> Redis
+Services ---> Stripe
+Services ---> VNPay
+Services ---> R2
+Chat ---> Mongo : conversations,\nmessages
+SSE ---> Mongo : notifications
+Sweep ---> Services : expire pending\nreservations
 
 @enduml

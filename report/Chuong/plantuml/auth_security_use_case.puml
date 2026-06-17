@@ -7,12 +7,12 @@ skinparam usecase {
   BorderColor #4D8F5A
 }
 
-title Biểu đồ ca sử dụng phân hệ Quản lý tài khoản và Bảo mật
+title Biểu đồ ca sử dụng phân hệ Quản lý tài khoản và Bảo mật (Auth & Security)
 
 actor "Khách hàng\n(Buyer)" as Buyer
 actor "Đối tác bán hàng\n(Vendor)" as Vendor
 
-rectangle "Phân hệ Quản lý tài khoản và Bảo mật" {
+rectangle "Phân hệ Quản lý tài khoản và Bảo mật (Auth & Security)" {
   usecase "Đăng ký tài khoản" as UC_Register
   usecase "Xác minh mã OTP\n6 số qua email" as UC_OTP
   usecase "Đăng nhập hệ thống" as UC_Login

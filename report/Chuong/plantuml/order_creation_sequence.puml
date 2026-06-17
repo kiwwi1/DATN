@@ -19,63 +19,21 @@ participant "Client (React)" as Client
 participant "Backend (Node.js)" as BE
 database "Database\n(MongoDB/Redis)" as DB
 
-== Xem trước hóa đơn ==
-Buyer -> Client: Chọn sản phẩm, voucher\nvà bấm Checkout
-Client -> BE: Yêu cầu xem trước hóa đơn
-BE -> DB: Tải sản phẩm,\nbiến thể, voucher
-DB --> BE: Dữ liệu định giá
-BE -> BE: Tính giá và áp dụng\nvoucher nhiều lớp
-BE --> Client: Bảng kê giá,\nvoucher hợp lệ / bị từ chối
-
 == Tạo đơn và giữ kho ==
-Buyer -> Client: Chọn phương thức thanh toán\nvà xác nhận đặt hàng
-
-alt COD
-  Client -> BE: Yêu cầu đặt hàng (COD)
-  BE -> DB: Kiểm tra mã chống trùng đơn
-  BE -> DB: Giữ kho nguyên tử
-  alt Không đủ tồn kho
-    DB --> BE: Thiếu hàng
-    BE --> Client: Thông báo hết hàng
-    Client --> Buyer: Hiển thị sản phẩm không đủ kho
-  else Giữ kho thành công
-    DB --> BE: Xác nhận đã giữ kho
-    BE -> DB: Tạo đơn ở trạng thái\nĐã đặt hàng
-    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
-    BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
-    BE --> Client: Mã đơn hàng, thành công
-    Client --> Buyer: Hiển thị đơn đã tạo
-  end
-
-else Stripe
-  Client -> BE: Yêu cầu đặt hàng (Stripe)
-  BE -> DB: Kiểm tra mã chống trùng đơn
-  BE -> DB: Giữ kho nguyên tử
-  alt Không đủ tồn kho
-    DB --> BE: Thiếu hàng
-    BE --> Client: Thông báo hết hàng
-    Client --> Buyer: Hiển thị sản phẩm không đủ kho
-  else Giữ kho thành công
-    DB --> BE: Xác nhận đã giữ kho
-    BE -> DB: Tạo đơn ở trạng thái Đã đặt hàng,\ncờ chờ thanh toán
-    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
-    BE --> Client: Mã đơn hàng,\nchuẩn bị tạo phiên Stripe
-  end
-
-else VNPay
-  Client -> BE: Yêu cầu đặt hàng (VNPay)
-  BE -> DB: Kiểm tra mã chống trùng đơn
-  BE -> DB: Giữ kho nguyên tử
-  alt Không đủ tồn kho
-    DB --> BE: Thiếu hàng
-    BE --> Client: Thông báo hết hàng
-    Client --> Buyer: Hiển thị sản phẩm không đủ kho
-  else Giữ kho thành công
-    DB --> BE: Xác nhận đã giữ kho
-    BE -> DB: Tạo đơn ở trạng thái Đã đặt hàng,\ncờ chờ thanh toán
-    BE -> DB: Lưu voucher áp dụng,\nthời điểm và thời hạn giữ kho
-    BE --> Client: Mã đơn hàng,\nchuẩn bị tạo đường dẫn VNPay
-  end
+Buyer -> Client: Xác nhận đặt hàng (chọn PTTT)
+Client -> BE: POST /api/orders (kèm PTTT & idempotency key)
+BE -> DB: Kiểm tra trùng đơn & giữ kho nguyên tử
+alt Hết hàng
+  DB --> BE: Thao tác thất bại (thiếu hàng)
+  BE --> Client: Trả lỗi hết hàng (HTTP 400)
+  Client --> Buyer: Hiển thị sản phẩm không đủ kho
+else Đủ hàng
+  DB --> BE: Xác nhận giữ kho thành công
+  BE -> DB: Tạo đơn, lưu voucher & cập nhật tồn kho/giỏ hàng
+  BE --> Client: Trả về mã đơn hàng & link thanh toán (nếu có)
+  Client --> Buyer: Hiển thị thành công / Chuyển hướng thanh toán
 end
 
 @enduml
+
+

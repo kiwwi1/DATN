@@ -1,9 +1,9 @@
 @startuml
 hide footbox
 skinparam shadowing false
-skinparam ParticipantPadding 12
-skinparam BoxPadding 8
-skinparam maxMessageSize 42
+skinparam ParticipantPadding 10
+skinparam BoxPadding 5
+skinparam maxMessageSize 50
 skinparam sequence {
   ArrowColor #3A78C2
   LifeLineBorderColor #7AA7E0
@@ -18,46 +18,37 @@ actor "Khách hàng" as Buyer
 participant "Client (React)" as Client
 participant "Backend (Node.js)" as BE
 database "Database\n(MongoDB/Redis)" as DB
-participant "Cổng thanh toán\n(Stripe/VNPay)" as PG
-participant "Tác vụ nền\n(Reservation Sweeper)" as Sweeper
+participant "Cổng thanh toán" as PG
 
 == Stripe ==
-Client -> BE: Yêu cầu khởi tạo thanh toán Stripe\ncho đơn hàng đã tạo
-BE -> PG: Tạo phiên thanh toán Stripe
-PG --> BE: Đường dẫn phiên thanh toán
-BE -> DB: Lưu thông tin phiên thanh toán Stripe
-BE --> Client: Mã đơn hàng, đường dẫn phiên
-Client -> PG: Điều hướng sang Stripe
+Client -> BE: Khởi tạo thanh toán Stripe
+BE -> PG: Tạo phiên Stripe Checkout
+PG --> BE: Trả về link thanh toán
+BE -> DB: Lưu thông tin phiên Stripe
+BE --> Client: Phản hồi link thanh toán
+Client -> PG: Chuyển hướng sang Stripe
 Buyer -> PG: Xác nhận thanh toán
-PG --> BE: Stripe webhook: thanh toán hoàn tất
-BE -> DB: Cập nhật trạng thái\nthanh toán thành công
-BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
-BE --> PG: HTTP 200
-PG --> Client: Điều hướng về trang xác nhận đơn hàng
-Client --> Buyer: Hiển thị thanh toán thành công
+PG --> Client: Redirect về Frontend (Success)
+PG --> BE: Gửi Stripe Webhook (Success)
+BE -> DB: Cập nhật đơn hàng & giỏ hàng
+BE --> PG: Phản hồi HTTP 200
+Client --> Buyer: Hiển thị thành công
 
 == VNPay ==
-Client -> BE: Yêu cầu khởi tạo thanh toán VNPay\ncho đơn hàng đã tạo
-BE -> PG: Tạo đường dẫn thanh toán VNPay
-PG --> BE: Đường dẫn thanh toán
-BE -> DB: Lưu đường dẫn thanh toán VNPay
-BE --> Client: Mã đơn hàng, đường dẫn thanh toán
-Client -> PG: Điều hướng sang VNPay
+Client -> BE: Khởi tạo thanh toán VNPay
+BE -> PG: Tạo link thanh toán VNPay
+PG --> BE: Trả về link thanh toán
+BE -> DB: Lưu thông tin link VNPay
+BE --> Client: Phản hồi link thanh toán
+Client -> PG: Chuyển hướng sang VNPay
 Buyer -> PG: Xác nhận thanh toán
-PG --> BE: GET callback có chữ ký số
-BE -> DB: Xác minh chữ ký số,\ncập nhật trạng thái thanh toán thành công
-BE -> DB: Cập nhật số lượng bán,\nxóa sản phẩm khỏi giỏ hàng
-BE --> PG: Điều hướng về trang xác nhận đơn hàng
-PG --> Client: Trả kết quả về frontend
-Client --> Buyer: Hiển thị kết quả thanh toán
-
-== Quá hạn thanh toán ==
-loop Định kỳ
-  Sweeper -> DB: Tìm đơn chưa thanh toán\nquá thời hạn giữ kho
-  DB --> Sweeper: Danh sách đơn quá hạn
-  Sweeper -> DB: Chuyển trạng thái đơn sang Đã hủy
-  Sweeper -> DB: Hoàn trả tồn kho
-  Sweeper -> DB: Hoàn lượt sử dụng voucher
-end
+PG --> Client: Redirect về Backend Callback
+Client -> BE: GET callback (query params)
+BE -> DB: Xác minh chữ ký & Cập nhật đơn/giỏ hàng
+BE --> Client: Redirect (302) về Frontend (Success)
+Client --> Buyer: Hiển thị thành công
 
 @enduml
+
+
+

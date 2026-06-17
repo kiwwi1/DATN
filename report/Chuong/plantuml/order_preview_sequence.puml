@@ -1,0 +1,30 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam ParticipantPadding 12
+skinparam BoxPadding 8
+skinparam maxMessageSize 42
+skinparam sequence {
+  ArrowColor #3A78C2
+  LifeLineBorderColor #7AA7E0
+  LifeLineBackgroundColor #F8FBFF
+  ParticipantBorderColor #3A78C2
+  ParticipantBackgroundColor white
+}
+
+title Biểu đồ tuần tự giai đoạn xem trước hóa đơn
+
+actor "Khách hàng" as Buyer
+participant "Client (React)" as Client
+participant "Backend (Node.js)" as BE
+database "Database\n(MongoDB/Redis)" as DB
+
+== Xem trước hóa đơn ==
+Buyer -> Client: Chọn sản phẩm, voucher & bấm Checkout
+Client -> BE: POST /api/orders/preview
+BE -> DB: Tải thông tin sản phẩm, voucher
+DB --> BE: Dữ liệu định giá
+BE -> BE: Tính giá & áp dụng voucher nhiều lớp
+BE --> Client: Trả về thông tin xem trước đơn hàng
+
+@enduml

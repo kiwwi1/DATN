@@ -20,7 +20,7 @@ Bảng \ref{table:survey} dưới đây trình bày so sánh chi tiết ưu như
     \centering
     \caption{So sánh hệ thống truyền thống và hệ thống đề xuất}
     \label{table:survey}
-    \begin{tabular}{|p{2.5cm}|p{5.9cm}|p{6.1cm}|}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{5.6cm}|>{\raggedright\arraybackslash}p{5.9cm}|}
         \hline
         \textbf{Tiêu chí} & \textbf{Các hệ thống truyền thống} & \textbf{Hệ thống đề xuất trong đồ án} \\ \hline
         \textbf{Mô hình} & Hỗ trợ tốt Single-shop; cấu hình Multi-vendor thường cần thêm nhiều lớp mở rộng. & Thiết kế chuyên biệt cho Multi-vendor, hỗ trợ tách đơn theo shop và xử lý dữ liệu theo từng nhà bán. \\ \hline
@@ -63,7 +63,7 @@ Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ
 \end{figure}
 
 \subsubsection{Phân hệ Mua hàng và Thanh toán (Ordering \& Payment)}
-Phân hệ gồm ba ca sử dụng mà người mua tương tác trực tiếp: (i) Xem sản phẩm cá nhân hóa theo điểm tương tác người dùng, với thao tác tính điểm là ca sử dụng bao hàm bên trong; (ii) Đặt hàng với tính giá và áp dụng voucher nhiều lớp cùng thao tác giữ kho nguyên tử được thực hiện như hai ca sử dụng bao hàm nhằm kiểm soát nguy cơ oversell; và (iii) Thanh toán trực tuyến qua Stripe hoặc VNPay với xác nhận kết quả tự động thông qua webhook và callback. Sơ đồ phân rã ca sử dụng của phân hệ này được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
+Phân hệ gồm bốn ca sử dụng mà người mua tương tác trực tiếp: (i) Xem sản phẩm cá nhân hóa theo điểm tương tác người dùng, với thao tác tính điểm là ca sử dụng bao hàm bên trong; (ii) Đặt hàng với tính giá và áp dụng voucher nhiều lớp cùng thao tác giữ kho nguyên tử được thực hiện như hai ca sử dụng bao hàm nhằm kiểm soát nguy cơ oversell; (iii) Thanh toán trực tuyến qua Stripe hoặc VNPay với xác nhận kết quả tự động thông qua webhook và callback; và (iv) Chat và thông báo thời gian thực với đối tác bán hàng. Sơ đồ phân rã ca sử dụng của phân hệ này được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -73,7 +73,7 @@ Phân hệ gồm ba ca sử dụng mà người mua tương tác trực tiếp: 
 \end{figure}
 
 \subsubsection{Phân hệ Quản lý gian hàng (Merchant Console)}
-Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập với ba nhóm chức năng: (i) Quản lý sản phẩm và biến thể bao gồm đăng tải, chỉnh sửa thông tin và quản lý tồn kho; (ii) Cấu hình mã giảm giá riêng của shop theo phần trăm hoặc số tiền cố định; và (iii) Xem thống kê doanh thu qua biểu đồ phân tích theo ngày, tháng kèm cảnh báo sản phẩm sắp hết hàng. Các chức năng chi tiết của phân hệ này được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
+Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập với năm nhóm chức năng: (i) Quản lý sản phẩm và biến thể bao gồm đăng tải, chỉnh sửa thông tin và quản lý tồn kho; (ii) Cấu hình mã giảm giá riêng của shop (Shop Voucher) theo phần trăm hoặc số tiền cố định; (iii) Quản lý đơn hàng và cập nhật trạng thái đơn hàng; (iv) Xem báo cáo thống kê doanh số qua biểu đồ phân tích theo ngày, tháng kèm cảnh báo sản phẩm sắp hết hàng; và (v) Chat và thông báo thời gian thực với khách hàng. Các chức năng chi tiết của phân hệ này được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
 
 \begin{figure}[htbp]
     \centering
@@ -81,6 +81,9 @@ Thương nhân quản trị các hoạt động thương mại thông qua bảng
     \caption{Biểu đồ ca sử dụng phân rã phân hệ Quản lý gian hàng}
     \label{fig:merchant_console_use_case}
 \end{figure}
+
+\subsubsection{Phân hệ Vận hành dữ liệu và Cấu hình nền tảng (System Operations)}
+Phân hệ này hỗ trợ các tác vụ quản trị hệ thống mức quản trị viên bao gồm: (i) Quản lý danh mục và cấu hình voucher cấp nền tảng; (ii) Theo dõi hoạt động chung của hệ thống. Do tính chất bổ trợ phục vụ công tác vận hành, phân hệ này được thiết kế và thực thi ở mức quản lý dữ liệu tại backend và giao diện quản trị cơ bản, không đi sâu phân rã chi tiết trong phạm vi các biểu đồ ca sử dụng chính của đồ án.
 
 \subsection{Quy trình nghiệp vụ Đặt hàng giữ kho và Thanh toán đồng thời}
 \label{subsection:2.2.3}
@@ -104,27 +107,46 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
     \end{itemize}
 \end{enumerate}
 
-\begin{figure}[htbp]
+\clearpage
+
+\begin{figure}[p]
     \centering
-    \includegraphics[width=0.80\textwidth]{images/generated/checkout_process_activity.png}
+    \includegraphics[width=0.9\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/checkout_process_activity.png}
     \caption{Biểu đồ hoạt động quy trình nghiệp vụ Đặt hàng - Giữ kho - Thanh toán đồng thời}
     \label{fig:checkout_process}
 \end{figure}
 
-Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành hai biểu đồ. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn xem trước, tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến, xác nhận kết quả và xử lý quá hạn thanh toán.
+\clearpage
+
+
+Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành bốn biểu đồ. Hình \ref{fig:order_preview_sequence} mô tả giai đoạn xem trước đơn hàng. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến và xác nhận kết quả. Hình \ref{fig:payment_sweeper_sequence} mô tả luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
-    \caption{Biểu đồ tuần tự giai đoạn xem trước, tạo đơn và giữ kho nguyên tử}
+    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/order_preview_sequence.png}
+    \caption{Biểu đồ tuần tự giai đoạn xem trước đơn hàng}
+    \label{fig:order_preview_sequence}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
+    \caption{Biểu đồ tuần tự giai đoạn tạo đơn và giữ kho nguyên tử}
     \label{fig:order_creation_sequence}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
+    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn thanh toán trực tuyến và xác nhận kết quả}
     \label{fig:online_payment_sequence}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/payment_sweeper_sequence.png}
+    \caption{Biểu đồ tuần tự luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán}
+    \label{fig:payment_sweeper_sequence}
 \end{figure}
 
 \section{Đặc tả chức năng}
@@ -138,7 +160,7 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
 \caption{Đặc tả ca sử dụng 1: Đăng nhập hệ thống (Login)}
 \label{table:uc1_login}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
@@ -183,7 +205,7 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 2: Đặt hàng và Giữ kho nguyên tử (Place Order)}
 \label{table:uc2_placeorder}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
@@ -228,7 +250,7 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 3: Áp dụng mã giảm giá đa lớp (Apply Vouchers)}
 \label{table:uc3_voucher}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
@@ -273,7 +295,7 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 4: Xem báo cáo thống kê doanh số (View Sales Stats)}
 \label{table:uc4_stats}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|p{3.5cm}|p{10.5cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline

@@ -7,12 +7,12 @@ skinparam usecase {
   BorderColor #E67E22
 }
 
-title Biểu đồ ca sử dụng phân hệ Mua hàng và Thanh toán
+title Biểu đồ ca sử dụng phân hệ Mua hàng và Thanh toán (Ordering & Payment)
 
 actor "Khách hàng\n(Buyer)" as Buyer
 actor "Cổng thanh toán\n(Stripe/VNPay)" as Gateway
 
-rectangle "Phân hệ Mua hàng và Thanh toán" {
+rectangle "Phân hệ Mua hàng và Thanh toán (Ordering & Payment)" {
   usecase "Xem sản phẩm\ncá nhân hóa" as UC_Rec
   usecase "Tính điểm\nInteraction Score" as UC_Score
   usecase "Đặt hàng" as UC_Order
@@ -21,11 +21,13 @@ rectangle "Phân hệ Mua hàng và Thanh toán" {
   usecase "Thanh toán\ntrực tuyến" as UC_Pay
   usecase "Khởi tạo Stripe Session\nhoặc VNPay URL" as UC_PayInit
   usecase "Xác nhận kết quả thanh toán\n(Stripe webhook / VNPay callback)" as UC_PayConfirm
+  usecase "Chat và thông báo\nthời gian thực" as UC_Chat
 }
 
 Buyer --> UC_Rec
 Buyer --> UC_Order
 Buyer --> UC_Pay
+Buyer --> UC_Chat
 Gateway --> UC_PayConfirm
 
 UC_Rec .> UC_Score : <<include>>

@@ -7,7 +7,7 @@ skinparam usecase {
   BorderColor #7C5CE0
 }
 
-title Biểu đồ ca sử dụng phân hệ Quản lý gian hàng
+title Biểu đồ ca sử dụng phân hệ Quản lý gian hàng (Merchant Console)
 
 actor "Đối tác bán hàng\n(Vendor)" as Vendor
 
@@ -15,14 +15,18 @@ rectangle "Phân hệ Quản lý gian hàng (Merchant Console)" {
   usecase "Quản lý sản phẩm\nvà biến thể" as UC_Product
   usecase "Quản lý tồn kho theo\nsản phẩm và biến thể" as UC_Stock
   usecase "Cấu hình mã giảm giá riêng\n(Shop Voucher)" as UC_ShopVoucher
+  usecase "Quản lý đơn hàng\nvà trạng thái đơn" as UC_OrderMgr
   usecase "Xem báo cáo thống kê\ndoanh số" as UC_Stats
   usecase "Hiển thị biểu đồ\nthống kê" as UC_Charts
   usecase "Theo dõi cảnh báo\ntồn kho thấp" as UC_LowStock
+  usecase "Chat và thông báo\nthời gian thực" as UC_Chat
 }
 
 Vendor --> UC_Product
 Vendor --> UC_ShopVoucher
+Vendor --> UC_OrderMgr
 Vendor --> UC_Stats
+Vendor --> UC_Chat
 
 UC_Product .> UC_Stock : <<include>>
 UC_Stats .> UC_Charts : <<include>>

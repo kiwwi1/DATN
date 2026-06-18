@@ -29,21 +29,28 @@ Song song với đó là vấn đề trùng lặp giao dịch (duplicate transac
 \subsubsection{Cơ chế giữ kho nguyên tử (Atomic Stock Reservation)}
 Thay vì thực hiện kiểm tra tồn kho ở tầng ứng dụng và cập nhật ở tầng dữ liệu thông qua hai truy vấn riêng biệt, đồ án chuyển toàn bộ logic kiểm tra và trừ kho thành một thao tác ghi nguyên tử duy nhất (Atomic Write) tại MongoDB bằng cách nhúng điều kiện ràng buộc tồn kho trực tiếp vào bộ lọc tìm kiếm của câu lệnh cập nhật:
 \begin{equation}
-    \text{UpdateFilter} = \{ \text{\_id}: \text{productId},\ \texttt{isActive}: \text{true},\ \text{stock}: \{ \$gte: \text{requestedQuantity} \} \}
+    \begin{aligned}
+        \text{UpdateFilter} = \{ & \text{\_id}: \text{productId}, \\
+        & \texttt{isActive}: \text{true}, \\
+        & \text{stock}: \{ \$gte: \text{requestedQuantity} \} \}
+    \end{aligned}
 \end{equation}
 \begin{equation}
     \text{UpdateAction} = \{ \$inc: \{ \text{stock}: -\text{requestedQuantity} \} \}
 \end{equation}
 
-Nếu tồn kho hiện tại nhỏ hơn số lượng yêu cầu, bộ lọc sẽ không khớp với bất kỳ tài liệu nào trong cơ sở dữ liệu, câu lệnh cập nhật trả về số lượng bản ghi thay đổi (\texttt{modifiedCount}) bằng $0$. Hệ thống lập tức nhận biết trạng thái hết hàng và trả về mã lỗi \texttt{OUT\_OF\_STOCK} cho client. Quy trình này bảo đảm không bao giờ xảy ra tình trạng tồn kho bị cập nhật xuống giá trị âm, hoạt động tương tự cơ chế khóa lạc quan (Optimistic Locking) nhưng không phát sinh chi phí quản lý phiên bản phức tạp.
+Nếu tồn kho hiện tại nhỏ hơn số lượng yêu cầu, bộ lọc sẽ không khớp với bất kỳ tài liệu nào trong cơ sở dữ liệu, câu lệnh cập nhật trả về số lượng bản ghi thay đổi (\texttt{modifiedCount}) bằng $0$. Hệ thống lập tức nhận biết trạng thái hết hàng và trả về mã lỗi \texttt{OUT\_OF\allowbreak\_STOCK} cho client. Quy trình này bảo đảm không bao giờ xảy ra tình trạng tồn kho bị cập nhật xuống giá trị âm, hoạt động tương tự cơ chế khóa lạc quan (Optimistic Locking) nhưng không phát sinh chi phí quản lý phiên bản phức tạp.
 
-Để hỗ trợ các cổng thanh toán trực tuyến (như Stripe hoặc VNPay) cần thời gian chờ người dùng hoàn tất giao dịch ở trang ngoài, đồ án thiết lập cơ chế đặt chỗ tồn kho có thời hạn (Stock Reservation with TTL). Khi đơn hàng được khởi tạo, tồn kho tạm thời bị trừ đi và đơn hàng được gắn một mốc thời gian hết hạn \texttt{reservationExpiresAt} (mặc định là 10 phút). Một tiến trình chạy nền (background cron job) được thiết lập để liên tục truy quét cơ sở dữ liệu theo chu kỳ 1 phút:
-\begin{lstlisting}
+Để hỗ trợ các cổng thanh toán trực tuyến (như Stripe hoặc VNPay) cần thời gian chờ người dùng hoàn tất giao dịch ở trang ngoài, đồ án thiết lập cơ chế đặt chỗ tồn kho có thời hạn (Stock Reservation with TTL). Khi đơn hàng được khởi tạo, tồn kho tạm thời bị trừ đi và đơn hàng được gắn một mốc thời gian hết hạn \texttt{reservationExpiresAt} (mặc định là 15 phút). Một tiến trình chạy nền (background cron job) được thiết lập để liên tục truy quét cơ sở dữ liệu theo chu kỳ 1 phút mặc định:
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\small,columns=fullflexible]
 // Tim cac don hang chua thanh toan va da qua han giu kho
 db.orders.find({
     status: { $ne: "Cancelled" },
     payment: false,
-    reservationExpiresAt: { $lt: currentTime }
+    stockReservedAt: { $exists: true },
+    stockReleasedAt: { $exists: false },
+    reservationExpiresAt: { $lte: currentTime },
+    paymentMethod: { $in: ["Stripe", "VNPay"] }
 })
 \end{lstlisting}
 
@@ -53,7 +60,7 @@ db.orders.find({
 Để bảo đảm tính duy nhất của giao dịch thanh toán, mỗi khi người dùng bắt đầu luồng đặt hàng tại giao diện, ứng dụng frontend sẽ tạo ra một chuỗi định danh duy nhất (UUID v4) đóng vai trò là \texttt{idempotencyKey} và gửi kèm trong tiêu đề request hoặc thân của yêu cầu API. 
 
 Tại backend, cơ sở dữ liệu MongoDB thiết lập một chỉ mục duy nhất kết hợp (Compound Unique Index) trên hai trường \texttt{userId} và \texttt{idempotencyKey} trong collection \texttt{orders}:
-\begin{lstlisting}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\small,columns=fullflexible]
 orderSchema.index(
   { userId: 1, idempotencyKey: 1 },
   {
@@ -99,7 +106,9 @@ Hệ thống không chỉ ghi nhận hành vi mua hàng mà thu thập toàn b�
     \centering
     \caption{Trọng số điểm tương tác cơ bản theo loại hành vi}
     \label{table:interaction_weights}
-    \begin{tabular}{|l|c|l|}
+    \small
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{3.3cm}|>{\centering\arraybackslash}p{1.8cm}|>{\raggedright\arraybackslash}p{6.8cm}|}
         \hline
         \textbf{Hành vi} & \textbf{Trọng số ($w_a$)} & \textbf{Ý nghĩa hành vi} \\ \hline
         Mua hàng (\texttt{purchased}) & 10 & Người dùng hoàn tất giao dịch mua sản phẩm \\ \hline
@@ -130,7 +139,7 @@ Trong đó $n_a(u, i)$ là số lần người dùng $u$ thực hiện hành vi 
 \begin{equation}
     \text{interactionScore}(u, i) = S_{raw}(u, i) \times \delta
 \end{equation}
-Trong đó $\Delta t$ là số ngày kể từ lần tương tác gần nhất (\texttt{lastInteraction}) đến thời điểm tính toán: $\Delta t = (t_{current} - t_{lastInteraction}) / (24 \times 3600 \times 1000)$. Hệ số $\lambda = \frac{1}{30}$ tương ứng với chu kỳ bán rã 30 ngày (sau 30 ngày không có tương tác mới, điểm quan tâm của người dùng đối với sản phẩm giảm đi một nửa).
+Trong đó $\Delta t$ là số ngày kể từ lần tương tác gần nhất (\texttt{lastInteraction}) đến thời điểm tính toán: $\Delta t = (t_{current} - t_{lastInteraction}) / (24 \times 3600 \times 1000)$. Với cấu hình hiện thực hiện tại, hệ số $\lambda = \frac{1}{30}$ tạo ra một hàm suy hao mũ có hằng số thời gian 30 ngày; sau 30 ngày không có tương tác mới, điểm quan tâm còn xấp xỉ $e^{-1} \approx 36{,}8\%$ giá trị ban đầu.
 
 \subsubsection{Kiến trúc bộ khuyến nghị lai (Hybrid Recommendation Engine)}
 Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ thể được mô tả qua các bước sau:
@@ -150,11 +159,11 @@ Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ th�
     \item \textbf{Trộn và xếp hạng (Merge \& Rank)}:
         \begin{itemize}
             \item Kết hợp hai danh sách ứng viên theo chiến lược ưu tiên: nhánh Lọc cộng tác cung cấp tối đa $\lceil N/2 \rceil$ sản phẩm (với $N$ là tổng số gợi ý cần trả về) và được xếp vào trước; nhánh Lọc theo nội dung bổ sung tối đa $N$ sản phẩm vào sau. Toàn bộ danh sách được loại trùng (deduplication), đảm bảo mỗi sản phẩm chỉ xuất hiện một lần. Chiến lược này ưu tiên kết quả Lọc cộng tác ở nửa đầu danh sách và dùng Lọc theo nội dung lấp đầy phần còn lại.
-            \item Loại bỏ các sản phẩm người dùng đã tương tác hoặc đang ẩn (\texttt{isActive: false}).
+            \item Loại bỏ các sản phẩm đã được người dùng tương tác hoặc đang ẩn (\texttt{isActive:\allowbreak false}).
         \end{itemize}
     \item \textbf{Xử lý Khởi động lạnh và Fallback}:
         \begin{itemize}
-            \item Nếu người dùng là tài khoản mới hoàn toàn và chưa có dữ liệu tương tác trong collection \texttt{userInteraction}, hệ thống sẽ kích hoạt luồng dự phòng (Fallback): Gợi ý các sản phẩm phổ biến nhất của sàn, được sắp xếp theo doanh số bán hàng giảm dần (\texttt{sold}), tiếp theo là điểm đánh giá (\texttt{rating}) và thời điểm cập nhật mới nhất — loại trừ các sản phẩm đã xuất hiện trong kết quả của hai nhánh trên.
+            \item Nếu người dùng là tài khoản mới hoàn toàn và chưa có dữ liệu tương tác trong collection \texttt{userInteraction}, hệ thống sẽ kích hoạt luồng dự phòng (Fallback): Gợi ý các sản phẩm phổ biến nhất của sàn, được sắp xếp theo doanh số bán hàng giảm dần (\texttt{sold}), tiếp theo là điểm đánh giá (\texttt{rating}) và thời điểm ghi nhận sản phẩm mới hơn (\texttt{date}) — loại trừ các sản phẩm đã xuất hiện trong kết quả của hai nhánh trên.
         \end{itemize}
 \end{enumerate}
 
@@ -162,7 +171,7 @@ Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ th�
 Hệ thống gợi ý lai đã mang lại những cải thiện rõ rệt về mặt định tính và trải nghiệm sử dụng:
 \begin{itemize}
     \item \textbf{Trải nghiệm mượt mà}: Phần gợi ý hiển thị tự động trên trang chủ của khách hàng ngay khi đăng nhập, cập nhật động danh sách sản phẩm liên quan chỉ sau vài giây kể từ khi người dùng thực hiện các hành động xem hoặc thêm sản phẩm vào giỏ hàng.
-    \item \textbf{Giải quyết triệt để lỗi đề xuất cũ kỹ}: Nhờ hệ số suy hao thời gian $\lambda = \frac{1}{30} \approx 0.033$ (chu kỳ bán rã 30 ngày), các sản phẩm người dùng tìm kiếm từ nhiều tuần trước sẽ nhanh chóng nhường vị trí ưu tiên cho các mối quan tâm mới nhất của họ.
+    \item \textbf{Giải quyết triệt để lỗi đề xuất cũ kỹ}: Nhờ hệ số suy hao thời gian $\lambda = \frac{1}{30} \approx 0.033$ (hằng số thời gian 30 ngày), các sản phẩm người dùng tìm kiếm từ nhiều tuần trước sẽ nhanh chóng nhường vị trí ưu tiên cho các mối quan tâm mới nhất của họ.
     \item \textbf{Tự động tối ưu số lượng hiển thị}: Quy mô gợi ý được điều chỉnh tự động theo thuật toán động ở frontend (ngưỡng tối thiểu 20, tối đa 100 sản phẩm tùy thuộc quy mô danh mục) bảo đảm giao diện luôn đầy đặn và hấp dẫn người xem.
 \end{itemize}
 
@@ -181,9 +190,12 @@ Trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vend
 
 \subsubsection{Cấu trúc đơn hàng phân cấp (Hierarchical Order Structure)}
 Thay vì tạo ra các bảng dữ liệu cồng kềnh liên kết qua nhiều khóa ngoại, tài liệu đơn hàng trong collection \texttt{orders} được thiết kế với cấu trúc nhúng (Embedded Documents) tự động phân tách theo vendor ngay tại thời điểm tạo đơn. Cấu trúc lưu trữ chính bao gồm:
-\begin{lstlisting}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\small,columns=fullflexible]
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "user"
+  },
   items: [orderItemSchema], // Toan bo san pham trong don
   amount: { type: Number },  // Tong tien khach phai tra
   pricing: {                 // Chi tiet tinh toan gia
@@ -191,11 +203,15 @@ const orderSchema = new mongoose.Schema({
     shopDiscount: { type: Number },
     platformDiscount: { type: Number },
     shippingFee: { type: Number },
+    shippingDiscount: { type: Number },
     finalTotal: { type: Number }
   },
   vendors: [ // Mang phan tach don hang con cho tung vendor
     {
-      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+      vendorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user"
+      },
       vendorShopName: { type: String },
       items: [vendorItemSchema],
       subtotal: { type: Number },
@@ -207,7 +223,7 @@ const orderSchema = new mongoose.Schema({
 });
 \end{lstlisting}
 
-Khi khách hàng thanh toán qua Stripe hoặc VNPay thành công, backend nhận tín hiệu xác thực thông qua Webhook hoặc Callback, lập tức đánh dấu trường \texttt{payment = true} trên đơn hàng tổng. Đồng thời, hệ thống tự động quét mảng \texttt{vendors} để cập nhật trạng thái chuẩn bị hàng cho từng nhà bán hàng và kích hoạt hệ thống gửi thông báo thời gian thực (Server-Sent Events - SSE) lên dashboard quản trị của các nhà bán hàng tương ứng mà không cần thực hiện các câu lệnh truy vấn join phức tạp giữa nhiều bảng.
+Khi khách hàng thanh toán qua Stripe hoặc VNPay thành công, backend nhận tín hiệu xác thực thông qua Webhook hoặc Callback, lập tức đánh dấu trường \texttt{payment = true} trên đơn hàng tổng. Đồng thời, hệ thống quét mảng \texttt{vendors} để gửi thông báo thời gian thực (Server-Sent Events - SSE) lên dashboard quản trị của các nhà bán hàng tương ứng; trạng thái xử lý chi tiết của từng vendor vẫn được quản lý riêng ở các bước xác nhận, chuẩn bị hàng và vận chuyển sau đó mà không cần thực hiện các câu lệnh truy vấn join phức tạp giữa nhiều bảng.
 
 \subsubsection{Bộ tính toán mã giảm giá phân tầng (Hierarchical Voucher Engine)}
 Quy trình tính giá đơn hàng và áp dụng mã giảm giá được thực hiện nghiêm ngặt ở tầng backend qua 4 bước tuần tự để bảo đảm tính an toàn tài chính (Hình \ref{fig:voucher_calculation_flow}):

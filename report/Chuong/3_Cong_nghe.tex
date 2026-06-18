@@ -17,7 +17,7 @@ MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệ
 
 \textbf{Giải quyết yêu cầu Chương 2:}
 MongoDB giải quyết trọn vẹn yêu cầu lưu trữ thông tin sản phẩm đa nhà bán hàng với các cấu trúc biến thể phức tạp (màu sắc, kích thước, giá bán riêng biệt). Đặc biệt, MongoDB hỗ trợ các câu lệnh cập nhật nguyên tử ở cấp độ đơn tài liệu (\textit{Single-document Atomicity}) thông qua cú pháp cập nhật có điều kiện như toán tử \texttt{\$inc} kết hợp điều kiện lọc giá trị lớn hơn hoặc bằng lượng mua thực tế ngay dưới tầng lưu trữ:
-\begin{verbatim}
+\begin{lstlisting}[breaklines=true,basicstyle=\ttfamily\small,columns=fullflexible]
 db.products.updateOne(
   {
     _id: productId, isActive: true, stock: { $gte: quantity },
@@ -26,7 +26,7 @@ db.products.updateOne(
   { $inc: { stock: -quantity, "variants.$[variant].stock": -quantity } },
   { arrayFilters: [{ "variant.variantKey": variantKey }] }
 )
-\end{verbatim}
+\end{lstlisting}
 Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong một chu kỳ thao tác duy nhất ở tầng dữ liệu, từ đó giảm đáng kể nguy cơ tranh chấp dữ liệu dẫn đến lỗi \textit{Overselling} dưới tải cao \cite{nosql-performance}.
 
 \textbf{Các phương án công nghệ thay thế và so sánh:}
@@ -36,7 +36,8 @@ Giải pháp thay thế phổ biến nhất là các hệ quản trị cơ sở 
     \centering
     \caption{So sánh MongoDB và RDBMS trong bài toán đa nhà bán hàng}
     \label{table:db_compare}
-    \begin{tabular}{|p{3cm}|p{5.5cm}|p{6cm}|}
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}p{5cm}|>{\raggedright\arraybackslash}p{5.6cm}|}
     \hline
     \textbf{Tiêu chí} & \textbf{RDBMS (MySQL / PostgreSQL)} & \textbf{MongoDB (Đề xuất trong đồ án)} \\ \hline
     \textbf{Mô hình dữ liệu} & Lược đồ tĩnh, yêu cầu liên kết nhiều bảng (\textit{JOIN}) phức tạp để biểu diễn biến thể. & Lược đồ động, lưu trữ biến thể lồng nhau (\textit{Nested Document}) trực quan, không cần JOIN. \\ \hline

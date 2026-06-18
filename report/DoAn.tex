@@ -25,6 +25,7 @@
 \usepackage[ruled,vlined]{algorithm2e}  % Hỗ trợ viết các giải thuật
 \usepackage{capt-of} % Cho phép sử dụng caption lớn đối với landscape page
 \usepackage{multirow} % Merge cells
+\usepackage{longtable}
 \usepackage{fancyhdr} % Cho phép tùy biến header và footer
 % \usepackage[natbib,backend=biber,style=ieee]{biblatex} % Giúp chèn tài liệu tham khảo
 \usepackage{appendix}
@@ -36,9 +37,6 @@
 \usepackage{subcaption}
 \usepackage{xurl}
 
-\usepackage[nonumberlist, nopostdot, nogroupskip, acronym]{glossaries}
-\usepackage{glossary-superragged}
-\setglossarystyle{superraggedheaderborder}
 \usepackage{setspace}
 \usepackage{parskip}
 
@@ -61,8 +59,6 @@
 \addbibresource{Danh_sach_tai_lieu_tham_khao.bib} % chèn file chứa danh mục tài liệu tham khảo vào 
 
 \include{lstlisting} % Phần này cho phép chèn code và formatting code như C, C++, Python
-
-\input{Tu_viet_tat}
 
 % ===================================================
 
@@ -241,12 +237,12 @@
 \listoftables}
 % \phantomsection\addcontentsline{toc}{section}{\numberline {} DANH MỤC BẢNG BIỂU}
 
-\glsaddall 
- \renewcommand*{\glossaryname}{Danh sách thuật ngữ}
-\renewcommand*{\acronymname}{DANH MỤC THUẬT NGỮ VÀ TỪ VIẾT TẮT}
-\renewcommand*{\entryname}{Thuật ngữ}
-\renewcommand*{\descriptionname}{Ý nghĩa}
-\printnoidxglossary[type=\acronymtype,title={DANH MỤC THUẬT NGỮ VÀ TỪ VIẾT TẮT}]
+% \glsaddall 
+% \renewcommand*{\glossaryname}{Danh sách thuật ngữ}
+% \renewcommand*{\acronymname}{DANH MỤC THUẬT NGỮ VÀ TỪ VIẾT TẮT}
+% \renewcommand*{\entryname}{Thuật ngữ}
+% \renewcommand*{\descriptionname}{Ý nghĩa}
+% \printnoidxglossary[type=\acronymtype,title={DANH MỤC THUẬT NGỮ VÀ TỪ VIẾT TẮT}]
  %\phantomsection\addcontentsline{toc}{section}{\numberline {} DANH MỤC THUẬT NGỮ VÀ TỪ VIẾT TẮT}
 
 % \newpage
@@ -255,6 +251,12 @@
 % \newpage
 % \subfile{chapters/0_6_Thuat_ngu.tex}
 % ===================================================
+
+\newpage
+\subfile{Chuong/0_5_Danh_muc_viet_tat.tex}
+
+\newpage
+\subfile{Chuong/0_6_Thuat_ngu.tex}
 
 
 \newpage

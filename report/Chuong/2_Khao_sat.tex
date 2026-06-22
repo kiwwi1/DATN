@@ -48,11 +48,8 @@ Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các t�
     \label{fig:general_use_case}
 \end{figure}
 
-\subsection{Biểu đồ use case phân rã các phân hệ nghiệp vụ chính}
+\subsection{Biểu đồ use case phân rã Quản lý tài khoản và Bảo mật}
 \label{subsection:2.2.2}
-Để làm rõ cấu trúc chức năng, các nhóm ca sử dụng lớn được phân rã thành các ca sử dụng thành phần tương ứng với từng phân hệ.
-
-\subsubsection{Phân hệ Quản lý tài khoản và Bảo mật (Auth \& Security)}
 Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ bảo mật thông qua bốn ca sử dụng phân rã: (i) Đăng ký tài khoản bằng cách nhập thông tin và xác minh mã OTP 6 số qua email trước khi kích hoạt; (ii) Đăng nhập hệ thống hỗ trợ cả mật khẩu thông thường có giới hạn tần suất theo IP và email lẫn đăng nhập nhanh qua Google OAuth; (iii) Đăng ký gian hàng cho phép tài khoản người mua nâng cấp thành nhà bán hàng bằng cách bổ sung thông tin shop mà không phải tạo tài khoản mới; và (iv) Khôi phục mật khẩu thông qua token đặt lại được gửi qua email. Chi tiết các mối tương tác và sự liên kết giữa các ca sử dụng trong phân hệ này được thể hiện trong Hình \ref{fig:auth_security_use_case}.
 
 \begin{figure}[htbp]
@@ -62,7 +59,8 @@ Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ
     \label{fig:auth_security_use_case}
 \end{figure}
 
-\subsubsection{Phân hệ Mua hàng và Thanh toán (Ordering \& Payment)}
+\subsection{Biểu đồ use case phân rã Mua hàng và Thanh toán}
+\label{subsection:2.2.3}
 Phân hệ gồm bốn ca sử dụng mà người mua tương tác trực tiếp: (i) Xem sản phẩm cá nhân hóa theo điểm tương tác người dùng, với thao tác tính điểm là ca sử dụng bao hàm bên trong; (ii) Đặt hàng với tính giá và áp dụng voucher nhiều lớp cùng thao tác giữ kho nguyên tử được thực hiện như hai ca sử dụng bao hàm nhằm kiểm soát nguy cơ oversell; (iii) Thanh toán trực tuyến qua Stripe hoặc VNPay với xác nhận kết quả tự động thông qua webhook và callback; và (iv) Chat và thông báo thời gian thực với đối tác bán hàng. Sơ đồ phân rã ca sử dụng của phân hệ này được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
 
 \begin{figure}[htbp]
@@ -72,7 +70,8 @@ Phân hệ gồm bốn ca sử dụng mà người mua tương tác trực tiế
     \label{fig:ordering_payment_use_case}
 \end{figure}
 
-\subsubsection{Phân hệ Quản lý gian hàng (Merchant Console)}
+\subsection{Biểu đồ use case phân rã Quản lý gian hàng}
+\label{subsection:2.2.4}
 Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập với năm nhóm chức năng: (i) Quản lý sản phẩm và biến thể bao gồm đăng tải, chỉnh sửa thông tin và quản lý tồn kho; (ii) Cấu hình mã giảm giá riêng của shop (Shop Voucher) theo phần trăm hoặc số tiền cố định; (iii) Quản lý đơn hàng và cập nhật trạng thái đơn hàng; (iv) Xem báo cáo thống kê doanh số qua biểu đồ phân tích theo ngày, tháng kèm cảnh báo sản phẩm sắp hết hàng; và (v) Chat và thông báo thời gian thực với khách hàng. Các chức năng chi tiết của phân hệ này được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
 
 \begin{figure}[htbp]
@@ -82,11 +81,12 @@ Thương nhân quản trị các hoạt động thương mại thông qua bảng
     \label{fig:merchant_console_use_case}
 \end{figure}
 
-\subsubsection{Phân hệ Vận hành dữ liệu và Cấu hình nền tảng (System Operations)}
+\subsection{Biểu đồ use case phân rã Vận hành dữ liệu và Cấu hình nền tảng}
+\label{subsection:2.2.5}
 Phân hệ này hỗ trợ các tác vụ quản trị hệ thống mức quản trị viên bao gồm: (i) Quản lý danh mục và cấu hình voucher cấp nền tảng; (ii) Theo dõi hoạt động chung của hệ thống. Do tính chất bổ trợ phục vụ công tác vận hành, phân hệ này được thiết kế và thực thi ở mức quản lý dữ liệu tại backend và giao diện quản trị cơ bản, không đi sâu phân rã chi tiết trong phạm vi các biểu đồ ca sử dụng chính của đồ án.
 
 \subsection{Quy trình nghiệp vụ Đặt hàng giữ kho và Thanh toán đồng thời}
-\label{subsection:2.2.3}
+\label{subsection:2.2.6}
 Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán theo hướng bảo toàn tồn kho, tránh tạo đơn trùng lặp và hỗ trợ nhiều phương thức thanh toán. Luồng hoạt động tổng thể diễn ra như sau:
 
 \begin{enumerate}
@@ -346,7 +346,7 @@ Luồng ngoại lệ &
 
 \section{Yêu cầu phi chức năng}
 \label{section:2.4}
-Hệ thống được thiết kế để đáp ứng bốn nhóm yêu cầu chất lượng phần mềm trực tuyến sau.
+Hệ thống được thiết kế để đáp ứng sáu nhóm yêu cầu chất lượng phần mềm trực tuyến sau.
 
 Về hiệu năng và chịu tải cao, backend Node.js kết hợp Redis nhằm rút ngắn thời gian phản hồi đối với các API phổ biến trong điều kiện tải thông thường. Đối với các kịch bản đồng thời cao ở bước checkout, hệ thống ưu tiên kiểm soát tranh chấp bằng giữ kho nguyên tử và kiểm soát trùng đơn để giảm nguy cơ tạo đơn trùng hoặc oversell.
 
@@ -355,6 +355,10 @@ Về tính toàn vẹn và nhất quán dữ liệu, hệ thống phải bảo �
 Về tính dễ dùng và trực quan, giao diện React SPA cần phản hồi rõ ràng, thao tác thanh toán dễ theo dõi, bảng kê giá minh bạch và dashboard thống kê đủ trực quan để người bán sử dụng trong vận hành hằng ngày.
 
 Về tính bảo mật, mật khẩu được lưu trữ dưới dạng băm một chiều; thông tin xác thực được truyền qua cookie với các cờ bảo mật phù hợp; phiên đăng nhập được quản lý phía server; và các API nhạy cảm được bảo vệ bằng cơ chế giới hạn tần suất truy cập dựa trên Redis.
+
+Về tính dễ bảo trì, mã nguồn backend được tổ chức theo kiến trúc phân lớp bốn tầng (routes → controllers → services → models) với nguyên tắc phụ thuộc một chiều, cho phép thay thế hoặc mở rộng từng tầng mà không ảnh hưởng tầng còn lại. Mỗi miền nghiệp vụ (đơn hàng, voucher, xác thực, gợi ý) được tách thành module độc lập. Toàn bộ tham số cấu hình nhạy cảm như chuỗi kết nối cơ sở dữ liệu, khóa API cổng thanh toán và thông tin xác thực dịch vụ bên ngoài được quản lý qua biến môi trường, không nhúng cứng vào mã nguồn, giúp triển khai linh hoạt trên nhiều môi trường khác nhau.
+
+Về yêu cầu kỹ thuật, hệ thống được xây dựng dựa trên các nền tảng và dịch vụ cụ thể sau: (i) \textit{Cơ sở dữ liệu chính} -- MongoDB (NoSQL hướng tài liệu) lưu trữ toàn bộ dữ liệu nghiệp vụ, Redis (in-memory) phục vụ quản lý phiên xác thực và giới hạn tần suất; (ii) \textit{Backend} -- Node.js LTS kết hợp Express 5, triển khai trên cổng \texttt{4000}; (iii) \textit{Frontend} -- React 19 + Vite 6 cho ứng dụng mua sắm, React 18 + Vite cho vendor dashboard, phục vụ qua Nginx sau khi build; (iv) \textit{Thanh toán trực tuyến} -- Stripe API (webhook xác nhận) và VNPay (callback có chữ ký số); (v) \textit{Lưu trữ ảnh} -- Cloudflare R2 (tương thích S3) kết hợp Sharp để nén và tạo thumbnail; (vi) \textit{Giao tiếp thời gian thực} -- Socket.IO cho chat hai chiều và Server-Sent Events cho thông báo đẩy một chiều tới vendor dashboard.
 
 \section*{Kết chương}
 Chương 2 đã xây dựng bức tranh chức năng của hệ thống thông qua việc khảo sát hiện trạng, xác định các tác nhân và phân hệ chính, mô tả quy trình đặt hàng -- giữ kho -- thanh toán, đồng thời đặc tả bốn ca sử dụng cốt lõi của đồ án. Những nội dung này tạo nền tảng để chuyển sang chương tiếp theo, nơi các cơ sở lý thuyết, công nghệ sử dụng và lý do lựa chọn giải pháp sẽ được phân tích cụ thể hơn.

@@ -1,0 +1,70 @@
+@startuml model_class_detail
+skinparam classBackgroundColor White
+skinparam classBorderColor #444444
+skinparam arrowColor #333333
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+
+class Order {
+  - _id: ObjectId
+  - userId: ObjectId
+  - items: Array<OrderItem>
+  - pricing: PricingObject
+  - paymentMethod: String
+  - payment: Boolean
+  - status: String
+  - idempotencyKey: String
+  - stockReservedAt: Number
+  - reservationExpiresAt: Number
+  - vendors: Array<VendorOrder>
+  - stripeSessionId: String
+  - vnpTxnRef: String
+  --
+  + findByIdempotencyKey(userId, key): Order
+  + markAsPaid(sessionId): void
+  + updateStatus(status): void
+  + isReservationExpired(): Boolean
+}
+
+class Product {
+  - _id: ObjectId
+  - name: String
+  - price: Number
+  - stock: Number
+  - vendorId: ObjectId
+  - sold: Number
+  - rating: Number
+  - attributes: Array<Attribute>
+  - variants: Array<SKUVariant>
+  - isActive: Boolean
+  --
+  + search(keyword, filters): Product[]
+  + reserveStock(variantId, qty): Boolean
+  + releaseStock(variantId, qty): void
+  + updateRating(score): void
+  + deactivate(): void
+}
+
+class PricingObject {
+  - subtotal: Number
+  - shopDiscount: Number
+  - platformDiscount: Number
+  - shippingFee: Number
+  - shippingDiscount: Number
+  - finalTotal: Number
+}
+
+class SKUVariant {
+  - variantId: String
+  - attributes: Object
+  - price: Number
+  - stock: Number
+}
+
+Order *-- PricingObject  : contains
+Order "1" o-- "n" SKUVariant : items
+Product "1" *-- "n" SKUVariant : variants
+
+@enduml

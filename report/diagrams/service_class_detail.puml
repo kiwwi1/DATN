@@ -1,0 +1,47 @@
+@startuml service_class_detail
+skinparam classBackgroundColor White
+skinparam classBorderColor #444444
+skinparam arrowColor #333333
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+
+class OrderService {
+  + createOrder(userId, payload, key): Order
+  + confirmStripePayment(sessionId): Order
+  + confirmVNPayPayment(txnRef, params): Order
+  + cancelExpiredOrders(): void
+  + releaseStock(orderId): void
+  + getOrdersByUser(userId): Order[]
+  + updateOrderStatus(orderId, status): Order
+  - reserveStock(items): void
+  - buildVendorGroups(items): VendorOrder[]
+}
+
+class VoucherService {
+  + computeOrderPricing(items, vouchers, fee): PricingResult
+  + calcVoucherDiscount(voucher, amount): Number
+  + assertVoucherValid(voucher): void
+  + applyVouchers(voucherIds): void
+  + releaseVouchers(voucherIds): void
+  - applyShopVouchers(shops, vouchers): Number
+  - applyPlatformVoucher(total, voucher): Number
+  - applyShippingVoucher(fee, voucher): Number
+}
+
+class PricingResult {
+  + subtotal: Number
+  + shopDiscount: Number
+  + platformDiscount: Number
+  + shippingFee: Number
+  + shippingDiscount: Number
+  + finalTotal: Number
+  + appliedVouchers: Array
+  + rejectedVouchers: Array
+}
+
+OrderService ..> VoucherService    : <<use>>
+VoucherService ..> PricingResult   : creates
+
+@enduml

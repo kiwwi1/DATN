@@ -1,0 +1,39 @@
+@startuml context_hooks_class
+skinparam packageStyle rectangle
+skinparam classBackgroundColor White
+skinparam classBorderColor #444444
+skinparam arrowColor #333333
+skinparam packageBorderColor #444444
+skinparam packageBackgroundColor #FAFAFA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+package "context" {
+    class ShopContext
+}
+
+package "hooks" {
+    class usePlaceOrderCheckout
+    class useCart
+    class useAuth
+    class useSearch
+}
+
+package "api" #EEEEEE {
+    class orderApi
+    class productApi
+    class authApi
+}
+
+usePlaceOrderCheckout --> ShopContext : reads/writes
+useCart               --> ShopContext : reads/writes
+useAuth               --> ShopContext : reads/writes
+useSearch             --> ShopContext : reads
+
+usePlaceOrderCheckout ..> orderApi   : <<use>>
+useCart               ..> productApi : <<use>>
+useAuth               ..> authApi    : <<use>>
+useSearch             ..> productApi : <<use>>
+
+@enduml

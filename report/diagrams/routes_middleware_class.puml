@@ -1,0 +1,50 @@
+@startuml routes_middleware_class
+skinparam packageStyle rectangle
+skinparam classBackgroundColor White
+skinparam classBorderColor #444444
+skinparam arrowColor #333333
+skinparam packageBorderColor #444444
+skinparam packageBackgroundColor #FAFAFA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+package "routes" {
+    class ProductRoute
+    class OrderRoute
+    class VoucherRoute
+    class AuthRoute
+    class UserRoute
+}
+
+package "middleware" {
+    class auth
+    class vendorAuth
+}
+
+package "controllers" #EEEEEE {
+    class ProductController
+    class OrderController
+    class VoucherController
+    class AuthController
+    class UserController
+}
+
+ProductRoute ..> auth        : <<use>>
+OrderRoute   ..> auth        : <<use>>
+VoucherRoute ..> auth        : <<use>>
+AuthRoute    ..> auth        : <<use>>
+UserRoute    ..> auth        : <<use>>
+
+OrderRoute   ..> vendorAuth  : <<use>>
+VoucherRoute ..> vendorAuth  : <<use>>
+
+vendorAuth   ..> auth        : <<use>>
+
+ProductRoute ..> ProductController : <<use>>
+OrderRoute   ..> OrderController   : <<use>>
+VoucherRoute ..> VoucherController : <<use>>
+AuthRoute    ..> AuthController    : <<use>>
+UserRoute    ..> UserController    : <<use>>
+
+@enduml

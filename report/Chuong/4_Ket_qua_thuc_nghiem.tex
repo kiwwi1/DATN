@@ -66,7 +66,7 @@ Biểu đồ gói phía giao diện trong Hình \ref{fig:fe_package} cho thấy 
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/generated/service_class_diagram.png}
+    \includegraphics[width=1\textwidth]{images/generated/service_class_diagram.png}
     \caption{Biểu đồ lớp các dịch vụ chính phía máy chủ}
     \label{fig:svc_class}
 \end{figure}
@@ -93,11 +93,11 @@ Sơ đồ điều hướng chính của hai ứng dụng giao diện được mi
     \label{fig:ui_navigation_map}
 \end{figure}
 
-\subsection{Thiết kế lớp}
+\subsection{Thiết kế mô hình nghiệp vụ và tương tác}
 
-\textbf{Các lớp nghiệp vụ chủ đạo.} Bốn đối tượng nghiệp vụ quan trọng nhất là \texttt{User}, \texttt{Product}, \texttt{Order} và \texttt{Voucher}. \texttt{User} giữ thông tin tài khoản hợp nhất cho cả người mua và người bán, phân biệt bằng trường \texttt{role}, giúp đơn giản hóa luồng xác thực. \texttt{Product} hỗ trợ cấu trúc phân cấp danh mục ba tầng, tập thuộc tính và biến thể SKU với tồn kho riêng từng SKU. \texttt{Order} ngoài các trường giao dịch cơ bản còn bổ sung \texttt{idempotencyKey}, \texttt{stockReservedAt}, \texttt{reservationExpiresAt} và dữ liệu cổng thanh toán để hỗ trợ giữ kho và thanh toán online an toàn. \texttt{Voucher} hỗ trợ ba kiểu \texttt{SHOP}, \texttt{PLATFORM} và \texttt{SHIPPING} với hai kiểu giảm giá phần trăm và số tiền cố định.
+\textbf{Các thực thể nghiệp vụ chủ đạo.} Bốn đối tượng nghiệp vụ quan trọng nhất là \texttt{User}, \texttt{Product}, \texttt{Order} và \texttt{Voucher}. \texttt{User} giữ thông tin tài khoản hợp nhất cho cả người mua và người bán, phân biệt bằng trường \texttt{role}, giúp đơn giản hóa luồng xác thực. \texttt{Product} hỗ trợ cấu trúc phân cấp danh mục ba tầng, tập thuộc tính và biến thể SKU với tồn kho riêng từng SKU. \texttt{Order} ngoài các trường giao dịch cơ bản còn bổ sung \texttt{idempotencyKey}, \texttt{stockReservedAt}, \texttt{reservationExpiresAt} và dữ liệu cổng thanh toán để hỗ trợ giữ kho và thanh toán online an toàn. \texttt{Voucher} hỗ trợ ba kiểu \texttt{SHOP}, \texttt{PLATFORM} và \texttt{SHIPPING} với hai kiểu giảm giá phần trăm và số tiền cố định.
 
-Mối quan hệ điều phối giữa các Service lớp đã được trình bày trong Hình \ref{fig:svc_class}. \texttt{OrderService} đóng vai trò điều phối trung tâm: khi đặt hàng nó gọi \texttt{VoucherService.computeOrderPricing()} để tính bảng giá nhiều lớp, sử dụng các dịch vụ con trong miền \texttt{order/} để giữ kho nguyên tử và kích hoạt dịch vụ thông báo để đẩy sự kiện thời gian thực tới nhà bán hàng.
+Luồng tương tác giữa các thành phần nghiệp vụ không chỉ nằm ở cấu trúc thực thể mà còn ở cơ chế phối hợp giữa các dịch vụ xử lý. Mối quan hệ điều phối giữa các Service lớp đã được trình bày trong Hình \ref{fig:svc_class}. Trong đó \texttt{OrderService} đóng vai trò điều phối trung tâm: khi đặt hàng nó gọi \texttt{VoucherService.computeOrderPricing()} để tính bảng giá nhiều lớp, sử dụng các dịch vụ con trong miền \texttt{order/} để giữ kho nguyên tử và kích hoạt dịch vụ thông báo để đẩy sự kiện thời gian thực tới nhà bán hàng.
 
 \textbf{Biểu đồ tuần tự: Tạo đơn hàng.} Hình \ref{fig:seq_order} mô tả luồng tạo đơn hàng với cơ chế kiểm soát trùng lệnh và giữ kho nguyên tử. Sau khi client gửi yêu cầu kèm mã định danh chống trùng đơn, backend tra cứu đơn cũ trước; nếu chưa tồn tại, hệ thống thực hiện giữ kho bằng phép cập nhật có điều kiện ($\$inc$ kết hợp điều kiện số lượng đủ) để ngăn bán vượt tồn kho đồng thời. Thông tin thời điểm và thời hạn giữ kho được lưu vào bản ghi đơn hàng để tác vụ nền có thể hoàn trả nếu thanh toán quá hạn.
 
@@ -115,6 +115,15 @@ Mối quan hệ điều phối giữa các Service lớp đã được trình b�
     \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
     \caption{Biểu đồ tuần tự xác nhận thanh toán trực tuyến}
     \label{fig:seq_payment}
+\end{figure}
+
+\textbf{Biểu đồ trạng thái đơn hàng.} Để quản lý vòng đời đơn hàng phức tạp từ lúc tạo, giữ kho tạm thời cho đến khi hoàn thành thanh toán, đóng gói, vận chuyển hoặc tự động hủy do quá hạn, hệ thống sử dụng biểu đồ trạng thái đơn hàng như mô tả ở Hình \ref{fig:order_state_machine}. Biểu đồ này chỉ rõ sự dịch chuyển trạng thái giữa các giai đoạn dựa trên các sự kiện nghiệp vụ và tác vụ của các dịch vụ.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.92\textwidth,height=0.65\textheight,keepaspectratio]{images/generated/order_state_machine.png}
+    \caption{Biểu đồ trạng thái vòng đời Đơn hàng}
+    \label{fig:order_state_machine}
 \end{figure}
 
 \subsection{Thiết kế cơ sở dữ liệu}
@@ -192,8 +201,10 @@ Cấu trúc các collection quan trọng nhất được trình bày chi tiết 
         \texttt{pricing} & Object & -- & Bảng giá: subtotal, shopDiscount, platformDiscount, shippingFee, shippingDiscount, finalTotal. \\ \hline
         \texttt{payment}\allowbreak\texttt{Method} & String & Required & Phương thức: COD, Stripe, VNPay. \\ \hline
         \texttt{payment} & Boolean & Default: false & Trạng thái thanh toán thành công. \\ \hline
+        {\scriptsize\begin{tabular}[t]{@{}l@{}}\texttt{stripeSessionId}\\\texttt{vnpPaymentUrl}\\\texttt{vnpTxnRef}\end{tabular}} & String & -- & Dữ liệu phiên hoặc mã giao dịch từ cổng thanh toán Stripe/VNPay. \\ \hline
         \texttt{status} & String & Default: 'Order Placed' & Trạng thái vận chuyển của đơn hàng. \\ \hline
         \texttt{idempotency}\allowbreak\texttt{Key} & String & Unique (cặp) & Khóa chống trùng lặp giao dịch đặt hàng. \\ \hline
+        \texttt{stock}\allowbreak\texttt{ReservedAt} & Number & -- & Mốc thời gian hệ thống thực hiện giữ kho cho đơn hàng. \\ \hline
         \texttt{reservation}\allowbreak\texttt{ExpiresAt} & Number & -- & Thời gian hết hạn giữ kho. \\ \hline
         \texttt{vendors} & Array & -- & Danh sách chia nhỏ đơn theo từng shop để điều phối. \\ \hline
     \end{tabular}
@@ -317,7 +328,7 @@ Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp x
 
 \begin{figure}[htbp]
     \centering
-    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    \includegraphics[width=0.95\textwidth,height=0.78\textheight,keepaspectratio]{Chuong/images/generated/ss_home.png}
     \caption{Giao diện trang chủ và tìm kiếm sản phẩm}
     \label{fig:ss_home}
 \end{figure}
@@ -326,7 +337,9 @@ Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp x
 
 \begin{figure}[htbp]
     \centering
-    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+
+     \includegraphics[width=0.95\textwidth,height=0.78\textheight,keepaspectratio]{Chuong/images/generated/ss_product.png}
+    
     \caption{Giao diện chi tiết sản phẩm với chọn SKU và trạng thái tồn kho}
     \label{fig:ss_product}
 \end{figure}
@@ -335,20 +348,69 @@ Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp x
 
 \begin{figure}[htbp]
     \centering
-    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
+    
+        \includegraphics[width=0.95\textwidth,height=0.78\textheight,keepaspectratio]{Chuong/images/generated/ss_voucher.png}
+    
     \caption{Giao diện đặt hàng và bảng giá nhiều lớp voucher}
     \label{fig:ss_checkout}
 \end{figure}
 
-\textbf{Bảng điều khiển nhà bán hàng.} Vendor quản lý sản phẩm, theo dõi trạng thái đơn hàng và xác nhận giao hàng qua giao diện riêng biệt. Thông báo đơn hàng mới được đẩy tức thì qua kênh SSE, trong khi luồng chat buyer-vendor sử dụng Socket.IO để trao đổi hai chiều theo thời gian thực (Hình \ref{fig:ss_vendor}).
+\textbf{Bảng điều khiển nhà bán hàng.} Vendor quản lý sản phẩm, theo dõi trạng thái đơn hàng và xác nhận giao hàng qua giao diện riêng biệt. Màn hình tổng quan dashboard được trình bày trong Hình \ref{fig:ss_vendor_overview}; giao diện quản lý sản phẩm, đơn hàng và voucher lần lượt được minh họa trong Hình \ref{fig:ss_vendor_product}, Hình \ref{fig:ss_vendor_order} và Hình \ref{fig:ss_vendor_voucher}. Bên cạnh đó, Hình \ref{fig:ss_vendor_chat} thể hiện khu vực chat và thông báo thời gian thực, nơi vendor nhận cập nhật mới qua SSE và trao đổi trực tiếp với khách hàng qua Socket.IO.
 
 \begin{figure}[htbp]
     \centering
-    \fbox{\rule{0pt}{5.5cm}\rule{0.90\textwidth}{0pt}}
-    \caption{Giao diện bảng điều khiển nhà bán hàng}
-    \label{fig:ss_vendor}
+    \IfFileExists{Chuong/images/generated/vendor_dashboard_overview.png}{
+        \includegraphics[width=0.92\textwidth,height=0.34\textheight,keepaspectratio]{Chuong/images/generated/vendor_dashboard_overview.png}
+    }{
+        \fbox{\rule{0pt}{6.2cm}\rule{0.90\textwidth}{0pt}}
+    }
+    \caption{Màn hình tổng quan của bảng điều khiển nhà bán hàng}
+    \label{fig:ss_vendor_overview}
 \end{figure}
 
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{Chuong/images/generated/vendor_product_management.png}{
+        \includegraphics[width=0.92\textwidth,height=0.34\textheight,keepaspectratio]{Chuong/images/generated/vendor_product_management.png}
+    }{
+        \fbox{\rule{0pt}{6.2cm}\rule{0.90\textwidth}{0pt}}
+    }
+    \caption{Màn hình quản lý sản phẩm của nhà bán hàng}
+    \label{fig:ss_vendor_product}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{Chuong/images/generated/vendor_order_management.png}{
+        \includegraphics[width=0.92\textwidth,height=0.34\textheight,keepaspectratio]{Chuong/images/generated/vendor_order_management.png}
+    }{
+        \fbox{\rule{0pt}{6.2cm}\rule{0.90\textwidth}{0pt}}
+    }
+    \caption{Màn hình quản lý đơn hàng của nhà bán hàng}
+    \label{fig:ss_vendor_order}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{Chuong/images/generated/vendor_voucher_management.png}{
+        \includegraphics[width=0.92\textwidth,height=0.34\textheight,keepaspectratio]{Chuong/images/generated/vendor_voucher_management.png}
+    }{
+        \fbox{\rule{0pt}{6.2cm}\rule{0.90\textwidth}{0pt}}
+    }
+    \caption{Màn hình quản lý voucher của nhà bán hàng}
+    \label{fig:ss_vendor_voucher}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{Chuong/images/generated/vendor_chat_notifications.png}{
+        \includegraphics[width=0.92\textwidth,height=0.34\textheight,keepaspectratio]{Chuong/images/generated/vendor_chat_notifications.png}
+    }{
+        \fbox{\rule{0pt}{6.2cm}\rule{0.90\textwidth}{0pt}}
+    }
+    \caption{Màn hình chat và thông báo thời gian thực của nhà bán hàng}
+    \label{fig:ss_vendor_chat}
+\end{figure}
 % ─── SECTION 4: KIỂM THỬ ────────────────────────────────────────────────────
 \section{Kiểm thử}
 \label{section:4.4}
@@ -383,7 +445,7 @@ Sau khi build production, bản \texttt{frontend/dist} có dung lượng xấp x
 \end{tabular}
 \end{table}
 
-Kết quả: 11/11 trường hợp kiểm thử của module \texttt{VoucherService} đạt. Ngoài bộ kiểm thử này, dự án còn duy trì thêm bộ kiểm thử cho \texttt{interactionService} nhằm kiểm tra logic ghi nhận tương tác và gợi ý sản phẩm.
+Kết quả: 11/11 trường hợp kiểm thử của module \texttt{VoucherService} đạt. Ngoài bộ kiểm thử này, dự án còn duy trì thêm bộ kiểm thử cho \texttt{interactionService} nhằm kiểm tra logic ghi nhận tương tác và gợi ý sản phẩm, cùng bộ kiểm thử \texttt{stockReservationService} để xác nhận giữ kho cạnh tranh, rollback tồn kho khi một sản phẩm hết hàng và chỉ mục chống trùng đơn. Tính đến thời điểm rà soát, toàn bộ 22/22 ca kiểm thử tự động của backend đều đạt.
 
 \textbf{Kiểm thử thủ công luồng đặt hàng.} Bảng \ref{table:manual_test} ghi nhận kết quả kiểm thử thủ công đối với bốn kịch bản trọng tâm.
 
@@ -411,11 +473,28 @@ Hệ thống được tổ chức theo hai mô hình triển khai. Ở môi trư
 
 Đối với môi trường container hóa, dự án cung cấp cấu hình Docker Compose cho cả dev và production. Bản production build cả frontend shop lẫn vendor dashboard thành tài nguyên tĩnh rồi phục vụ qua Nginx, còn backend chạy trong container Node.js riêng. Nhờ vậy, các thành phần chính vẫn tách biệt nhưng có thể được triển khai đồng bộ bằng một lệnh duy nhất.
 
+Mô hình triển khai vật lý tổng thể của hệ thống được minh họa cụ thể trong Hình \ref{fig:physical_deployment}, chỉ rõ cách các thiết bị của Khách hàng và Đối tác kết nối qua các dịch vụ đám mây Cloudflare và Stripe/VNPay để tương tác với máy chủ sản xuất chạy Docker và các cơ sở dữ liệu.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/physical_deployment.png}
+    \caption{Mô hình triển khai vật lý của hệ thống}
+    \label{fig:physical_deployment}
+\end{figure}
+
+
 MongoDB được cấu hình theo hướng linh hoạt thông qua biến môi trường \texttt{MONGODB\_URI}, do đó có thể kết nối MongoDB Atlas (khu vực Singapore, tier M0) hoặc máy chủ nội bộ mà không cần thay đổi mã nguồn. Redis được backend sử dụng khi biến \texttt{REDIS\_URL} khả dụng; nếu không kết nối được, hệ thống có cơ chế fallback trong bộ nhớ cho xác thực và giới hạn tần suất, song đây chỉ là phương án dự phòng cho phát triển chứ không phải cấu hình production khuyến nghị.
 
 Về tích hợp cổng thanh toán, Stripe webhook được gắn tại endpoint \path{/api/order/stripe-webhook}. Endpoint này phải được mount trước middleware \path{express.json()} để giữ nguyên raw body phục vụ xác minh chữ ký. Với VNPay, backend xác minh chữ ký của tham số callback rồi redirect người dùng về trang \path{/verify} ở frontend. Cách tổ chức này giữ cho luồng thanh toán online nhất quán giữa backend, frontend và nhà cung cấp dịch vụ thanh toán.
 
 \section*{Kết chương}
-Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, ứng dụng giao diện và backend tích hợp thanh toán, realtime và khuyến nghị. Chương cũng đã tổng hợp công cụ sử dụng, thống kê quy mô mã nguồn, kết quả 11/11 ca kiểm thử đơn vị của \texttt{VoucherService} cùng bốn kịch bản kiểm thử thủ công đầu cuối, đồng thời mô tả rõ cách thức triển khai trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật sẽ được phân tích dưới góc nhìn kỹ thuật và giá trị thực tiễn.
+Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, ứng dụng giao diện và backend tích hợp thanh toán, realtime và khuyến nghị. Chương cũng đã tổng hợp công cụ sử dụng, thống kê quy mô mã nguồn, kết quả 22/22 ca kiểm thử tự động ở các module \texttt{VoucherService}, \texttt{interactionService} và \texttt{stockReservationService} cùng bốn kịch bản kiểm thử thủ công đầu cuối, đồng thời mô tả rõ cách thức triển khai trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật sẽ được phân tích dưới góc nhìn kỹ thuật và giá trị thực tiễn.
 
 \end{document}
+
+
+
+
+
+
+

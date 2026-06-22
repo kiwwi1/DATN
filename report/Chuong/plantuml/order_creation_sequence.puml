@@ -3,7 +3,7 @@ hide footbox
 skinparam shadowing false
 skinparam ParticipantPadding 12
 skinparam BoxPadding 8
-skinparam maxMessageSize 42
+skinparam maxMessageSize 28
 skinparam sequence {
   ArrowColor #3A78C2
   LifeLineBorderColor #7AA7E0
@@ -12,26 +12,26 @@ skinparam sequence {
   ParticipantBackgroundColor white
 }
 
-title Biểu đồ tuần tự tạo đơn hàng và giữ kho nguyên tử
+title Biểu đồ tuần tự\nTạo đơn hàng và giữ kho nguyên tử
 
 actor "Khách hàng" as Buyer
-participant "Client (React)" as Client
-participant "Backend (Node.js)" as BE
+participant "Client\n(React)" as Client
+participant "Backend\n(Node.js)" as BE
 database "Database\n(MongoDB/Redis)" as DB
 
-== Tạo đơn và giữ kho ==
-Buyer -> Client: Xác nhận đặt hàng (chọn PTTT)
-Client -> BE: POST /api/orders (kèm PTTT & idempotency key)
-BE -> DB: Kiểm tra trùng đơn & giữ kho nguyên tử
+== Tạo đơn và\ngiữ kho ==
+Buyer -> Client: Xác nhận đặt hàng\n(chọn PTTT)
+Client -> BE: POST /api/orders\n(kèm PTTT & idempotency key)
+BE -> DB: Kiểm tra trùng đơn\n& giữ kho nguyên tử
 alt Hết hàng
-  DB --> BE: Thao tác thất bại (thiếu hàng)
+  DB --> BE: Thao tác thất bại\n(thiếu hàng)
   BE --> Client: Trả lỗi hết hàng (HTTP 400)
-  Client --> Buyer: Hiển thị sản phẩm không đủ kho
+  Client --> Buyer: Hiển thị sản phẩm\nkhông đủ kho
 else Đủ hàng
   DB --> BE: Xác nhận giữ kho thành công
-  BE -> DB: Tạo đơn, lưu voucher & cập nhật tồn kho/giỏ hàng
-  BE --> Client: Trả về mã đơn hàng & link thanh toán (nếu có)
-  Client --> Buyer: Hiển thị thành công / Chuyển hướng thanh toán
+  BE -> DB: Tạo đơn, lưu voucher\n& cập nhật tồn kho/giỏ hàng
+  BE --> Client: Trả về mã đơn hàng\n& link thanh toán (nếu có)
+  Client --> Buyer: Hiển thị thành công\n/ Chuyển hướng thanh toán
 end
 
 @enduml

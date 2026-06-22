@@ -15,6 +15,7 @@
 \usepackage{amsbsy} % Hỗ trợ các kí hiệu in đậm
 \usepackage{times} % Chọn font Time New Romans
 \usepackage{array} % Tạo bảng array
+\usepackage[table]{xcolor} % Hỗ trợ tô màu bảng
 \usepackage{enumitem} % Cho phép thay đổi kí hiệu của list
 \usepackage{subfiles} % Chèn các file nhỏ, giúp chia các chapter ra nhiều file hơn
 \usepackage{titlesec} % Giúp chỉnh sửa các tiêu đề, đề mục như chương, phần,..
@@ -72,7 +73,7 @@
 \setlength{\headheight}{10pt}
 
 \def \TITLE{ĐỒ ÁN TỐT NGHIỆP}
-\def \AUTHOR{NGUYỄN VĂN ABC}
+\def \AUTHOR{ĐẶNG QUANG HUY}
 
 % ===================================================
 \titleformat{\chapter}[hang]{\centering\bfseries}{CHƯƠNG \thechapter.\ }{0pt}{}[]
@@ -288,6 +289,7 @@
 \newpage
 %\pagestyle{fancy} % Áp dụng header và footer
 \chapter{PHÂN TÍCH THIẾT KẾ, TRIỂN KHAI VÀ ĐÁNH GIÁ HỆ THỐNG}
+\chaptermark{THIẾT KẾ, TRIỂN KHAI VÀ ĐÁNH GIÁ}
 \label{chapter:Experiment}
 \subfile{Chuong/4_Ket_qua_thuc_nghiem}
 

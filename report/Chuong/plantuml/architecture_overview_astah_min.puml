@@ -1,0 +1,46 @@
+@startuml
+
+actor Buyer
+actor Vendor
+
+package Frontend {
+  class ShopUI
+  class VendorDashboard
+}
+
+package Backend {
+  class RestRoutes
+  class Controllers
+  class Services
+  class SocketIOChat
+  class SseNotificationStream
+  class ReservationSweep
+}
+
+class MongoDB
+class Redis
+class Stripe
+class VNPay
+class CloudflareR2
+
+Buyer --> ShopUI : browse cart checkout
+Vendor --> VendorDashboard : manage products orders stats
+
+ShopUI --> RestRoutes : HTTPS REST
+VendorDashboard --> RestRoutes : HTTPS REST
+ShopUI --> SocketIOChat : WebSocket
+VendorDashboard --> SocketIOChat : WebSocket
+VendorDashboard --> SseNotificationStream : Event stream
+
+RestRoutes --> Controllers
+Controllers --> Services
+Services --> MongoDB
+Services --> Redis
+Services --> Stripe
+Services --> VNPay
+Services --> CloudflareR2
+SocketIOChat --> MongoDB : conversations messages
+SseNotificationStream --> MongoDB : notifications
+ReservationSweep --> Services : expire reservations
+
+@enduml

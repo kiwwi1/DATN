@@ -1,0 +1,58 @@
+@startuml
+skinparam shadowing false
+skinparam linetype ortho
+
+title Biểu đồ triển khai vật lý hệ thống (Deployment Diagram)
+
+node "Thiết bị Khách hàng\n(Client Browser)" as ClientDevice {
+  artifact "React Frontend App" as ReactShop
+}
+
+node "Thiết bị Đối tác\n(Vendor Browser)" as VendorDevice {
+  artifact "React Dashboard App" as ReactDashboard
+}
+
+cloud "Internet" as Internet {
+  cloud "Cloudflare DNS" as CF_DNS
+  cloud "Stripe / VNPay Gateways" as PG_Cloud
+}
+
+node "Production Server" as ProdServer {
+  node "Nginx Web Server" as NginxNode {
+    artifact "Static Web Hosting\n(HTML/JS/CSS)" as WebHost
+  }
+  
+  node "Docker Container" as ExpressContainer {
+    artifact "Node.js API Server\n(Express 5)" as ApiServer
+    artifact "Reservation Sweeper\n(Tác vụ nền)" as SweepTask
+  }
+  
+  database "Redis (Memory Cache)" as RedisDb {
+    component "Auth Sessions" as Sessions
+    component "Rate Limit Store" as Limits
+  }
+}
+
+database "MongoDB Atlas (Cloud)" as MongoAtlas {
+  database "Marketplace DB" as MainDb
+}
+
+cloud "Cloudflare R2" as R2Cloud {
+  storage "Product Images Bucket" as ImgBucket
+}
+
+ClientDevice --> CF_DNS : HTTPS
+VendorDevice --> CF_DNS : HTTPS
+CF_DNS --> NginxNode : Route Requests
+
+NginxNode --> WebHost : Serve Static Files
+NginxNode --> ExpressContainer : Reverse Proxy (Port 4000)
+
+ApiServer --> RedisDb : Session/Rate limit checks
+ApiServer --> MongoAtlas : Read/Write data
+ApiServer --> PG_Cloud : Process Payments
+ApiServer --> R2Cloud : Upload/Retrieve Images
+
+PG_Cloud --> ExpressContainer : Webhooks / Redirects\n(via Cloudflare Tunnel)
+
+@enduml

@@ -130,21 +130,21 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
+    \includegraphics[width=1.1\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn tạo đơn và giữ kho nguyên tử}
     \label{fig:order_creation_sequence}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
+    \includegraphics[width=1.1\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn thanh toán trực tuyến và xác nhận kết quả}
     \label{fig:online_payment_sequence}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/payment_sweeper_sequence.png}
+    \includegraphics[width=1.1\textwidth,height=0.8\textheight,keepaspectratio]{images/generated/payment_sweeper_sequence.png}
     \caption{Biểu đồ tuần tự luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán}
     \label{fig:payment_sweeper_sequence}
 \end{figure}
@@ -160,8 +160,10 @@ Dưới đây là đặc tả chi tiết của 4 ca sử dụng cốt lõi đón
 \caption{Đặc tả ca sử dụng 1: Đăng nhập hệ thống (Login)}
 \label{table:uc1_login}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
+\arrayrulecolor{blue!35}
+\begin{tabular}{|>{\columncolor{blue!6}\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
+\rowcolor{blue!18}
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
 Tên ca sử dụng & Đăng nhập hệ thống (Login) \\
@@ -196,6 +198,7 @@ Luồng ngoại lệ &
 \end{minipage} \\
 \hline
 \end{tabular}
+\arrayrulecolor{black}
 \end{table}
 
 \subsection{Đặc tả ca sử dụng 2: Đặt hàng và Giữ kho nguyên tử (Place Order)}
@@ -205,8 +208,10 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 2: Đặt hàng và Giữ kho nguyên tử (Place Order)}
 \label{table:uc2_placeorder}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
+\arrayrulecolor{blue!35}
+\begin{tabular}{|>{\columncolor{blue!6}\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
+\rowcolor{blue!18}
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
 Tên ca sử dụng & Đặt hàng và Giữ kho nguyên tử (Place Order) \\
@@ -241,6 +246,7 @@ Luồng ngoại lệ &
 \end{minipage} \\
 \hline
 \end{tabular}
+\arrayrulecolor{black}
 \end{table}
 
 \subsection{Đặc tả ca sử dụng 3: Áp dụng mã giảm giá đa lớp (Apply Vouchers)}
@@ -250,8 +256,10 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 3: Áp dụng mã giảm giá đa lớp (Apply Vouchers)}
 \label{table:uc3_voucher}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
+\arrayrulecolor{blue!35}
+\begin{tabular}{|>{\columncolor{blue!6}\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
+\rowcolor{blue!18}
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
 Tên ca sử dụng & Áp dụng mã giảm giá đa lớp (Apply Vouchers) \\
@@ -286,6 +294,7 @@ Luồng ngoại lệ &
 \end{minipage} \\
 \hline
 \end{tabular}
+\arrayrulecolor{black}
 \end{table}
 
 \subsection{Đặc tả ca sử dụng 4: Quản lý và Xem thống kê số liệu bán hàng (Merchant Stats)}
@@ -295,8 +304,10 @@ Luồng ngoại lệ &
 \caption{Đặc tả ca sử dụng 4: Xem báo cáo thống kê doanh số (View Sales Stats)}
 \label{table:uc4_stats}
 \renewcommand{\arraystretch}{1.4}
-\begin{tabular}{|>{\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
+\arrayrulecolor{blue!35}
+\begin{tabular}{|>{\columncolor{blue!6}\raggedright\arraybackslash}p{3.5cm}|>{\raggedright\arraybackslash}p{10.5cm}|}
 \hline
+\rowcolor{blue!18}
 \textbf{Trường thông tin} & \textbf{Nội dung} \\
 \hline
 Tên ca sử dụng & Xem báo cáo thống kê doanh số (View Sales Stats) \\
@@ -330,6 +341,7 @@ Luồng ngoại lệ &
 \end{minipage} \\
 \hline
 \end{tabular}
+\arrayrulecolor{black}
 \end{table}
 
 \section{Yêu cầu phi chức năng}

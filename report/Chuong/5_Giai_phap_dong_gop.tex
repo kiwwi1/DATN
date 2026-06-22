@@ -79,11 +79,11 @@ Khi có hai request trùng lặp được gửi đến gần như đồng thời
 Backend bắt lỗi đặc biệt này, bỏ qua bước tạo mới dữ liệu, và thực hiện truy vấn đơn hàng đã được tạo bởi yêu cầu thứ nhất để trả về cho client. Nhờ đó, phía client vẫn nhận được thông tin phản hồi hợp lệ về đơn hàng mà không có bất kỳ giao dịch thừa hay hao hụt tồn kho ngoài ý muốn nào được sinh ra.
 
 \subsection{Kết quả đạt được}
-Cơ chế giữ kho nguyên tử và chống trùng lặp đã được kiểm thử tải giả lập bằng kịch bản chạy đồng thời nhiều luồng gửi yêu cầu mua hàng với tồn kho giới hạn. Kết quả ghi nhận:
+Cơ chế giữ kho nguyên tử và chống trùng lặp đã được kiểm thử bằng các kịch bản tự động và thủ công mô phỏng nhiều yêu cầu mua hàng cùng cạnh tranh trên lượng tồn kho giới hạn. Kết quả ghi nhận:
 \begin{itemize}
-    \item Triệt tiêu hoàn toàn lỗi bán quá mức (oversell). Trong trường hợp tồn kho bằng $1$ nhưng có 100 yêu cầu đồng thời, hệ thống chỉ chấp nhận đúng 1 yêu cầu đầu tiên xử lý ghi thành công, 99 yêu cầu còn lại nhận thông báo hết hàng chỉ sau vài mili-giây.
-    \item Ngăn ngừa hoàn toàn đơn hàng rác do thao tác bấm lặp của người dùng hoặc lỗi gửi lại của mạng lưới.
-    \item Tác vụ quét nền chạy ổn định, tự động giải phóng hàng trăm sản phẩm bị giữ kho ảo từ các đơn hàng Stripe/VNPay không hoàn tất thanh toán, trả lại lượng tồn kho thực tế cho các khách hàng khác tiếp cận.
+    \item Kiểm soát lỗi bán quá mức (oversell) ở tầng dữ liệu. Với cùng một sản phẩm còn một đơn vị tồn kho, các yêu cầu giữ kho cạnh tranh chỉ có một thao tác cập nhật thỏa điều kiện \texttt{stock >= quantity}; các thao tác còn lại bị từ chối bằng lỗi hết hàng.
+    \item Hạn chế tạo đơn hàng trùng do thao tác bấm lặp của người dùng hoặc lỗi gửi lại của mạng lưới thông qua chỉ mục duy nhất trên cặp \texttt{userId} và \texttt{idempotencyKey}.
+    \item Tác vụ quét nền tự động giải phóng các đơn hàng Stripe/VNPay không hoàn tất thanh toán sau thời hạn giữ kho, trả lại lượng tồn kho đã đặt chỗ và khôi phục lượt sử dụng voucher liên quan.
 \end{itemize}
 
 \section{Hệ thống khuyến nghị sản phẩm lai tích hợp suy hao thời gian}
@@ -181,7 +181,7 @@ Hệ thống gợi ý lai đã mang lại những cải thiện rõ rệt về m
 \subsection{Đặt vấn đề}
 Trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace), giỏ hàng của khách hàng thường chứa đồng thời nhiều sản phẩm từ các cửa hàng (đối tác bán hàng) khác nhau. Sự phức tạp này tạo ra hai bài toán kỹ thuật hóc búa ở luồng đặt hàng và thanh toán:
 \begin{itemize}
-    \item \textbf{Phân tách và điều phối đơn hàng (Order Routing)}: Cổng thanh toán trực tuyến (như Stripe hay VNPay) chỉ xử lý một giao dịch chuyển tiền tổng duy nhất từ phía khách hàng. Tuy nhiên, hệ thống phải tự động chia tách giao dịch tổng đó thành các đơn hàng con riêng biệt cho từng nhà bán hàng để họ có thể quản lý, chuẩn bị hàng và theo dõi vận chuyển độc lập trên dashboard của mình. Ngoài ra, việc tính toán doanh thu, hoa hồng (commission) của sàn cũng phải được bóc tách chi tiết theo từng đơn hàng con này.
+    \item \textbf{Phân tách và điều phối đơn hàng (Order Routing)}: Cổng thanh toán trực tuyến (như Stripe hay VNPay) chỉ xử lý một giao dịch chuyển tiền tổng duy nhất từ phía khách hàng. Tuy nhiên, hệ thống phải tự động phân tách logic xử lý theo từng nhà bán hàng trong mảng \texttt{vendors} của đơn hàng tổng, để mỗi nhà bán hàng có thể quản lý, chuẩn bị hàng và theo dõi vận chuyển độc lập trên dashboard của mình. Ngoài ra, việc tính toán doanh thu, hoa hồng (commission) của sàn cũng phải được bóc tách chi tiết theo từng phần đơn hàng của từng vendor.
     \item \textbf{Áp dụng mã giảm giá nhiều lớp (Hierarchical Voucher Engine)}: Khách hàng có quyền áp dụng đồng thời ba loại mã giảm giá trong một lần thanh toán: Voucher của shop (chỉ giảm giá cho sản phẩm của shop đó), Voucher của sàn (áp dụng trên tổng giá trị đơn hàng), và Voucher vận chuyển (giảm trừ phí ship). Nếu tính toán không cẩn thận hoặc để client tự gửi số tiền cần thanh toán lên, hệ thống sẽ rất dễ bị tấn công sửa đổi giá trị giao dịch hoặc áp dụng sai lệch quy tắc dẫn đến thất thoát tài chính.
 \end{itemize}
 

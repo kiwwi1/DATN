@@ -1,5 +1,11 @@
 import orderModel from "../../models/orderModel.js";
 import productModel from "../../models/productModel.js";
+import { getRedisClient } from "../../config/redis.js";
+
+const VENDOR_STATS_CACHE_TTL_SEC = 60;
+
+const buildVendorStatsCacheKey = (vendorId, startDate, endDate) =>
+  `vendor-stats:${vendorId}:start:${startDate || "all"}:end:${endDate || "all"}`;
 
 const pickImageUrl = (imageLike, variant = "main") => {
   const pickFromObject = (obj) => {
@@ -29,6 +35,19 @@ const pickImageUrl = (imageLike, variant = "main") => {
 };
 
 export const vendorStatsService = async (vendorId, { startDate, endDate } = {}) => {
+  const vendorKey = vendorId?.toString?.() || String(vendorId);
+  const cacheKey = buildVendorStatsCacheKey(vendorKey, startDate, endDate);
+  const redis = getRedisClient();
+
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {
+      // Cache read failure should not block stats generation.
+    }
+  }
+
   const MONTH_NAMES = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
 
   const now = new Date();
@@ -48,13 +67,17 @@ export const vendorStatsService = async (vendorId, { startDate, endDate } = {}) 
   twelveMonthsAgo.setDate(1);
   twelveMonthsAgo.setHours(0, 0, 0, 0);
 
-  const orderQuery = { "items.vendorId": vendorId };
+  const orderQuery = { "vendors.vendorId": vendorId };
   if (startDate && endDate) {
     orderQuery.date = { $gte: Number(startDate), $lte: Number(endDate) };
   }
 
   const [allOrders, products] = await Promise.all([
-    orderModel.find(orderQuery).sort({ date: -1 }).lean(),
+    orderModel
+      .find(orderQuery)
+      .select("items vendors status date")
+      .sort({ date: -1 })
+      .lean(),
     productModel
       .find({ vendorId })
       .select("stock name category image sold isActive")
@@ -252,7 +275,7 @@ export const vendorStatsService = async (vendorId, { startDate, endDate } = {}) 
     };
   });
 
-  return {
+  const result = {
     revenue: {
       total: totalRevenue,
       today: todayRevenue,
@@ -280,4 +303,14 @@ export const vendorStatsService = async (vendorId, { startDate, endDate } = {}) 
       categoryChart,
     },
   };
+
+  if (redis) {
+    try {
+      await redis.setEx(cacheKey, VENDOR_STATS_CACHE_TTL_SEC, JSON.stringify(result));
+    } catch {
+      // Cache write failure should not block the response.
+    }
+  }
+
+  return result;
 };

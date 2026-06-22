@@ -1,4 +1,4 @@
-# HƯỚNG DẪN & QUY TẮC VIẾT ĐỒ ÁN TỐT NGHIỆP CHUẨN KHOA HỌC
+﻿# HƯỚNG DẪN & QUY TẮC VIẾT ĐỒ ÁN TỐT NGHIỆP CHUẨN KHOA HỌC
 
 Tài liệu này tổng hợp toàn bộ các quy định, hướng dẫn định dạng và quy tắc hành văn khoa học bắt buộc áp dụng khi viết báo cáo Đồ án tốt nghiệp (ĐATN) theo chuẩn báo cáo kỹ thuật kỹ sư/cử nhân (ISO 7144:1986).
 
@@ -174,4 +174,150 @@ graph TD
 #### 8. Các Phụ lục (Supplementary Information)
 *   **Phụ lục A (Hướng dẫn viết ĐATN)**: Chứa các quy định chi tiết về cách định dạng tài liệu, cài đặt công cụ.
 *   **Phụ lục B (Đặc tả Use Case bổ sung)**: Chứa thông tin đặc tả chi tiết của các Use Case phụ nhằm giảm dung lượng, giúp nội dung Chương 2 tập trung sâu sắc vào các Use Case cốt lõi nhạy cảm của hệ thống.
+
+
+---
+
+## 7. NỘI DUNG THAM CHIẾU THEO BỘ CHƯƠNG HIỆN TẠI CỦA ĐỒ ÁN
+
+Phần này tổng hợp trực tiếp nội dung đang có trong các tệp chương hiện tại để dùng như một khung viết thống nhất khi chỉnh sửa báo cáo. Mục tiêu của mục này không phải thay thế nội dung trong các tệp chương gốc, mà giúp sinh viên biết mỗi chương hiện đang viết gì, nên giữ trọng tâm nào, và khi mở rộng thì cần bám theo mạch logic nào.
+
+### 7.1. Chương 1 -- Giới thiệu đề tài
+
+**Tệp nguồn tham chiếu:** report/Chuong/1_Gioi_thieu.tex
+
+**Vai trò của chương:**
+Chương 1 dùng để đặt bối cảnh thực tiễn cho đề tài, xác định bài toán trung tâm và chốt phạm vi nghiên cứu trước khi bước sang các chương phân tích, công nghệ và triển khai.
+
+**Nội dung hiện tại của chương gồm 4 phần chính:**
+1. Đặt vấn đề: trình bày sự phát triển của thương mại điện tử đa nhà bán hàng, các thách thức như overselling dưới tải cao, rủi ro bảo mật xác thực, và nhu cầu cá nhân hóa trải nghiệm người dùng.
+2. Mục tiêu và phạm vi đề tài: khảo sát các nền tảng như Shopify, WooCommerce và các sàn lớn tại Việt Nam; từ đó chỉ ra ba hạn chế chính và xác định 5 nhóm chức năng cốt lõi của đề tài.
+3. Định hướng giải pháp: nêu định hướng dùng MERN Stack, Redis, Socket.IO, Stripe, VNPay và bộ gợi ý sản phẩm lai có suy hao theo thời gian.
+4. Bố cục đồ án: mô tả logic nội dung từ Chương 2 đến Chương 6.
+
+**Khi viết hoặc chỉnh chương này, cần giữ đúng trọng tâm:**
+- Chỉ nêu bài toán, động lực nghiên cứu và mục tiêu.
+- Không đi sâu vào chi tiết thuật toán, schema dữ liệu hay triển khai mã nguồn.
+- Phần bố cục nên viết bằng đoạn văn liên kết, không dùng bullet liệt kê thô trong bản báo cáo chính thức.
+
+### 7.2. Chương 2 -- Khảo sát, phân tích yêu cầu và đặc tả chức năng
+
+**Tệp nguồn tham chiếu:** report/Chuong/2_Khao_sat.tex
+
+**Vai trò của chương:**
+Chương 2 xác định ranh giới hệ thống, tác nhân, luồng nghiệp vụ và yêu cầu chức năng/phi chức năng. Đây là chương chuyển từ “bài toán thực tế” sang “bài toán hệ thống phần mềm”.
+
+**Nội dung hiện tại của chương gồm 4 cụm lớn:**
+1. Khảo sát hiện trạng: tổng hợp nhu cầu từ người mua, nhà bán hàng và hạn chế của các hệ thống thương mại điện tử phổ biến.
+2. Tổng quan chức năng: mô tả các tác nhân Buyer, Vendor và khối vận hành; đi kèm các biểu đồ use case tổng quát và phân rã theo phân hệ.
+3. Quy trình nghiệp vụ đặt hàng giữ kho và thanh toán đồng thời: mô tả luồng checkout, giữ kho, tạo đơn, thanh toán online, hoàn kho quá hạn; có activity diagram và nhiều sequence diagram tách theo giai đoạn.
+4. Đặc tả chức năng và yêu cầu phi chức năng: đặc tả chi tiết 4 use case cốt lõi gồm đăng nhập, đặt hàng, áp dụng voucher và xem thống kê; sau đó chốt các yêu cầu hiệu năng, nhất quán dữ liệu, dễ dùng và bảo mật.
+
+**Các phân hệ use case đang được thể hiện rõ trong chương:**
+- Quản lý tài khoản và bảo mật.
+- Mua hàng và thanh toán.
+- Quản lý gian hàng.
+- Vận hành dữ liệu và cấu hình nền tảng.
+
+**Khi mở rộng chương này, nên bám đúng mạch:**
+- Từ khảo sát thực tế đến chức năng cần có.
+- Từ chức năng tổng quát đến quy trình nghiệp vụ chi tiết.
+- Từ quy trình đến đặc tả use case.
+- Từ use case đến yêu cầu phi chức năng đo được.
+
+### 7.3. Chương 3 -- Cơ sở lý thuyết và công nghệ sử dụng
+
+**Tệp nguồn tham chiếu:** report/Chuong/3_Cong_nghe.tex
+
+**Vai trò của chương:**
+Chương 3 giải thích vì sao hệ thống chọn bộ công nghệ hiện tại thay vì các phương án thay thế. Đây là nơi trả lời câu hỏi “vì sao giải pháp này phù hợp với bài toán đã đặc tả ở Chương 2”.
+
+**Nội dung hiện tại của chương đang xoay quanh 5 nhóm công nghệ/chủ đề:**
+1. MongoDB và cơ chế giữ kho nguyên tử: phân tích vấn đề nhất quán dữ liệu, tranh chấp tài nguyên tải cao, và lý do chọn MongoDB + Mongoose cho mô hình tài liệu nhiều biến thể sản phẩm.
+2. Node.js, Express và Socket.IO: giải thích vì sao backend bất đồng bộ phù hợp với hệ thống I/O-intensive và giao tiếp thời gian thực.
+3. Redis: dùng cho rate limiting và quản lý phiên xác thực phía server.
+4. Hệ thống gợi ý sản phẩm lai: kết hợp content-based filtering, collaborative filtering và time decay để xử lý cá nhân hóa và cold start.
+5. Stripe, VNPay, React và Recharts: phục vụ thanh toán trực tuyến, giao diện SPA và dashboard thống kê của vendor.
+
+**Đặc điểm quan trọng của chương hiện tại:**
+- Mỗi công nghệ đều gắn với một yêu cầu cụ thể đã nêu ở Chương 2.
+- Có so sánh với giải pháp thay thế tương đương như RDBMS, Spring Boot, Django, Memcached, Long Polling, SSE.
+- Trọng tâm không chỉ là “giới thiệu công nghệ”, mà là “chứng minh lý do lựa chọn công nghệ”.
+
+**Khi viết/chỉnh chương này, cần tránh:**
+- Viết như tài liệu học công nghệ chung chung.
+- Liệt kê tính năng của framework mà không liên hệ đến yêu cầu hệ thống.
+- Thiếu phần đối chiếu với phương án thay thế.
+
+### 7.4. Chương 4 -- Thiết kế chi tiết, xây dựng, kiểm thử và triển khai
+
+**Tệp nguồn tham chiếu:** report/Chuong/4_Ket_qua_thuc_nghiem.tex
+
+**Vai trò của chương:**
+Chương 4 là chương hiện thực hóa trực tiếp. Nếu Chương 2 trả lời “hệ thống cần làm gì” và Chương 3 trả lời “vì sao chọn công nghệ này”, thì Chương 4 trả lời “hệ thống đã được thiết kế và xây dựng ra sao”.
+
+**Cấu trúc nội dung hiện tại của chương gồm 5 phần:**
+1. Thiết kế kiến trúc: nêu lựa chọn kiến trúc nhiều tầng, giải thích cấu trúc backend theo routes/controllers/services/models, frontend theo pages/components/context/hooks/utils, và lý do chưa tách microservices.
+2. Thiết kế chi tiết: gồm thiết kế giao diện, sơ đồ điều hướng UI, thiết kế lớp nghiệp vụ, biểu đồ tuần tự và thiết kế cơ sở dữ liệu cùng các bảng mô tả collection.
+3. Xây dựng ứng dụng: liệt kê công cụ, thư viện, phiên bản, quy mô mã nguồn, các số liệu build và các ảnh minh họa chức năng chính.
+4. Kiểm thử: trình bày kiểm thử đơn vị cho VoucherService và các kịch bản kiểm thử thủ công cho luồng đặt hàng, giữ kho và thanh toán.
+5. Triển khai: mô tả mô hình chạy local, Docker, Nginx, MongoDB Atlas, Redis fallback, Stripe webhook và callback VNPay.
+
+**Những điểm cần giữ nhất quán khi bổ sung nội dung chương 4:**
+- Mỗi hình, bảng, biểu đồ đều phải có lời dẫn và tham chiếu chéo trong nội dung.
+- Ảnh giao diện phải khớp với mô tả nghiệp vụ ngay phía trên hoặc phía dưới.
+- Phần kiểm thử nên ưu tiên ca kiểm thử phản ánh trực tiếp các bài toán khó của đề tài như trùng đơn, oversell, thanh toán quá hạn, voucher sai phạm vi.
+- Phần triển khai cần nêu được cả môi trường phát triển và môi trường production/container hóa.
+
+### 7.5. Chương 5 -- Các giải pháp và đóng góp nổi bật
+
+**Tệp nguồn tham chiếu:** report/Chuong/5_Giai_phap_dong_gop.tex
+
+**Vai trò của chương:**
+Đây là chương học thuật trọng tâm nhất, nơi thể hiện dấu ấn kỹ thuật và đóng góp riêng của đồ án. Nội dung không nên lặp lại toàn bộ Chương 3 hoặc Chương 4, mà cần chọn ra các lõi kỹ thuật quan trọng nhất để phân tích sâu.
+
+**Hiện tại chương 5 đang tổ chức thành 3 đóng góp chính:**
+1. Cơ chế giữ kho nguyên tử và chống trùng lặp giao dịch: giải quyết oversell và duplicate order bằng atomic stock reservation kết hợp idempotency key.
+2. Hệ thống khuyến nghị sản phẩm lai tích hợp suy hao thời gian: xử lý cá nhân hóa, data sparsity và cold start bằng interaction scoring + time decay + hybrid recommendation.
+3. Kiến trúc thanh toán và xử lý voucher đa nhà bán hàng: giải quyết bài toán order routing và hierarchical voucher engine ở backend.
+
+**Mỗi đóng góp trong chương hiện tại đều đang đi theo cùng một khung viết:**
+- Đặt vấn đề: nêu bài toán khó và rủi ro nếu không xử lý.
+- Giải pháp kỹ thuật đề xuất: trình bày thiết kế, công thức, cấu trúc dữ liệu hoặc luồng xử lý.
+- Kết quả đạt được: chỉ ra hiệu quả vận hành, tính đúng đắn hoặc lợi ích kỹ thuật.
+
+**Đây là khung nên giữ nguyên khi thêm một đóng góp mới:**
+- Không viết kiểu mô tả sản phẩm chung chung.
+- Không gộp nhiều ý lớn vào cùng một mục.
+- Mỗi giải pháp nên có bài toán riêng, cơ chế riêng và kết quả riêng.
+
+### 7.6. Chương 6 -- Kết luận và hướng phát triển
+
+**Tệp nguồn tham chiếu:** report/Chuong/6_Ket_luan.tex
+
+**Vai trò của chương:**
+Chương 6 dùng để tổng kết công bằng toàn bộ quá trình nghiên cứu và triển khai, chỉ ra các giá trị thật sự của đồ án, đồng thời thừa nhận các hạn chế và mở ra hướng nâng cấp tiếp theo.
+
+**Nội dung hiện tại của chương gồm 3 phần ý chính:**
+1. Các kết quả đạt được: tổng hợp thành quả về nền tảng thương mại điện tử đồng bộ, giữ kho nguyên tử, gợi ý cá nhân hóa, điều phối đơn đa nhà bán hàng và tương tác thời gian thực.
+2. Hạn chế còn tồn tại: nêu hạn chế về hiệu năng bộ gợi ý thời gian thực, tính chịu lỗi của kênh SSE khi mở rộng ngang và phần logistics mới chỉ ở mức mô phỏng.
+3. Hướng phát triển: đề xuất tiền tính toán gợi ý + Redis cache, message queue, Redis Pub/Sub, nâng cấp mô hình học máy và tích hợp đơn vị vận chuyển thực tế.
+
+**Khi viết hoặc cập nhật chương kết luận, nên tuân thủ nguyên tắc:**
+- Đánh giá đúng cái đã làm được, không phóng đại.
+- Hạn chế phải là hạn chế kỹ thuật thực sự, không viết cho có.
+- Hướng phát triển cần xuất phát trực tiếp từ các hạn chế vừa nêu.
+
+### 7.7. Gợi ý liên kết logic giữa các chương hiện tại
+
+Để bảo đảm báo cáo có mạch xuyên suốt, có thể kiểm tra nhanh theo chuỗi sau:
+- Chương 1 đặt bài toán, mục tiêu và phạm vi.
+- Chương 2 đặc tả hệ thống phải làm gì để giải quyết bài toán đó.
+- Chương 3 chứng minh vì sao chọn bộ công nghệ hiện tại để thực hiện yêu cầu.
+- Chương 4 mô tả hệ thống đã được thiết kế, xây dựng, kiểm thử và triển khai như thế nào.
+- Chương 5 trích ra các đóng góp kỹ thuật nổi bật nhất để phân tích sâu.
+- Chương 6 tổng kết giá trị đạt được, hạn chế và định hướng phát triển.
+
+Nếu một đoạn nội dung mới không gắn được vào chuỗi logic trên, nhiều khả năng đoạn đó đang đặt sai chương hoặc viết chưa đúng vai trò học thuật của chương tương ứng.
+
 

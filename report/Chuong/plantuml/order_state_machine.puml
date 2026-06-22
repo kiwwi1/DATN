@@ -1,0 +1,46 @@
+@startuml
+skinparam shadowing false
+skinparam state {
+  BackgroundColor white
+  BorderColor #3A78C2
+  ArrowColor #3A78C2
+}
+
+title Biểu đồ trạng thái vòng đời Đơn hàng (Order State Machine)
+
+[*] --> Placed : "Khách hàng tạo đơn\n& Giữ kho nguyên tử"
+
+state Placed as "Order Placed\n(Đã đặt hàng)" {
+  state "Chờ thanh toán" as Unpaid
+  state "Đã thanh toán" as Paid
+  [*] --> Unpaid
+  Unpaid --> Paid : "Webhook / Redirect thành công\n(Stripe / VNPay)"
+}
+
+Placed --> Cancelled : "Sweeper quét quá hạn\n(Hoặc khách hàng/nhà bán tự hủy)"
+Placed --> Packing : "Nhà bán xác nhận đơn\n(Confirmed / Preparing)"
+
+state Packing as "Packing\n(Đang đóng gói)"
+Packing --> Cancelled : "Nhà bán hủy (Hết hàng)"
+Packing --> Shipped : "Nhà bán cập nhật vận đơn\n(Shipped)"
+
+state Shipped as "Shipped\n(Đang vận chuyển)"
+Shipped --> OutForDelivery : "Đơn vị vận chuyển lấy hàng"
+
+state OutForDelivery as "Out for delivery\n(Đang giao hàng)"
+OutForDelivery --> Delivered : "Giao hàng thành công"
+OutForDelivery --> Returned : "Khách hàng từ chối nhận"
+
+state Delivered as "Delivered\n(Đã giao thành công)"
+Delivered --> Refunded : "Yêu cầu trả hàng/hoàn tiền\nđược chấp nhận"
+
+state Cancelled as "Cancelled\n(Đã hủy - Giải phóng kho & Voucher)"
+state Returned as "Returned\n(Trả hàng)"
+state Refunded as "Refunded\n(Đã hoàn tiền)"
+
+Delivered --> [*]
+Cancelled --> [*]
+Refunded --> [*]
+Returned --> [*]
+
+@enduml

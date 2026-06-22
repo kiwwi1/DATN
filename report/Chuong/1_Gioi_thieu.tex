@@ -27,15 +27,15 @@ Phần còn lại của báo cáo đồ án tốt nghiệp này được tổ ch
 
 Chương 2 trình bày về phân tích và thiết kế hệ thống bao gồm khảo sát hiện trạng thực tế, mô tả tổng quan chức năng qua các biểu đồ ca sử dụng (Use Case) tổng quát và phân rã các nhóm nghiệp vụ chính, mô phỏng quy trình nghiệp vụ đặt hàng giữ kho nguyên tử kết hợp thanh toán đồng thời (qua biểu đồ hoạt động và biểu đồ tuần tự), đặc tả chi tiết 4 ca sử dụng then chốt cùng các chỉ số yêu cầu phi chức năng.
 
-Trong Chương 3, tôi giới thiệu về nền tảng lý thuyết và công nghệ sử dụng bao gồm cơ sở lý thuyết và lý do lựa chọn bộ công nghệ của đồ án như kiến trúc MERN Stack (MongoDB, Express, React, Node.js), bộ đệm Redis cho rate-limiting và quản lý phiên xác thực, truyền thông thời gian thực Socket.IO, các cổng thanh toán Stripe/VNPay và thuật toán khuyến nghị lai (Hybrid) có suy hao theo thời gian.
+Chương 3 trình bày nền tảng lý thuyết và công nghệ sử dụng bao gồm cơ sở lý thuyết và lý do lựa chọn bộ công nghệ của đồ án như kiến trúc MERN Stack (MongoDB, Express, React, Node.js), bộ đệm Redis cho rate-limiting và quản lý phiên xác thực, truyền thông thời gian thực Socket.IO, các cổng thanh toán Stripe/VNPay và thuật toán khuyến nghị lai (Hybrid) có suy hao theo thời gian.
 
 Chương 4 tập trung vào phân tích thiết kế, triển khai và đánh giá hệ thống bao gồm thiết kế kiến trúc phần mềm, biểu đồ gói UML, thiết kế lớp chi tiết, thiết kế cơ sở dữ liệu MongoDB, hiện thực hóa các giao diện mua sắm và Dashboard thống kê Recharts dành cho Merchant, cùng với thiết kế các trường hợp kiểm thử chức năng và đánh giá hiệu năng hệ thống.
 
-Trong Chương 5, tôi trình bày các giải pháp và đóng góp nổi bật của đề tài bao gồm: cơ chế giữ kho nguyên tử kết hợp khóa chống trùng lặp giao dịch để kiểm soát lỗi bán vượt mức kho (overselling); hệ thống khuyến nghị sản phẩm lai tích hợp điểm tương tác động và hệ số suy hao thời gian; và động cơ tính giá, khuyến mãi phân tầng xử lý hoàn toàn tại backend.
+Chương 5 phân tích các giải pháp và đóng góp nổi bật của đề tài bao gồm: cơ chế giữ kho nguyên tử kết hợp khóa chống trùng lặp giao dịch để kiểm soát lỗi bán vượt mức kho (overselling); hệ thống khuyến nghị sản phẩm lai tích hợp điểm tương tác động và hệ số suy hao thời gian; và động cơ tính giá, khuyến mãi phân tầng xử lý hoàn toàn tại backend.
 
 Chương 6 đưa ra kết luận quan trọng, đánh giá tổng quát mức độ hoàn thành nhiệm vụ và đề tài, những hạn chế còn tồn tại cùng định hướng phát triển, mở rộng hệ thống trong tương lai.
 
 \section*{Kết chương}
-Chương 1 đã phác thảo toàn bộ bức tranh tổng quan của đồ án từ bối cảnh bùng nổ của mô hình sàn thương mại điện tử đa nhà bán hàng cho đến những vấn đề cốt lõi về tranh chấp tồn kho đồng thời và an toàn bảo mật hệ thống. Qua khảo sát và đánh giá các nền tảng hiện có, đề tài xác định được ba hạn chế còn tồn tại và đề xuất định hướng giải pháp toàn diện bằng sự kết hợp giữa kiến trúc MERN Stack, bộ đệm Redis và kênh thời gian thực Socket.IO. Những cơ sở lý thuyết và công nghệ chi tiết làm nền tảng cho việc thiết kế, cài đặt hệ thống này sẽ được thảo luận kỹ lưỡng trong chương tiếp theo -- Chương 2.
+Chương 1 đã phác thảo toàn bộ bức tranh tổng quan của đồ án từ bối cảnh bùng nổ của mô hình sàn thương mại điện tử đa nhà bán hàng cho đến những vấn đề cốt lõi về tranh chấp tồn kho đồng thời và an toàn bảo mật hệ thống. Qua khảo sát và đánh giá các nền tảng hiện có, đề tài xác định được ba hạn chế còn tồn tại và đề xuất định hướng giải pháp toàn diện bằng sự kết hợp giữa kiến trúc MERN Stack, bộ đệm Redis và kênh thời gian thực Socket.IO. Những cơ sở lý thuyết và công nghệ chi tiết làm nền tảng cho việc thiết kế, cài đặt hệ thống này sẽ được thảo luận kỹ lưỡng ở Chương 3.
 
 \end{document}

@@ -19,14 +19,21 @@ class VoucherService {
   -toIdKey(idLike)
 }
 
+class StockReservationService {
+  +reserveStockByUnits(reservationUnits)
+  +releaseStockByItems(items)
+  +restoreStockAndSold(items, options)
+  +expirePendingReservationsService()
+  +buildReservationUnits(items)
+  -updateProductSold(items, deltaSign)
+}
+
 class OrderService {
   +placeOrder(userId, items, address, paymentMethod, vouchers, key)
   +cancelOrder(orderId, userId, reason)
   +getOrdersByUser(userId)
   +getOrdersByVendor(vendorId)
   +sweepExpiredReservations()
-  -reserveStockAtomic(items)
-  -releaseStock(items)
   -buildPricingSnapshot(items, vouchers, fee)
 }
 
@@ -66,7 +73,7 @@ class ChatService {
 }
 
 OrderService --> VoucherService : tinh gia
-OrderService --> ProductService : kiem tra ton kho
+OrderService --> StockReservationService : giu kho nguyen tu
 OrderService --> NotificationService : gui thong bao
 AuthSessionService ..> OrderService : xac thuc nguoi dung
 

@@ -1,0 +1,39 @@
+@startuml
+
+actor KhachHang
+actor DoiTacBanHang
+actor VanHanhHeThong
+
+usecase QuanLyTaiKhoan
+usecase XemSanPham
+usecase TimKiemGioHang
+usecase DatHangThanhToan
+usecase TheoDoiDonHang
+usecase ChatRealtime
+
+usecase QuanLySanPham
+usecase CauHinhVoucher
+usecase QuanLyDonHang
+usecase XemBaoCao
+
+usecase QuanLyDanhMuc
+usecase TheoDoiHoatDong
+
+KhachHang --> QuanLyTaiKhoan
+KhachHang --> XemSanPham
+KhachHang --> TimKiemGioHang
+KhachHang --> DatHangThanhToan
+KhachHang --> TheoDoiDonHang
+KhachHang --> ChatRealtime
+
+DoiTacBanHang --> QuanLyTaiKhoan
+DoiTacBanHang --> QuanLySanPham
+DoiTacBanHang --> CauHinhVoucher
+DoiTacBanHang --> QuanLyDonHang
+DoiTacBanHang --> XemBaoCao
+DoiTacBanHang --> ChatRealtime
+
+VanHanhHeThong --> QuanLyDanhMuc
+VanHanhHeThong --> TheoDoiHoatDong
+
+@enduml

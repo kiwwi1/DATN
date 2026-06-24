@@ -228,19 +228,20 @@ Khi khách hàng thanh toán qua Stripe hoặc VNPay thành công, backend nhậ
 \subsubsection{Bộ tính toán mã giảm giá phân tầng (Hierarchical Voucher Engine)}
 Quy trình tính giá đơn hàng và áp dụng mã giảm giá được thực hiện nghiêm ngặt ở tầng backend qua 4 bước tuần tự để bảo đảm tính an toàn tài chính (Hình \ref{fig:voucher_calculation_flow}):
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{tikzpicture}[
+        node distance = 0.8cm and 0.8cm,
         box/.style={draw, rectangle, rounded corners, minimum width=3.2cm, minimum height=1.2cm, align=center, fill=blue!5, font=\small},
         arrow/.style={->, >=stealth, thick}
     ]
         % Nodes
         \node (start) [box] {Giỏ hàng đa\\cửa hàng (Cart)};
-        \node (step1) [box, right of=start, node distance=4.2cm] {Bước 1:\\Tính tổng phụ theo Shop\\(Shop Subtotal)};
-        \node (step2) [box, right of=step1, node distance=4.2cm] {Bước 2:\\Áp dụng Shop Voucher\\(Shop Discount)};
-        \node (step3) [box, below of=step2, node distance=2.2cm] {Bước 3:\\Áp dụng Platform Voucher\\(Platform Discount)};
-        \node (step4) [box, left of=step3, node distance=4.2cm] {Bước 4:\\Áp dụng Shipping Voucher\\(Shipping Discount)};
-        \node (end) [box, left of=step4, node distance=4.2cm, fill=green!10] {Tổng hóa đơn\\(Final Total)};
+        \node (step1) [box, right=of start] {Bước 1:\\Tính tổng phụ theo Shop\\(Shop Subtotal)};
+        \node (step2) [box, right=of step1] {Bước 2:\\Áp dụng Shop Voucher\\(Shop Discount)};
+        \node (step3) [box, below=of step2] {Bước 3:\\Áp dụng Platform Voucher\\(Platform Discount)};
+        \node (step4) [box, left=of step3] {Bước 4:\\Áp dụng Shipping Voucher\\(Shipping Discount)};
+        \node (end) [box, left=of step4, fill=green!10] {Tổng hóa đơn\\(Final Total)};
 
         % Arrows
         \draw [arrow] (start) -- (step1);
@@ -287,5 +288,7 @@ Kiến trúc điều phối đơn hàng và bộ voucher phân tầng đã mang 
     \item \textbf{Bảo mật tuyệt đối luồng thanh toán}: Hệ thống đã chặn đứng các thử nghiệm chỉnh sửa thủ công giá tiền ở client. Mọi giao dịch Stripe/VNPay đều được khởi tạo với số tiền chính xác do backend tính toán độc lập và kiểm chứng lại bằng chữ ký số an toàn.
     \item \textbf{Trải nghiệm đặt hàng đồng bộ}: Người mua chỉ cần thực hiện thao tác nhấn nút và thanh toán một lần duy nhất cho toàn bộ giỏ hàng đa dạng sản phẩm, trong khi hệ thống tự động xử lý tách đơn, gửi thông báo đơn hàng mới tức thời đến từng nhà bán hàng liên quan.
 \end{itemize}
+
+Chương 5 đã trình bày các giải pháp kỹ thuật và đóng góp nổi bật của đồ án đối với bài toán xây dựng sàn thương mại điện tử đa nhà bán hàng. Ba nhóm giải pháp chính gồm cơ chế giữ kho nguyên tử kết hợp khóa chống trùng lặp giao dịch, hệ thống khuyến nghị sản phẩm lai có suy hao thời gian và kiến trúc điều phối thanh toán kèm bộ tính toán voucher phân tầng đều hướng đến mục tiêu nâng cao tính nhất quán dữ liệu, mức độ cá nhân hóa và độ an toàn của luồng giao dịch. Các kết quả đạt được trong chương này cho thấy hệ thống không chỉ đáp ứng yêu cầu chức năng cơ bản mà còn xử lý được nhiều tình huống đặc thù của mô hình marketplace, tạo cơ sở để tổng kết mức độ hoàn thành, các hạn chế còn tồn tại và định hướng phát triển ở Chương 6.
 
 \end{document}

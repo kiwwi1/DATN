@@ -15,8 +15,16 @@ class OrderService {
   + releaseStock(orderId): void
   + getOrdersByUser(userId): Order[]
   + updateOrderStatus(orderId, status): Order
-  - reserveStock(items): void
   - buildVendorGroups(items): VendorOrder[]
+}
+
+class StockReservationService {
+  + reserveStockByUnits(reservationUnits): void
+  + releaseStockByItems(items): void
+  + restoreStockAndSold(items, options): void
+  + expirePendingReservationsService(): Number
+  + buildReservationUnits(items): ReservationUnit[]
+  - updateProductSold(items, deltaSign): void
 }
 
 class VoucherService {
@@ -42,6 +50,7 @@ class PricingResult {
 }
 
 OrderService ..> VoucherService    : <<use>>
+OrderService ..> StockReservationService : <<use>>
 VoucherService ..> PricingResult   : creates
 
 @enduml

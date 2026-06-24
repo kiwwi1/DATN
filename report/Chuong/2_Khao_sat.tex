@@ -16,7 +16,7 @@ Khảo sát chi tiết hiện trạng kỹ thuật và nghiệp vụ được t�
 
 Bảng \ref{table:survey} dưới đây trình bày so sánh chi tiết ưu nhược điểm của các giải pháp hiện tại so với kiến trúc đề xuất của đồ án.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{So sánh hệ thống truyền thống và hệ thống đề xuất}
     \label{table:survey}
@@ -41,7 +41,7 @@ Hệ thống sàn thương mại điện tử đa nhà bán hàng được phân
 \label{subsection:2.2.1}
 Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các tương tác cơ bản giữa các tác nhân và các nhóm chức năng lớn bao gồm: Quản lý tài khoản và bảo mật, Mua hàng và thanh toán, Quản lý gian hàng, cùng phân hệ Vận hành dữ liệu và cấu hình nền tảng như mô tả trong Hình \ref{fig:general_use_case}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.80\textwidth,height=0.72\textheight,keepaspectratio]{images/generated/general_use_case.png}
     \caption{Biểu đồ ca sử dụng (Use Case) tổng quát của hệ thống}
@@ -52,7 +52,7 @@ Biểu đồ ca sử dụng tổng quát của hệ thống phác thảo các t�
 \label{subsection:2.2.2}
 Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ bảo mật thông qua bốn ca sử dụng phân rã: (i) Đăng ký tài khoản bằng cách nhập thông tin và xác minh mã OTP 6 số qua email trước khi kích hoạt; (ii) Đăng nhập hệ thống hỗ trợ cả mật khẩu thông thường có giới hạn tần suất theo IP và email lẫn đăng nhập nhanh qua Google OAuth; (iii) Đăng ký gian hàng cho phép tài khoản người mua nâng cấp thành nhà bán hàng bằng cách bổ sung thông tin shop mà không phải tạo tài khoản mới; và (iv) Khôi phục mật khẩu thông qua token đặt lại được gửi qua email. Chi tiết các mối tương tác và sự liên kết giữa các ca sử dụng trong phân hệ này được thể hiện trong Hình \ref{fig:auth_security_use_case}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/generated/auth_security_use_case.png}
     \caption{Biểu đồ ca sử dụng phân rã phân hệ Quản lý tài khoản và Bảo mật}
@@ -63,7 +63,7 @@ Tác nhân Khách hàng và Đối tác bán hàng tương tác với phân hệ
 \label{subsection:2.2.3}
 Phân hệ gồm bốn ca sử dụng mà người mua tương tác trực tiếp: (i) Xem sản phẩm cá nhân hóa theo điểm tương tác người dùng, với thao tác tính điểm là ca sử dụng bao hàm bên trong; (ii) Đặt hàng với tính giá và áp dụng voucher nhiều lớp cùng thao tác giữ kho nguyên tử được thực hiện như hai ca sử dụng bao hàm nhằm kiểm soát nguy cơ oversell; (iii) Thanh toán trực tuyến qua Stripe hoặc VNPay với xác nhận kết quả tự động thông qua webhook và callback; và (iv) Chat và thông báo thời gian thực với đối tác bán hàng. Sơ đồ phân rã ca sử dụng của phân hệ này được biểu diễn trong Hình \ref{fig:ordering_payment_use_case}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/generated/ordering_payment_use_case.png}
     \caption{Biểu đồ ca sử dụng phân rã phân hệ Mua hàng và Thanh toán}
@@ -74,7 +74,7 @@ Phân hệ gồm bốn ca sử dụng mà người mua tương tác trực tiế
 \label{subsection:2.2.4}
 Thương nhân quản trị các hoạt động thương mại thông qua bảng điều khiển độc lập với năm nhóm chức năng: (i) Quản lý sản phẩm và biến thể bao gồm đăng tải, chỉnh sửa thông tin và quản lý tồn kho; (ii) Cấu hình mã giảm giá riêng của shop (Shop Voucher) theo phần trăm hoặc số tiền cố định; (iii) Quản lý đơn hàng và cập nhật trạng thái đơn hàng; (iv) Xem báo cáo thống kê doanh số qua biểu đồ phân tích theo ngày, tháng kèm cảnh báo sản phẩm sắp hết hàng; và (v) Chat và thông báo thời gian thực với khách hàng. Các chức năng chi tiết của phân hệ này được thể hiện trong Hình \ref{fig:merchant_console_use_case}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/generated/merchant_console_use_case.png}
     \caption{Biểu đồ ca sử dụng phân rã phân hệ Quản lý gian hàng}
@@ -87,7 +87,7 @@ Phân hệ này hỗ trợ các tác vụ quản trị hệ thống mức quản
 
 \subsection{Quy trình nghiệp vụ Đặt hàng giữ kho và Thanh toán đồng thời}
 \label{subsection:2.2.6}
-Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán theo hướng bảo toàn tồn kho, tránh tạo đơn trùng lặp và hỗ trợ nhiều phương thức thanh toán. Luồng hoạt động tổng thể diễn ra như sau:
+Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán theo hướng bảo toàn tồn kho, tránh tạo đơn trùng lặp và hỗ trợ nhiều phương thức thanh toán. Luồng hoạt động tổng thể được mô tả trực quan trong Hình \ref{fig:checkout_process} và diễn ra như sau:
 
 \begin{enumerate}
     \item \textbf{Bước 1:} Khách hàng thêm các sản phẩm với biến thể cụ thể vào giỏ hàng và tiến hành checkout.
@@ -107,42 +107,41 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
     \end{itemize}
 \end{enumerate}
 
-\clearpage
 
-\begin{figure}[p]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/checkout_process_activity.png}
+    \includegraphics[width=0.85\textwidth]{images/generated/checkout_process_activity.png}
     \caption{Biểu đồ hoạt động quy trình nghiệp vụ Đặt hàng - Giữ kho - Thanh toán đồng thời}
     \label{fig:checkout_process}
 \end{figure}
 
-\clearpage
+
 
 
 Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành bốn biểu đồ. Hình \ref{fig:order_preview_sequence} mô tả giai đoạn xem trước đơn hàng. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến và xác nhận kết quả. Hình \ref{fig:payment_sweeper_sequence} mô tả luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth,height=0.7\textheight,keepaspectratio]{images/generated/order_preview_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn xem trước đơn hàng}
     \label{fig:order_preview_sequence}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1.1\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn tạo đơn và giữ kho nguyên tử}
     \label{fig:order_creation_sequence}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1.1\textwidth,height=0.85\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
     \caption{Biểu đồ tuần tự giai đoạn thanh toán trực tuyến và xác nhận kết quả}
     \label{fig:online_payment_sequence}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1.1\textwidth,height=0.8\textheight,keepaspectratio]{images/generated/payment_sweeper_sequence.png}
     \caption{Biểu đồ tuần tự luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán}
@@ -360,7 +359,6 @@ Về tính dễ bảo trì, mã nguồn backend được tổ chức theo kiến
 
 Về yêu cầu kỹ thuật, hệ thống được xây dựng dựa trên các nền tảng và dịch vụ cụ thể sau: (i) \textit{Cơ sở dữ liệu chính} -- MongoDB (NoSQL hướng tài liệu) lưu trữ toàn bộ dữ liệu nghiệp vụ, Redis (in-memory) phục vụ quản lý phiên xác thực và giới hạn tần suất; (ii) \textit{Backend} -- Node.js LTS kết hợp Express 5, triển khai trên cổng \texttt{4000}; (iii) \textit{Frontend} -- React 19 + Vite 6 cho ứng dụng mua sắm, React 18 + Vite cho vendor dashboard, phục vụ qua Nginx sau khi build; (iv) \textit{Thanh toán trực tuyến} -- Stripe API (webhook xác nhận) và VNPay (callback có chữ ký số); (v) \textit{Lưu trữ ảnh} -- Cloudflare R2 (tương thích S3) kết hợp Sharp để nén và tạo thumbnail; (vi) \textit{Giao tiếp thời gian thực} -- Socket.IO cho chat hai chiều và Server-Sent Events cho thông báo đẩy một chiều tới vendor dashboard.
 
-\section*{Kết chương}
 Chương 2 đã xây dựng bức tranh chức năng của hệ thống thông qua việc khảo sát hiện trạng, xác định các tác nhân và phân hệ chính, mô tả quy trình đặt hàng -- giữ kho -- thanh toán, đồng thời đặc tả bốn ca sử dụng cốt lõi của đồ án. Những nội dung này tạo nền tảng để chuyển sang chương tiếp theo, nơi các cơ sở lý thuyết, công nghệ sử dụng và lý do lựa chọn giải pháp sẽ được phân tích cụ thể hơn.
 
 \end{document}

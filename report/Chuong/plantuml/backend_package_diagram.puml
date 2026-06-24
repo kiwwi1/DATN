@@ -3,21 +3,10 @@ top to bottom direction
 skinparam shadowing false
 skinparam packageStyle rectangle
 skinparam linetype ortho
+skinparam ArrowColor #3A78C2
+skinparam PackageBorderColor #3A78C2
 
-title Bieu do goi chinh cua he thong
-
-package "frontend" {
-  [pages]
-  [components]
-  [context]
-  [services/api]
-}
-
-package "admin" {
-  [pages]
-  [components]
-  [services/api]
-}
+title Bieu do goi phia may chu (Backend)
 
 package "backend" {
   package "routes" as routes
@@ -33,22 +22,15 @@ database "MongoDB" as mongo
 rectangle "Redis" as redis
 cloud "Stripe / VNPay / R2" as external
 
-[pages] --> [components]
-[pages] --> [context]
-[pages] --> [services/api]
-
-[services/api] --> routes
-routes --> middleware
-routes --> controllers
-controllers --> services
-controllers --> utils
-services --> models
-services --> config
-middleware --> config
-models --> mongo
-config --> redis
-services --> external
-
-[services/api] ..> middleware : JWT / cookie
+routes --> middleware : filter/authorize
+routes --> controllers : dispatch
+controllers --> services : delegate
+controllers --> utils : format
+services --> models : query
+services --> config : read settings
+middleware --> config : authenticate
+models --> mongo : read/write
+config --> redis : connect
+services --> external : invoke
 
 @enduml

@@ -12,6 +12,13 @@ Trong các hệ thống thương mại điện tử quy mô lớn, tính nhất 
 
 Về mặt lý thuyết, lỗi này xảy ra do mô hình xử lý giao dịch cổ điển áp dụng kỹ thuật đọc -- chỉnh sửa -- ghi (\textit{Read-Modify-Write}). Khi hai luồng yêu cầu đồng thời kiểm tra số lượng tồn kho của một sản phẩm (ví dụ còn $1$ sản phẩm), cả hai đều nhận được kết quả còn hàng và cùng tiến hành thực hiện trừ kho và tạo đơn, dẫn đến số lượng tồn kho thực tế bị âm ($-1$). Để giải quyết bài toán này từ Chương 2, hệ thống bắt buộc phải thực hiện thao tác kiểm tra điều kiện và cập nhật số lượng tồn kho một cách nguyên tử (\textit{Atomic Database Reservation}) kết hợp với cơ chế chống trùng lặp giao dịch bằng mã định danh chống trùng đơn ở tầng ứng dụng.
 
+Để giải quyết triệt để vấn đề này, phương án thực hiện của đồ án tập trung vào hai cơ chế phối hợp:
+\begin{itemize}
+    \item \textbf{Cơ chế giữ kho nguyên tử ở tầng cơ sở dữ liệu:} Thay vì thực hiện quy trình kiểm tra tồn kho tại tầng ứng dụng (kiểm tra bằng mã lệnh backend sau đó gửi lệnh cập nhật riêng biệt), hệ thống gộp thao tác kiểm tra điều kiện và giảm trừ tồn kho thành một câu lệnh ghi duy nhất và không thể chia cắt dưới tầng dữ liệu (Atomic Write). Dưới sự hỗ trợ của cơ chế khóa cấp tài liệu (\textit{Document-level Locking}) của MongoDB, các luồng ghi đồng thời sẽ được tuần tự hóa. Chỉ các yêu cầu tìm thấy lượng tồn kho hiện tại lớn hơn hoặc bằng lượng đặt mua mới được phép thực thi cập nhật giảm trừ kho; các yêu cầu đến sau khi kho đã cạn sẽ lập tức thất bại do không thỏa mãn điều kiện lọc của truy vấn, ngăn chặn hoàn toàn hiện tượng oversell.
+    \item \textbf{Cơ chế chống trùng lặp giao dịch (Idempotency) ở tầng ứng dụng:} Hệ thống sử dụng một khóa duy nhất cho mỗi yêu cầu đặt hàng (\textit{Idempotency Key}) sinh ra từ phía Client. Trước khi tiến hành giữ kho, Backend sẽ kiểm tra sự tồn tại của khóa này trong bộ nhớ đệm Redis có độ trễ cực thấp. Nếu phát hiện khóa đã tồn tại (do người dùng click đúp hoặc do lỗi mạng tự động gửi lại yêu cầu), hệ thống sẽ lập tức từ chối xử lý trùng lặp, đảm bảo quy trình trừ tồn kho và tạo đơn hàng chỉ được thực hiện duy nhất một lần đối với một phiên checkout của khách hàng.
+\end{itemize}
+Sự kết hợp giữa giữ kho nguyên tử ở tầng dữ liệu và kiểm soát trùng lặp ở tầng ứng dụng tạo ra một giải pháp toàn diện, vừa loại bỏ xung đột dữ liệu đồng thời ở mức thấp nhất, vừa đảm bảo tính toàn vẹn nghiệp vụ và trải nghiệm người dùng.
+
 \subsection{Cơ sở dữ liệu tài liệu MongoDB và thư viện Mongoose ORM}
 MongoDB là một cơ sở dữ liệu phi quan hệ (NoSQL) hướng tài liệu (\textit{Document-oriented}) lưu trữ dữ liệu dưới định dạng JSON/BSON linh hoạt. Thư viện Mongoose đóng vai trò là lớp ánh xạ đối tượng dữ liệu (Object Document Mapper -- ODM) giúp định nghĩa Schema chặt chẽ và quản lý các kết nối tối ưu.
 
@@ -32,7 +39,7 @@ Câu lệnh này giúp việc kiểm tra tồn kho và trừ kho diễn ra trong
 \textbf{Các phương án công nghệ thay thế và so sánh:}
 Giải pháp thay thế phổ biến nhất là các hệ quản trị cơ sở dữ liệu quan hệ (RDBMS) như MySQL hoặc PostgreSQL. Bảng \ref{table:db_compare} dưới đây so sánh hai hướng tiếp cận trên ba tiêu chí quan trọng nhất đối với đồ án.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{So sánh MongoDB và RDBMS trong bài toán đa nhà bán hàng}
     \label{table:db_compare}
@@ -126,7 +133,7 @@ React.js hỗ trợ xây dựng giao diện Single Page Application với khả 
 
 \textbf{Lý do chọn lựa:} Recharts phù hợp với hệ sinh thái React của đồ án, có cách sử dụng theo component rõ ràng và thuận tiện cho việc xây dựng dashboard bán hàng. Việc dùng SVG cũng giúp biểu đồ hiển thị tốt khi thay đổi kích thước hoặc nhúng vào các layout quản trị khác nhau.
 
-\section*{Kết chương}
+
 Chương 3 đã trình bày cơ sở lý thuyết và các công nghệ chính được áp dụng trong đồ án, bao gồm MongoDB cho lưu trữ dữ liệu tài liệu và cập nhật nguyên tử, Node.js và Express cho backend bất đồng bộ, Redis cho rate-limiting và quản lý phiên xác thực, Socket.IO cho giao tiếp thời gian thực, Stripe và VNPay cho thanh toán trực tuyến, cùng cơ chế khuyến nghị sản phẩm dựa trên tương tác người dùng. Từ nền tảng này, chương tiếp theo sẽ chuyển sang kiến trúc phần mềm chi tiết, thiết kế lớp, mô hình dữ liệu và hiện thực hệ thống ở mức cụ thể hơn.
 
 \end{document}

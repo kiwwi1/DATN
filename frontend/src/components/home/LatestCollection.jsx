@@ -6,11 +6,19 @@ import ProductItem from '../product/ProductItem';
 
 const LATEST_LIMIT = 5;
 
+const ProductSkeleton = () => (
+    <div className="animate-pulse">
+        <div className="bg-gray-200 rounded-xl aspect-square w-full mb-3" />
+        <div className="h-3 bg-gray-200 rounded w-4/5 mb-2" />
+        <div className="h-3 bg-gray-200 rounded w-2/5" />
+    </div>
+);
+
 const LatestCollection = () => {
-    const { products,navigate } = useContext(ShopContext);
+    const { products, productsLoading, navigate } = useContext(ShopContext);
     const [latestProducts, setLatestProducts] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
-    
+
     useEffect(() => {
         setLatestProducts(products.slice(0, LATEST_LIMIT));
         setIsVisible(true);
@@ -34,7 +42,9 @@ const LatestCollection = () => {
 
                 {/* Products Grid with staggered animation */}
                 <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 px-4 sm:px-6 lg:px-8'>
-                    {latestProducts.map((item, index) => (
+                    {productsLoading
+                        ? Array.from({ length: LATEST_LIMIT }).map((_, i) => <ProductSkeleton key={i} />)
+                        : latestProducts.map((item, index) => (
                         <div 
                             key={index}
                             className={`transform transition-all duration-700 delay-${index * 100} ${

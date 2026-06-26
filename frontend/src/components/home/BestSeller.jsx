@@ -25,8 +25,16 @@ const sortByBestSellerScore = (a, b, recommendationScoreMap) => {
   return toNumber(b?.date) - toNumber(a?.date)
 }
 
+const ProductSkeleton = () => (
+  <div className="animate-pulse">
+    <div className="bg-gray-200 rounded-xl aspect-square w-full mb-3" />
+    <div className="h-3 bg-gray-200 rounded w-4/5 mb-2" />
+    <div className="h-3 bg-gray-200 rounded w-2/5" />
+  </div>
+);
+
 const BestSeller = () => {
-  const { products, recommendations } = useContext(ShopContext)
+  const { products, productsLoading, recommendations } = useContext(ShopContext)
 
   const bestSellerProducts = useMemo(() => {
     const activeProducts = (products || []).filter((item) => item?.isActive !== false)
@@ -63,21 +71,23 @@ const BestSeller = () => {
       </div>
 
       <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6'>
-        {bestSellerProducts.map((item, index) => (
-          <ProductItem
-            key={item._id}
-            id={item._id}
-            image={item.image}
-            name={item.name}
-            price={item.price}
-            originalPrice={item.originalPrice}
-            discount={item.discount}
-            rating={item.rating}
-            sold={item.sold}
-            highlight='bestseller'
-            rank={index + 1}
-          />
-        ))}
+        {productsLoading
+          ? Array.from({ length: BEST_SELLER_LIMIT }).map((_, i) => <ProductSkeleton key={i} />)
+          : bestSellerProducts.map((item, index) => (
+            <ProductItem
+              key={item._id}
+              id={item._id}
+              image={item.image}
+              name={item.name}
+              price={item.price}
+              originalPrice={item.originalPrice}
+              discount={item.discount}
+              rating={item.rating}
+              sold={item.sold}
+              highlight='bestseller'
+              rank={index + 1}
+            />
+          ))}
       </div>
     </div>
   )

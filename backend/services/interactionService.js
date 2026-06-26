@@ -337,3 +337,31 @@ export const getRecommendationsService = async (userId, limit = null) => {
 
     return result;
 };
+
+export const getWishlistService = async (userId) => {
+    const items = await userInteractionModel
+        .find({ userId, "interactions.wishlisted": true })
+        .select("productId")
+        .lean();
+
+    if (items.length === 0) return [];
+
+    const productIds = items.map((i) => i.productId);
+    return productModel.find({ _id: { $in: productIds }, isActive: true }).lean();
+};
+
+export const toggleWishlistService = async (userId, productId) => {
+    const existing = await userInteractionModel.findOne({ userId, productId });
+    const nextState = !(existing?.interactions?.wishlisted ?? false);
+
+    await userInteractionModel.findOneAndUpdate(
+        { userId, productId },
+        {
+            $set: { "interactions.wishlisted": nextState, lastInteraction: new Date() },
+        },
+        { upsert: true }
+    );
+
+    await invalidateUserRecCache(String(userId));
+    return nextState;
+};

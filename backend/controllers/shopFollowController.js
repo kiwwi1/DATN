@@ -12,7 +12,7 @@ const followShop = async (req, res) => {
         const result = await followShopService(userId, vendorId);
         res.json({ success: true, message: "Theo dõi shop thành công", result });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
@@ -24,7 +24,7 @@ const unfollowShop = async (req, res) => {
         const result = await unfollowShopService(userId, vendorId);
         res.json({ success: true, message: "Bỏ theo dõi shop thành công", result });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
@@ -36,7 +36,7 @@ const getFollowStatus = async (req, res) => {
         const result = await getFollowStatusService(userId, vendorId);
         res.json({ success: true, ...result });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
@@ -47,7 +47,7 @@ const getFollowerCount = async (req, res) => {
         const result = await getFollowerCountService(vendorId);
         res.json({ success: true, ...result });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };

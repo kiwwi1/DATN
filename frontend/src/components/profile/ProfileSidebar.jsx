@@ -16,6 +16,7 @@ const ProfileSidebar = () => {
     { id: 'notification-settings', label: 'Cài đặt thông báo', icon: null, path: '/profile/notification-settings' },
     { id: 'orders', label: 'Đơn mua', icon: '📋', path: '/orders' },
     { id: 'vouchers', label: 'Kho mã giảm giá', icon: '🎫', path: '/profile/vouchers' },
+    { id: 'wishlist', label: 'Yêu thích', icon: '❤️', path: '/wishlist' },
   ];
 
   const isActive = (path) => location.pathname === path;

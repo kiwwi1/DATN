@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import userInteractionModel from "../models/userInteractionModel.js";
 import productPriceAlertModel from "../models/productPriceAlertModel.js";
 import userModel from "../models/userModel.js";
 import notificationModel from "../models/notificationModel.js";
@@ -19,13 +18,6 @@ const calculateDiscountPct = (oldPrice, newPrice) => {
   return Math.round(((oldPrice - newPrice) / oldPrice) * 100);
 };
 
-const hasProductInCartData = (cartData, productId) => {
-  if (!cartData || typeof cartData !== "object") return false;
-  const key = String(productId);
-  const entry = cartData[key];
-  if (!entry || typeof entry !== "object") return false;
-  return Object.values(entry).some((qty) => Number(qty) > 0);
-};
 
 const alreadyNotifiedRecently = async (userId, productId) => {
   const since = new Date(Date.now() - PRICE_DROP_DEDUP_HOURS * 60 * 60 * 1000);
@@ -50,12 +42,9 @@ export const setPriceAlertSubscriptionService = async (userId, productId, enable
   if (!mongoose.Types.ObjectId.isValid(productId)) {
     throw new Error("Invalid productId");
   }
-  const user = await userModel.findById(userId).select("cartData").lean();
+  const user = await userModel.findById(userId).select("_id").lean();
   if (!user) throw new Error("User not found");
   const nextEnabled = enabled !== false;
-  if (nextEnabled && !hasProductInCartData(user.cartData, productId)) {
-    throw new Error("Bạn chỉ có thể bật thông báo cho sản phẩm đã thêm vào giỏ hàng");
-  }
 
   const updated = await productPriceAlertModel.findOneAndUpdate(
     { userId, productId },
@@ -72,14 +61,8 @@ export const notifyPriceDrop = async ({ productBefore, productAfter }) => {
   if (!productAfter?._id || oldPrice <= 0 || newPrice <= 0 || newPrice >= oldPrice) return;
 
   const productId = productAfter._id;
-  const interactedUserIds = await userInteractionModel.distinct("userId", {
-    productId,
-    "interactions.addedToCart": { $gt: 0 },
-  });
-  if (!interactedUserIds.length) return;
 
   const subscribed = await productPriceAlertModel.find({
-    userId: { $in: interactedUserIds },
     productId,
     enabled: true,
   }).select("userId").lean();
@@ -88,15 +71,13 @@ export const notifyPriceDrop = async ({ productBefore, productAfter }) => {
 
   const users = await userModel.find({
     _id: { $in: subscribedUserIds },
-    [`cartData.${productId.toString()}`]: { $exists: true },
-  }).select("_id name email telegramChatId cartData notificationPrefs").lean();
+  }).select("_id name email telegramChatId notificationPrefs").lean();
 
   const discountPct = calculateDiscountPct(oldPrice, newPrice);
   const title = `Sản phẩm giảm giá${discountPct > 0 ? ` -${discountPct}%` : ""}`;
   const message = `${productAfter.name} vừa giảm từ ${formatCurrency(oldPrice)} xuống ${formatCurrency(newPrice)}.`;
 
   for (const u of users) {
-    if (!hasProductInCartData(u.cartData, productId)) continue;
     if (await alreadyNotifiedRecently(u._id, productId)) continue;
 
     await createNotification(u._id, "price_drop", title, message, null, productId, {

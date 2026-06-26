@@ -51,6 +51,78 @@ const normalizeFirstImageLikeSecond = (imageInput) => {
   return images;
 };
 
+const parseBold = (line) => {
+  const parts = line.split(/(\*\*[^*]+\*\*)/);
+  if (parts.length === 1) return line;
+  return parts.map((part, i) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={i}>{part.slice(2, -2)}</strong>
+      : part
+  );
+};
+
+const renderDescription = (text) => {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  const blocks = [];
+  let bulletItems = [];
+  let key = 0;
+
+  const flushBullets = () => {
+    if (bulletItems.length === 0) return;
+    blocks.push(
+      <ul key={key++} className="space-y-2 my-1">
+        {bulletItems.map((item, i) => (
+          <li key={i} className="flex items-start gap-2.5">
+            <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pink-400" />
+            <span className="leading-relaxed">{parseBold(item)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    bulletItems = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushBullets();
+      continue;
+    }
+
+    if (/^[-•*]\s+/.test(line)) {
+      bulletItems.push(line.replace(/^[-•*]\s+/, ""));
+      continue;
+    }
+
+    flushBullets();
+
+    const isFullBold = /^\*\*.+\*\*$/.test(line);
+    const startsWithEmoji = /^\p{Emoji}/u.test(line);
+    const isShortHeader = line.length < 70 && /[：:]\s*$/.test(line);
+
+    if (isFullBold || startsWithEmoji || isShortHeader) {
+      blocks.push(
+        <p key={key++} className="font-semibold text-gray-800 mt-4 mb-0.5">
+          {line.replace(/^\*\*|\*\*$/g, "")}
+        </p>
+      );
+      continue;
+    }
+
+    blocks.push(
+      <p key={key++} className="text-gray-700 leading-relaxed">
+        {parseBold(line)}
+      </p>
+    );
+  }
+
+  flushBullets();
+  return blocks.length > 0 ? blocks : null;
+};
+
 const Product = () => {
   const getCategoryId = (categoryLike) =>
     typeof categoryLike === "object" ? categoryLike?._id : categoryLike;
@@ -200,6 +272,13 @@ const Product = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [productId]);
 
+  useEffect(() => {
+    if (productData?.name) {
+      document.title = `${localizeProductName(productData.name)} — Lumière`;
+    }
+    return () => { document.title = "Lumière"; };
+  }, [productData?.name]);
+
   const {
     reviews,
     loadingReviews,
@@ -253,6 +332,39 @@ const Product = () => {
     trackInteraction,
     isInCart,
   });
+
+  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token || !productData?._id) return;
+    axios
+      .get(`${backendUrl}/api/interaction/wishlist`, { headers: { token } })
+      .then((res) => {
+        if (res.data.success) {
+          const ids = new Set(res.data.products.map((p) => p._id?.toString()));
+          setWishlisted(ids.has(String(productData._id)));
+        }
+      })
+      .catch(() => {});
+  }, [token, productData?._id, backendUrl]);
+
+  const handleToggleWishlist = async () => {
+    if (!token) { navigate("/login"); return; }
+    setWishlistLoading(true);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/interaction/wishlist/toggle`,
+        { productId: productData._id },
+        { headers: { token } }
+      );
+      if (res.data.success) setWishlisted(res.data.wishlisted);
+    } catch {
+      // silent fail
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
   return productData ? (
     // neu productData ton tai thi render ra
     <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
@@ -619,12 +731,26 @@ const Product = () => {
                   >
                     THÊM VÀO GIỎ HÀNG
                   </button>
+                  <button
+                    onClick={handleToggleWishlist}
+                    disabled={wishlistLoading}
+                    title={wishlisted ? "Bỏ khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
+                    className={`shrink-0 w-12 h-12 flex items-center justify-center rounded-lg border-2 transition-all active:scale-95 ${
+                      wishlisted
+                        ? 'border-rose-500 bg-rose-50 text-rose-500'
+                        : 'border-gray-300 text-gray-400 hover:border-rose-400 hover:text-rose-400'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill={wishlisted ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
                 </div>
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
                     checked={priceAlertEnabled}
-                    disabled={!isInCart || priceAlertLoading}
+                    disabled={priceAlertLoading}
                     onChange={(e) => handleTogglePriceAlert(e.target.checked)}
                   />
                   Nhận thông báo khi sản phẩm này giảm giá
@@ -765,9 +891,10 @@ const Product = () => {
         </div>
         <div className="py-6 px-6 border border-t-0 rounded-b-lg bg-gray-50">
           {activeTab === "description" && (
-            <div className="flex flex-col gap-4 text-sm text-gray-700 leading-relaxed">
-              <p className="font-medium text-base text-gray-800">Chi tiết sản phẩm:</p>
-              <p>{productData.description}</p>
+            <div className="flex flex-col gap-2 text-sm text-gray-700 leading-relaxed">
+              <div className="space-y-1">
+                {renderDescription(productData.description)}
+              </div>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {productData.brand && (
                   <div className="flex justify-between border-b pb-2">

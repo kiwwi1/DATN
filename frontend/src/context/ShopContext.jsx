@@ -25,6 +25,7 @@ const ShopContextProvider = (props) => {
   const [showSearch, setShowSearch] = useState(true);
   const [cartItems, setCartItems] = useState({});
   const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [token, setToken] = useState("");
   const [userId, setUserId] = useState("");
   const [userRole, setUserRole] = useState("user");
@@ -90,6 +91,7 @@ const ShopContextProvider = (props) => {
   };
 
   const getProductsData = useCallback(async () => {
+    setProductsLoading(true);
     try {
       const response = await axios.get(`${backendUrl}/api/product/list`);
       if (response.data.success) {
@@ -98,8 +100,10 @@ const ShopContextProvider = (props) => {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error(error.message);
+    } finally {
+      setProductsLoading(false);
     }
   }, [backendUrl]);
 
@@ -205,6 +209,7 @@ const ShopContextProvider = (props) => {
     homepageCategories,
     getAllCategories,
     products,
+    productsLoading,
     currency,
     delivery_fee,
     search,

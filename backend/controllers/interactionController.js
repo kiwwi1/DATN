@@ -1,4 +1,4 @@
-import { trackInteractionService, getRecommendationsService } from "../services/interactionService.js";
+import { trackInteractionService, getRecommendationsService, getWishlistService, toggleWishlistService } from "../services/interactionService.js";
 
 const VALID_INTERACTIONS = [
     "purchased",
@@ -27,7 +27,7 @@ const trackInteraction = async (req, res) => {
         await trackInteractionService(userId, productId, interactionType, value);
         res.json({ success: true });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
@@ -42,9 +42,31 @@ const getRecommendations = async (req, res) => {
         const products = await getRecommendationsService(userId, limit);
         res.json({ success: true, products });
     } catch (error) {
-        console.log(error);
+        console.error("[controller]", error?.message || error);
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
 };
 
-export { trackInteraction, getRecommendations };
+const getWishlist = async (req, res) => {
+    try {
+        const products = await getWishlistService(req.userId);
+        res.json({ success: true, products });
+    } catch (error) {
+        console.error("[controller]", error?.message || error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const toggleWishlist = async (req, res) => {
+    try {
+        const { productId } = req.body;
+        if (!productId) return res.status(400).json({ success: false, message: "productId is required" });
+        const wishlisted = await toggleWishlistService(req.userId, productId);
+        res.json({ success: true, wishlisted });
+    } catch (error) {
+        console.error("[controller]", error?.message || error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export { trackInteraction, getRecommendations, getWishlist, toggleWishlist };

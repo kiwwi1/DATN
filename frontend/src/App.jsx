@@ -27,6 +27,7 @@ import ProfileNotificationSettings from './pages/profile/ProfileNotificationSett
 import ProfilePersonalInfo from './pages/profile/ProfilePersonalInfo'
 import ProfileVouchers from './pages/profile/ProfileVouchers'
 import RecommendationsPage from './pages/main/RecommendationsPage'
+import Wishlist from './pages/profile/Wishlist'
 
 const App = () => {
   const { pathname } = useLocation();
@@ -62,7 +63,7 @@ const App = () => {
         <Route path='/profile/notification-settings' element={<ProfileNotificationSettings/>} />
         <Route path='/profile/personal-info' element={<ProfilePersonalInfo/>} />
         <Route path='/profile/vouchers' element={<ProfileVouchers/>} />
-        
+        <Route path='/wishlist' element={<Wishlist/>} />
       </Routes>
       <Footer />
       <FloatingChatButton />

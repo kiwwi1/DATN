@@ -22,6 +22,7 @@ import locationRouter from './routes/locationRoute.js';
 import voucherRouter from './routes/voucherRoute.js';
 import searchRouter from './routes/searchRoute.js';
 import returnRouter from './routes/returnRoute.js';
+import simulationRouter from './routes/simulationRoute.js';
 import { getImageProxy } from './controllers/imageProxyController.js';
 import { expirePendingReservationsService } from './services/orderService.js';
 import { stripeWebhook } from './controllers/orderController.js';
@@ -124,6 +125,7 @@ app.use('/api/location', locationRouter);
 app.use('/api/voucher', voucherRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/return', returnRouter);
+app.use('/api/simulation', simulationRouter);
 
 io.use(async (socket, next) => {
     try {

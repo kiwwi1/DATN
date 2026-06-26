@@ -8,6 +8,7 @@ import Orders from "./pages/Orders";
 import Stats from "./pages/Stats";
 import Chat from "./pages/Chat";
 import Vouchers from "./pages/Vouchers";
+import Simulator from "./pages/Simulator";
 import Login from "./components/Login";
 import VendorValidator from "./components/VendorValidator";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -156,6 +157,7 @@ const App = () => {
                 <Route path="/orders" element={<Orders token={token} />} />
                 <Route path="/vouchers" element={<Vouchers token={token} />} />
                 <Route path="/chat" element={<Chat token={token} />} />
+                <Route path="/simulator" element={<Simulator token={token} />} />
               </Routes>
             </div>
           </div>

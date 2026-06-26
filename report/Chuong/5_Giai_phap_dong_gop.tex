@@ -12,7 +12,7 @@ Chương này tập trung trình bày các giải pháp thiết kế hệ thốn
 \label{section:5.1}
 
 \subsection{Đặt vấn đề}
-Trong các sự kiện mua sắm lớn (chẳng hạn như Flash Sale), hệ thống thường phải đối mặt với lượng truy cập đồng thời cực kỳ lớn vào cùng một thời điểm. Đối với luồng đặt hàng truyền thống, quy trình nghiệp vụ thường diễn ra theo trình tự:
+Trong các sự kiện mua sắm lớn (chẳng hạn như Flash Sale), hệ thống thường phải đối mặt với lượng truy cập đồng thời rất lớn vào cùng một thời điểm. Đối với luồng đặt hàng truyền thống, quy trình nghiệp vụ thường diễn ra theo trình tự:
 \begin{enumerate}
     \item Đọc số lượng tồn kho hiện tại của sản phẩm từ cơ sở dữ liệu.
     \item Kiểm tra xem số lượng tồn kho có lớn hơn hoặc bằng số lượng khách hàng yêu cầu mua hay không.
@@ -93,7 +93,7 @@ Cơ chế giữ kho nguyên tử và chống trùng lặp đã được kiểm t
 Một trong những điểm mấu chốt để nâng cao doanh số và giữ chân người dùng trên các sàn thương mại điện tử là khả năng cá nhân hóa trải nghiệm thông qua danh sách gợi ý sản phẩm. Tuy nhiên, việc xây dựng một bộ gợi ý hiệu quả gặp phải ba thách thức lớn:
 \begin{itemize}
     \item \textbf{Bài toán khởi động lạnh (Cold Start)}: Người dùng mới đăng ký chưa hề có lịch sử mua sắm hay tương tác, khiến các thuật toán lọc cộng tác (Collaborative Filtering) không có cơ sở dữ liệu để đối chiếu và đưa ra gợi ý liên quan.
-    \item \textbf{Độ loãng của dữ liệu (Data Sparsity)}: Số lượng sản phẩm trên sàn rất lớn nhưng mỗi khách hàng chỉ tương tác với một phần cực kỳ nhỏ trong số đó, dẫn đến ma trận tương tác người dùng - sản phẩm bị trống hầu hết các ô dữ liệu.
+    \item \textbf{Độ loãng của dữ liệu (Data Sparsity)}: Số lượng sản phẩm trên sàn rất lớn nhưng mỗi khách hàng chỉ tương tác với một phần rất nhỏ trong số đó, dẫn đến ma trận tương tác người dùng - sản phẩm bị trống hầu hết các ô dữ liệu.
     \item \textbf{Sự thay đổi sở thích theo thời gian (Time Decay)}: Hành vi và sở thích của khách hàng không cố định mà biến đổi liên tục. Một sản phẩm công nghệ người dùng đã xem và mua từ 6 tháng trước không còn phản ánh đúng nhu cầu hiện tại bằng một sản phẩm thời trang mà họ mới thêm vào giỏ hàng ngày hôm qua.
 \end{itemize}
 

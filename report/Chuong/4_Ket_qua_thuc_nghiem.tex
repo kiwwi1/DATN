@@ -33,7 +33,7 @@ Hình \ref{fig:architecture_overview} mô tả kiến trúc triển khai tổng 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.98\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/architecture_overview.png}
+    \includegraphics[width=0.98\textwidth]{images/generated/architecture_overview.png}
     \caption{Kiến trúc triển khai tổng thể của hệ thống marketplace}
     \label{fig:architecture_overview}
 \end{figure}
@@ -43,7 +43,7 @@ Hình \ref{fig:architecture_overview} mô tả kiến trúc triển khai tổng 
 
 Để làm rõ cấu trúc nội bộ của từng nền tảng, phần này trình bày biểu đồ gói UML (package diagram) cho cả backend và frontend, thể hiện sự phụ thuộc một chiều giữa các gói theo từng tầng.
 
-Biểu đồ gói phía máy chủ trong Hình \ref{fig:be_package} trình bày bảy gói chính của backend với phụ thuộc một chiều từ ngoài vào trong. Gói \texttt{routes} phụ thuộc vào \texttt{middleware} và \texttt{controllers}; \texttt{controllers} phụ thuộc \texttt{services} và \texttt{utils}; \texttt{services} phụ thuộc \texttt{models} và \texttt{config}. Hai gói ngoại vi là \texttt{models} (kết nối MongoDB) và \texttt{config} (cấu hình Redis, Cloudflare R2) không phụ thuộc bất kỳ gói nghiệp vụ nào.
+Biểu đồ gói phía máy chủ trong Hình \ref{fig:be_package} trình bày sáu gói chính của backend với phụ thuộc một chiều từ ngoài vào trong. Gói \texttt{routes} phụ thuộc vào \texttt{middleware} và \texttt{controllers}; \texttt{controllers} phụ thuộc \texttt{services} và \texttt{utils}; \texttt{services} phụ thuộc \texttt{models} và \texttt{config}. Hai gói ngoại vi là \texttt{models} (kết nối MongoDB) và \texttt{config} (cấu hình Redis, Cloudflare R2) không phụ thuộc bất kỳ gói nghiệp vụ nào.
 
 \begin{figure}[H]
     \centering
@@ -201,7 +201,7 @@ Sơ đồ điều hướng chính của hai ứng dụng giao diện được mi
 
 Phần này trình bày thiết kế chi tiết thuộc tính và phương thức cho bốn lớp chủ đạo của hệ thống, gồm hai lớp thực thể dữ liệu (\texttt{Order}, \texttt{Product}) và hai lớp dịch vụ nghiệp vụ (\texttt{OrderService}, \texttt{VoucherService}). Ký hiệu \texttt{-} chỉ thuộc tính/phương thức private, \texttt{+} chỉ public.
 
-\textbf{Lớp thực thể \texttt{Order} và \texttt{Product}.} Hình \ref{fig:model_class_detail} mô tả thiết kế chi tiết hai lớp thực thể. Lớp \texttt{Order} bổ sung ba trường đặc thù so với đơn hàng thông thường: \texttt{idempotencyKey} chống đặt trùng, \texttt{stockReservedAt} và \texttt{reservation\allowbreak ExpiresAt} để quản lý vòng đời giữ kho; phương thức \texttt{isReservation\allowbreak Expired()} được tác vụ nền gọi định kỳ để phát hiện đơn quá hạn. Lớp \texttt{Product} hỗ trợ mảng \texttt{variants} (hợp thành) lưu tổ hợp SKU với tồn kho độc lập; phương thức \texttt{reserveStock()} thực hiện cập nhật nguyên tử bằng điều kiện \texttt{\$inc} kết hợp kiểm tra số lượng để tránh bán vượt tồn kho đồng thời. Chi tiết về cơ chế giữ kho nguyên tử và khóa \texttt{idempotencyKey} chống trùng lặp giao dịch được phân tích sâu tại Phần~\ref{section:5.1}.
+\textbf{Lớp thực thể \texttt{Order} và \texttt{Product}.} Hình \ref{fig:model_class_detail} mô tả thiết kế chi tiết hai lớp thực thể. Lớp \texttt{Order} bổ sung ba trường đặc thù so với đơn hàng thông thường: \texttt{idempotencyKey} chống đặt trùng, \texttt{stockReservedAt} và \texttt{reservationExpiresAt} để quản lý vòng đời giữ kho; phương thức \texttt{isReservationExpired()} được tác vụ nền gọi định kỳ để phát hiện đơn quá hạn. Lớp \texttt{Product} hỗ trợ mảng \texttt{variants} (hợp thành) lưu tổ hợp SKU với tồn kho độc lập; phương thức \texttt{reserveStock()} thực hiện cập nhật nguyên tử bằng điều kiện \texttt{\$inc} kết hợp kiểm tra số lượng để tránh bán vượt tồn kho đồng thời. Chi tiết về cơ chế giữ kho nguyên tử và khóa \texttt{idempotencyKey} chống trùng lặp giao dịch được phân tích sâu tại Phần~\ref{section:5.1}.
 
 \begin{figure}[H]
     \centering
@@ -210,7 +210,7 @@ Phần này trình bày thiết kế chi tiết thuộc tính và phương thứ
     \label{fig:model_class_detail}
 \end{figure}
 
-\textbf{Lớp dịch vụ \texttt{OrderService} và \texttt{VoucherService}.} Hình \ref{fig:service_class_detail} mô tả thiết kế chi tiết hai lớp dịch vụ trung tâm. \texttt{OrderService} là lớp điều phối chính: \texttt{createOrder()} kiểm tra idempotency trước, sau đó gọi \texttt{VoucherService.\allowbreak computeOrderPricing()} để tính bảng giá và \texttt{reserveStock()} (private) để giữ kho nguyên tử; \texttt{cancelExpired\allowbreak Orders()} chạy như tác vụ nền định kỳ để hoàn trả tồn kho và voucher khi đơn quá hạn. \texttt{VoucherService} tập trung toàn bộ logic giảm giá: \texttt{computeOrderPricing()} gọi lần lượt ba phương thức private để áp dụng từng lớp voucher theo thứ tự ưu tiên shop → platform → shipping; \texttt{assertVoucher\allowbreak Valid()} ném ngoại lệ sớm nếu voucher hết hạn hoặc hết lượt, tránh xử lý không cần thiết. Thiết kế chi tiết bộ tính toán giá phân tầng của \texttt{VoucherService} và kiến trúc điều phối đơn hàng đa nhà bán hàng được trình bày tại Phần~\ref{section:5.3}.
+\textbf{Lớp dịch vụ \texttt{OrderService} và \texttt{VoucherService}.} Hình \ref{fig:service_class_detail} mô tả thiết kế chi tiết hai lớp dịch vụ trung tâm. \texttt{OrderService} là lớp điều phối chính: \texttt{createOrder()} kiểm tra idempotency trước, sau đó gọi \texttt{VoucherService.\allowbreak computeOrderPricing()} để tính bảng giá và \texttt{reserveStock()} (private) để giữ kho nguyên tử; \texttt{cancelExpiredOrders()} chạy như tác vụ nền định kỳ để hoàn trả tồn kho và voucher khi đơn quá hạn. \texttt{VoucherService} tập trung toàn bộ logic giảm giá: \texttt{computeOrderPricing()} gọi lần lượt ba phương thức private để áp dụng từng lớp voucher theo thứ tự ưu tiên shop → platform → shipping; \texttt{assertVoucherValid()} ném ngoại lệ sớm nếu voucher hết hạn hoặc hết lượt, tránh xử lý không cần thiết. Thiết kế chi tiết bộ tính toán giá phân tầng của \texttt{VoucherService} và kiến trúc điều phối đơn hàng đa nhà bán hàng được trình bày tại Phần~\ref{section:5.3}.
 
 \begin{figure}[H]
     \centering
@@ -219,7 +219,7 @@ Phần này trình bày thiết kế chi tiết thuộc tính và phương thứ
     \label{fig:service_class_detail}
 \end{figure}
 
-Để minh họa luồng tương tác giữa các lớp trên, biểu đồ tuần tự cho hai use case quan trọng được trình bày trong phần tiếp theo.
+Để minh họa luồng tương tác giữa các lớp trên, hai biểu đồ tuần tự cho các use case quan trọng đã được đặc tả chi tiết tại Chương~\ref{chapter:Related_works} và được tham chiếu lại trong phần này.
 
 \subsection{Thiết kế mô hình nghiệp vụ và tương tác}
 \label{section:4.2.3}
@@ -228,30 +228,9 @@ Phần này trình bày thiết kế chi tiết thuộc tính và phương thứ
 
 Luồng tương tác giữa các thành phần nghiệp vụ không chỉ nằm ở cấu trúc thực thể mà còn ở cơ chế phối hợp giữa các dịch vụ xử lý. Mối quan hệ điều phối giữa các Service lớp đã được trình bày trong Hình \ref{fig:svc_class}. Trong đó \texttt{OrderService} đóng vai trò điều phối trung tâm: khi đặt hàng nó gọi \texttt{VoucherService.computeOrderPricing()} để tính bảng giá nhiều lớp, sử dụng các dịch vụ con trong miền \texttt{order/} để giữ kho nguyên tử và kích hoạt dịch vụ thông báo để đẩy sự kiện thời gian thực tới nhà bán hàng.
 
-\textbf{Biểu đồ tuần tự: Tạo đơn hàng.} Hình \ref{fig:seq_order} mô tả luồng tạo đơn hàng với cơ chế kiểm soát trùng lệnh và giữ kho nguyên tử. Sau khi client gửi yêu cầu kèm mã định danh chống trùng đơn, backend tra cứu đơn cũ trước; nếu chưa tồn tại, hệ thống thực hiện giữ kho bằng phép cập nhật có điều kiện ($\$inc$ kết hợp điều kiện số lượng đủ) để ngăn bán vượt tồn kho đồng thời. Thông tin thời điểm và thời hạn giữ kho được lưu vào bản ghi đơn hàng để tác vụ nền có thể hoàn trả nếu thanh toán quá hạn. Phân tích chi tiết cơ chế này được trình bày tại Phần~\ref{section:5.1}.
+\textbf{Biểu đồ tuần tự: Tạo đơn hàng.} Như đã trình bày trong Hình~\ref{fig:order_creation_sequence} (Chương~\ref{chapter:Related_works}), luồng tạo đơn hàng kiểm tra mã chống trùng lặp trước, sau đó thực hiện giữ kho bằng phép cập nhật có điều kiện (\texttt{\$inc} kết hợp kiểm tra số lượng đủ) để ngăn bán vượt tồn kho đồng thời. Thông tin thời điểm và thời hạn giữ kho được lưu vào bản ghi đơn hàng để tác vụ nền có thể hoàn trả nếu thanh toán quá hạn. Phân tích chi tiết cơ chế này được trình bày tại Phần~\ref{section:5.1}.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/order_creation_sequence.png}
-    \caption{Biểu đồ tuần tự luồng tạo đơn hàng và giữ kho nguyên tử}
-    \label{fig:seq_order}
-\end{figure}
-
-\textbf{Biểu đồ tuần tự: Xác nhận thanh toán trực tuyến và Tác vụ quét nền.} Hình \ref{fig:seq_payment} mô tả hai kịch bản xác nhận thanh toán trực tuyến (Stripe và VNPay), trong khi Hình \ref{fig:payment_sweeper_sequence} mô tả cơ chế tự động quét dọn và hủy các đơn hàng quá hạn thanh toán. Với Stripe, kết quả thanh toán được truyền về qua webhook; với VNPay, kết quả truyền qua URL callback có chữ ký số. Tác vụ quét nền (reservation sweeper) chạy định kỳ để phát hiện các đơn chưa thanh toán đã vượt quá thời hạn giữ kho, tự động chuyển trạng thái sang đã hủy, hoàn trả tồn kho và khôi phục lượt sử dụng voucher. Kiến trúc xử lý thanh toán và điều phối đơn hàng đa nhà bán hàng được phân tích sâu tại Phần~\ref{section:5.3}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth,height=0.78\textheight,keepaspectratio]{images/generated/online_payment_confirmation_sequence.png}
-    \caption{Biểu đồ tuần tự xác nhận thanh toán trực tuyến}
-    \label{fig:seq_payment}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth,keepaspectratio]{images/generated/payment_sweeper_sequence.png}
-    \caption{Biểu đồ tuần tự tác vụ nền quét hủy đơn hàng quá hạn thanh toán}
-    \label{fig:payment_sweeper_sequence}
-\end{figure}
+\textbf{Biểu đồ tuần tự: Xác nhận thanh toán trực tuyến.} Hình~\ref{fig:online_payment_sequence} (Chương~\ref{chapter:Related_works}) mô tả hai kịch bản thanh toán trực tuyến (Stripe và VNPay) và cơ chế tự động hủy đơn quá hạn. Với Stripe, kết quả thanh toán được truyền về qua webhook; với VNPay, kết quả truyền qua URL callback có chữ ký số. Tác vụ nền chạy theo chu kỳ phát hiện đơn chưa thanh toán đã quá thời hạn giữ kho, tự động chuyển trạng thái sang đã hủy và hoàn trả tồn kho cùng lượt sử dụng voucher. Kiến trúc xử lý thanh toán và điều phối đơn hàng đa nhà bán hàng được phân tích sâu tại Phần~\ref{section:5.3}.
 
 \subsection{Thiết kế cơ sở dữ liệu}
 Mô hình dữ liệu chính của hệ thống được thể hiện trong Hình \ref{fig:marketplace_er_diagram}. Dù triển khai trên MongoDB, sơ đồ vẫn được trình bày theo kiểu thực thể liên kết để làm rõ các quan hệ nghiệp vụ cốt lõi giữa người dùng, sản phẩm, đơn hàng, voucher, đánh giá, tương tác và hội thoại.
@@ -592,7 +571,7 @@ Kết quả: 11/11 trường hợp kiểm thử của module \texttt{VoucherServ
     \end{tabular}
 \end{table}
 
-\textbf{Kiểm thử hiệu năng và tranh chấp đồng thời dưới tải cao.} Để kiểm chứng giới hạn chịu tải và độ tin cậy của cơ chế giữ kho nguyên tử trong tình huống tải cao (giả lập sự kiện Flash Sale), đồ án đã xây dựng và thực thi kịch bản kiểm thử tranh chấp đồng thời thông qua công cụ mô phỏng tải. Thử nghiệm được tiến hành với hai cấp độ tải khác nhau: tải trung bình mô phỏng 100 yêu cầu đồng thời (VUs) cạnh tranh trên 20 đơn vị tồn kho, và tải cao mô phỏng 250 yêu cầu đồng thời cạnh tranh trên 50 đơn vị tồn kho. Toàn bộ các yêu cầu được kích hoạt gửi đi đồng loạt tại cùng một thời điểm.
+\textbf{Kiểm thử hiệu năng và tranh chấp đồng thời dưới tải cao.} Để kiểm chứng giới hạn chịu tải và độ tin cậy của cơ chế giữ kho nguyên tử trong tình huống tải cao (giả lập sự kiện Flash Sale), đồ án đã xây dựng và thực thi kịch bản kiểm thử tranh chấp đồng thời bằng công cụ \textbf{k6} (Grafana k6 v0.54) -- một công cụ kiểm thử tải mã nguồn mở viết bằng Go, hỗ trợ kịch bản JavaScript và phát tán yêu cầu đồng thời ở mức Virtual Users (VUs). Môi trường thực thi: máy tính cá nhân Intel Core i7-12700H, RAM 16\,GB, backend Node.js và MongoDB chạy cục bộ (localhost), Redis được kích hoạt. Thử nghiệm được tiến hành với hai cấp độ tải khác nhau: tải trung bình mô phỏng 100 yêu cầu đồng thời (VUs) cạnh tranh trên 20 đơn vị tồn kho, và tải cao mô phỏng 250 yêu cầu đồng thời cạnh tranh trên 50 đơn vị tồn kho. Toàn bộ các yêu cầu được kích hoạt gửi đi đồng loạt tại cùng một thời điểm (\texttt{startTime} đồng nhất trong kịch bản k6).
 
 Kết quả đo lường và thống kê hiệu năng chi tiết được trình bày trong Bảng \ref{table:load_test_results}.
 
@@ -610,23 +589,22 @@ Kết quả đo lường và thống kê hiệu năng chi tiết được trình
         Số đơn hàng thành công & 20 (100\% tồn kho) & 50 (100\% tồn kho) \\ \hline
         Số yêu cầu bị từ chối (Hết hàng) & 80 & 200 \\ \hline
         Tỉ lệ bán vượt (Oversell Rate) & \textbf{0.00\%} & \textbf{0.00\%} \\ \hline
-        Tổng thời gian thực thi & 401.14 ms & 679.55 ms \\ \hline
-        Thời gian phản hồi trung bình (Average) & 321.54 ms & 523.79 ms \\ \hline
-        Thời gian phản hồi nhanh nhất (Min) & 281.26 ms & 463.07 ms \\ \hline
-        Thời gian phản hồi chậm nhất (Max) & 398.66 ms & 677.49 ms \\ \hline
-        Băng thông trung bình (Throughput) & \textbf{249.29 reqs/s} & \textbf{367.89 reqs/s} \\ \hline
+        Tổng thời gian thực thi & 11.477 ms & 12.544 ms \\ \hline
+        Thời gian phản hồi trung bình (Average) & 5.215,20 ms & 8.450,89 ms \\ \hline
+        Thời gian phản hồi nhanh nhất (Min) & 4.364 ms & 6.918 ms \\ \hline
+        Thời gian phản hồi chậm nhất (Max) & 10.427 ms & 11.894 ms \\ \hline
+        Băng thông trung bình (Throughput) & \textbf{8,71 reqs/s} & \textbf{19,93 reqs/s} \\ \hline
         Tồn kho thực tế cuối cùng trong DB & 0 & 0 \\ \hline
     \end{tabular}
 \end{table}
 
-Phân tích kết quả thực nghiệm cho thấy:
-\begin{itemize}
-    \item \textbf{Độ chính xác tồn kho tuyệt đối}: Ở cả hai cấp độ tải, hệ thống đều xử lý thành công đúng số lượng đơn hàng tương ứng với lượng tồn kho thực tế (20 đơn cho tải 100 và 50 đơn cho tải 250). Toàn bộ các yêu cầu còn lại đều bị chặn và phản hồi mã lỗi \texttt{OUT\_OF\_STOCK}. Số lượng tồn kho cuối cùng được ghi nhận trong cơ sở dữ liệu về đúng mức 0, tỉ lệ bán vượt (oversell) đạt mức $0.00\%$.
-    \item \textbf{Khả năng mở rộng hiệu năng (Throughput)}: Khi tăng tải gấp 2.5 lần (từ 100 lên 250 request), băng thông xử lý của hệ thống tăng từ 249.29 reqs/s lên 367.89 reqs/s. Điều này chứng minh vòng lặp sự kiện (Event Loop) của Node.js xử lý các luồng I/O bất đồng bộ cực kỳ tối ưu, giúp tối đa hóa năng suất phục vụ của CPU.
-    \item \textbf{Thời gian phản hồi (Latency) ổn định}: Dưới áp lực tải cao của 250 request gửi cùng lúc, thời gian phản hồi trung bình chỉ là 523.79 ms và request chậm nhất hoàn tất trong 677.49 ms. Khoảng chênh lệch thời gian phản hồi thấp chứng tỏ không xảy ra hiện tượng nghẽn luồng xử lý hoặc chờ đợi khóa kéo dài.
-    \item \textbf{Tối ưu hóa tài nguyên cơ sở dữ liệu}: Do sử dụng cơ chế cập nhật ghi nguyên tử trực tiếp (\texttt{Atomic Write} bằng phép toán cập nhật kết hợp điều kiện sàng lọc trực tiếp trên MongoDB) thay vì khởi tạo các giao dịch (Transactions) đa bước phức tạp hay sử dụng khóa bi quan (Pessimistic Locking), cơ sở dữ liệu đã giải phóng hàng đợi truy vấn ngay lập tức, tránh gây nghẽn kết nối (connection pool exhaustion).
-\end{itemize}
+Phân tích kết quả thực nghiệm cho thấy bốn kết luận chính. Về \textbf{độ chính xác tồn kho}, ở cả hai cấp độ tải, hệ thống xử lý thành công đúng số lượng đơn hàng tương ứng với tồn kho thực tế (20 đơn cho tải 100 request và 50 đơn cho tải 250 request); toàn bộ các yêu cầu còn lại đều bị chặn và phản hồi mã lỗi \texttt{OUT\_OF\_STOCK}, tồn kho cuối cùng ghi nhận trong cơ sở dữ liệu về đúng mức 0 với tỉ lệ bán vượt (oversell) đạt $0{,}00\%$.
 
+Về \textbf{khả năng mở rộng hiệu năng}, khi tăng tải gấp 2,5 lần (từ 100 lên 250 request), băng thông xử lý tăng từ 8,71 reqs/s lên 19,93 reqs/s, cho thấy vòng lặp sự kiện (Event Loop) của Node.js xử lý các luồng I/O bất đồng bộ hiệu quả ngay cả khi áp lực đồng thời tăng cao.
+
+Về \textbf{độ ổn định thời gian phản hồi}, dưới áp lực 250 request gửi cùng lúc, thời gian phản hồi trung bình là 8.450,89 ms và request chậm nhất hoàn tất trong 11.894 ms. Khoảng dao động thời gian phản hồi nằm trong mức chấp nhận được từ 6.918 ms đến 11.894 ms dưới áp lực cực lớn, đồng thời không xảy ra hiện tượng nghẽn luồng hay mất kết nối.
+
+Về \textbf{tối ưu tài nguyên cơ sở dữ liệu}, việc sử dụng \texttt{Atomic Write} (phép cập nhật kết hợp điều kiện sàng lọc trực tiếp trên MongoDB) thay vì giao dịch đa bước hay khóa bi quan (Pessimistic Locking) giúp cơ sở dữ liệu giải phóng hàng đợi truy vấn ngay lập tức, tránh gây nghẽn kết nối (connection pool exhaustion) dưới tải cao.
 % ─── SECTION 5: TRIỂN KHAI ──────────────────────────────────────────────────
 \section{Triển khai}
 \label{section:4.5}
@@ -639,8 +617,7 @@ MongoDB được cấu hình theo hướng linh hoạt thông qua biến môi tr
 
 Về tích hợp cổng thanh toán, Stripe webhook được gắn tại endpoint \path{/api/order/stripe-webhook}. Endpoint này phải được mount trước middleware \path{express.json()} để giữ nguyên raw body phục vụ xác minh chữ ký. Với VNPay, backend xác minh chữ ký của tham số callback rồi redirect người dùng về trang \path{/verify} ở frontend. Cách tổ chức này giữ cho luồng thanh toán online nhất quán giữa backend, frontend và nhà cung cấp dịch vụ thanh toán.
 
-\section*{Kết chương}
-Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, ứng dụng giao diện và backend tích hợp thanh toán, realtime và khuyến nghị. Chương cũng đã tổng hợp công cụ sử dụng, thống kê quy mô mã nguồn, kết quả 22/22 ca kiểm thử tự động ở các module \texttt{VoucherService}, \texttt{interactionService} và \texttt{stockReservationService}, thực nghiệm đánh giá hiệu năng tranh chấp đồng thời dưới tải cao, cùng bốn kịch bản kiểm thử thủ công đầu cuối, đồng thời mô tả rõ cách thức triển khai trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật sẽ được phân tích dưới góc nhìn kỹ thuật và giá trị thực tiễn.
+Chương 4 đã hiện thực hóa các định hướng công nghệ của Chương 3 thành một cấu trúc hệ thống cụ thể gồm kiến trúc nhiều tầng, các mô-đun nghiệp vụ tách lớp, mô hình dữ liệu cho marketplace đa nhà bán hàng, ứng dụng giao diện và backend tích hợp thanh toán, realtime và khuyến nghị. Chương cũng đã tổng hợp công cụ sử dụng, thống kê quy mô mã nguồn, kết quả 22/22 ca kiểm thử tự động ở các module \texttt{VoucherService}, \texttt{interactionService} và \texttt{stockReservationService}, bốn kịch bản kiểm thử thủ công đầu cuối, cùng kết quả kiểm thử tải k6 xác nhận tỉ lệ oversell đạt $0.00\%$ dưới 250 yêu cầu đồng thời với thông lượng đạt 19.93 reqs/s, đồng thời mô tả rõ cách thức triển khai trong môi trường local và Docker. Những kết quả này là cơ sở trực tiếp để chuyển sang Chương 5, nơi các giải pháp và đóng góp nổi bật sẽ được phân tích dưới góc nhìn kỹ thuật và giá trị thực tiễn.
 
 \end{document}
 

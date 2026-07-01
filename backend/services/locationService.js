@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const PROVINCES_API_BASE = "https://provinces.open-api.vn/api";
+const PROVINCES_API_BASE = "https://provinces.open-api.vn/api/v2";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,23 +52,19 @@ const buildProvinceList = (raw) => {
 };
 
 const buildWardListFromProvince = (provinceDetail) => {
-    const districts = Array.isArray(provinceDetail?.districts) ? provinceDetail.districts : [];
+    const wardsRaw = Array.isArray(provinceDetail?.wards) ? provinceDetail.wards : [];
     const wards = [];
 
-    for (const district of districts) {
-        const districtName = String(district?.name || "").trim();
-        const districtWards = Array.isArray(district?.wards) ? district.wards : [];
-        for (const ward of districtWards) {
-            const wardName = String(ward?.name || "").trim();
-            if (!wardName) continue;
-            const wardCode = Number(ward.code);
-            wards.push({
-                code: Number.isFinite(wardCode) ? wardCode : null,
-                name: wardName,
-                districtName,
-                displayName: districtName ? `${wardName}, ${districtName}` : wardName,
-            });
-        }
+    for (const ward of wardsRaw) {
+        const wardName = String(ward?.name || "").trim();
+        if (!wardName) continue;
+        const wardCode = Number(ward.code);
+        wards.push({
+            code: Number.isFinite(wardCode) ? wardCode : null,
+            name: wardName,
+            districtName: "",
+            displayName: wardName,
+        });
     }
 
     return wards.sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
@@ -131,7 +127,7 @@ export const listWardsByProvinceService = async (provinceCode, keyword = "") => 
         wards = getCached(cachedEntry || { expiresAt: 0, data: [] });
 
         if (!wards) {
-            const raw = await fetchJson(`${PROVINCES_API_BASE}/p/${parsedCode}?depth=3`);
+            const raw = await fetchJson(`${PROVINCES_API_BASE}/p/${parsedCode}?depth=2`);
             wards = buildWardListFromProvince(raw);
             cache.wardsByProvince.set(cacheKey, {
                 data: wards,

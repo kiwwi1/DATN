@@ -1,0 +1,502 @@
+[
+  {
+    "name": "Giày Thể Thao Nam Biti's Hunter Street",
+    "brand": "Biti's",
+    "price": 680000,
+    "discount": 0,
+    "categoryName": "Giày Dép Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Giày thể thao năng động, nhẹ, sử dụng công nghệ đế LiteTraction êm ái, phù hợp đi học, đi chơi và di chuyển hàng ngày."
+  },
+  {
+    "name": "Áo Thun Nam Cotton Compact Coolmate",
+    "brand": "Coolmate",
+    "price": 189000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Chất liệu 100% Cotton Compact cao cấp siêu mềm mịn, thấm hút mồ hôi tốt, chống nhăn co tốt sau nhiều lần giặt."
+  },
+  {
+    "name": "Quần Shorts Nam Thể Thao Coolmate",
+    "brand": "Coolmate",
+    "price": 149000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Vải dù co giãn, nhẹ tênh và nhanh khô, thiết kế túi khóa kéo tiện lợi khi vận động, tập thể thao."
+  },
+  {
+    "name": "Áo Khoác Gió Nam Canifa Chống Nước",
+    "brand": "Canifa",
+    "price": 399000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Thiết kế 2 lớp chống gió bụi hiệu quả, bề mặt trượt nước chống mưa nhẹ, gọn nhẹ dễ mang theo."
+  },
+  {
+    "name": "Giày Sandal Nữ Biti's Hunter Core",
+    "brand": "Biti's",
+    "price": 450000,
+    "discount": 0,
+    "categoryName": "Giày Dép Nữ",
+    "image": [],
+    "stock": 100,
+    "description": "Sandal quai ngang trẻ trung, đế EVA nhẹ bám đường tốt, phù hợp cho học sinh, sinh viên."
+  },
+  {
+    "name": "Áo Sơ Mi Nam An Phước Dài Tay",
+    "brand": "An Phước",
+    "price": 950000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Thiết kế phom dáng công sở chuẩn mực, chất liệu Cotton mịn mát, đường may sắc sảo và tôn dáng tốt."
+  },
+  {
+    "name": "Dép Cao Su Quai Ngang Biti's",
+    "brand": "Biti's",
+    "price": 120000,
+    "discount": 0,
+    "categoryName": "Giày Dép Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Chất liệu cao su dẻo dai chống trơn trượt, quai ngang in logo chìm bền bỉ trước nắng mưa."
+  },
+  {
+    "name": "Áo Polo Nam Canifa Vải Cá Sấu",
+    "brand": "Canifa",
+    "price": 299000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Vải cotton pha cá sấu đứng dáng, cổ bẻ lịch sự, thích hợp cả khi đi làm hay đi chơi dạo phố."
+  },
+  {
+    "name": "Vớ/Tất Nam Cotton Khử Mùi Coolmate",
+    "brand": "Coolmate",
+    "price": 350000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Sợi bông tự nhiên thấm hút mồ hôi cực tốt, bổ sung công nghệ kháng khuẩn khử mùi hiệu quả."
+  },
+  {
+    "name": "Quần Tây Nam An Phước Dáng Ôm",
+    "brand": "An Phước",
+    "price": 850000,
+    "discount": 0,
+    "categoryName": "Thời Trang Nam",
+    "image": [],
+    "stock": 100,
+    "description": "Phom dáng slim-fit trẻ trung lịch lãm, vải co giãn nhẹ, giữ ly quần tốt sau khi là phẳng."
+  },
+  {
+    "name": "Nước Tẩy Trang Hoa Hồng Cocoon",
+    "brand": "Cocoon",
+    "price": 165000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Sản phẩm thuần chay chiết xuất từ hoa hồng hữu cơ Cao Bằng, dịu nhẹ cho mọi loại da, làm sạch bụi bẩn và lớp trang điểm nhẹ."
+  },
+  {
+    "name": "Cà Phê Đắk Lắk Làm Sạch Da Chết Cơ Thể Cocoon",
+    "brand": "Cocoon",
+    "price": 125000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Hạt cà phê nguyên chất Đắk Lắk xay nhuyễn kết hợp bơ ca cao giúp tẩy sạch tế bào chết toàn thân, dưỡng da sáng mịn."
+  },
+  {
+    "name": "Son Dưỡng Dầu Dừa Bến Tre Cocoon",
+    "brand": "Cocoon",
+    "price": 45000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Thành phần dầu dừa Bến Tre và bơ hạt mỡ dưỡng ẩm chuyên sâu, chống nứt nẻ và làm mềm môi tự nhiên."
+  },
+  {
+    "name": "Dầu Gội Dược Liệu Thái Dương 7",
+    "brand": "Sao Thái Dương",
+    "price": 120000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Chiết xuất từ bồ kết, hương nhu, cỏ mần trầu giúp làm sạch gàu, ngăn ngứa da đầu suốt 7 ngày liên tục và nuôi dưỡng tóc chắc khỏe."
+  },
+  {
+    "name": "Kem Nghệ Thorakao Ngừa Mụn Mờ Sẹo",
+    "brand": "Thorakao",
+    "price": 35000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Công thức lâu đời chiết xuất từ củ nghệ vàng tự nhiên giúp gom cồi mụn nhanh chóng, ngăn ngừa sẹo thâm và tái tạo da."
+  },
+  {
+    "name": "Sữa Rửa Mặt Sáng Da Nghệ Thorakao",
+    "brand": "Thorakao",
+    "price": 45000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Làm sạch sâu bã nhờn, đồng thời tinh chất nghệ giúp nuôi dưỡng da sáng hồng, giảm thâm mụn."
+  },
+  {
+    "name": "Tinh Chất Bưởi Dưỡng Tóc Cocoon",
+    "brand": "Cocoon",
+    "price": 145000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Sự kết hợp giữa tinh dầu vỏ bưởi truyền thống Việt Nam và hoạt chất Baicapil hỗ trợ kích thích mọc tóc, giảm gãy rụng rõ rệt."
+  },
+  {
+    "name": "Kem Dưỡng Da Sữa Gạo Thorakao",
+    "brand": "Thorakao",
+    "price": 75000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Tinh chất sữa gạo dưỡng ẩm dịu nhẹ, dưỡng trắng da tự nhiên và bảo vệ da trước tác hại môi trường."
+  },
+  {
+    "name": "Dầu Tắm Dược Liệu Thái Dương",
+    "brand": "Sao Thái Dương",
+    "price": 95000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Thành phần thảo dược thiên nhiên làm sạch dịu nhẹ da toàn thân, ngăn ngừa viêm tắc lỗ chân lông và mụn lưng."
+  },
+  {
+    "name": "Gel Rửa Mặt Bí Đao Cocoon Ngừa Mụn",
+    "brand": "Cocoon",
+    "price": 175000,
+    "discount": 0,
+    "categoryName": "Sắc Đẹp",
+    "image": [],
+    "stock": 100,
+    "description": "Độ pH lý tưởng 5.5 cùng chiết xuất bí đao, rau má và tinh dầu tràm trà kiểm soát nhờn mụn hữu hiệu."
+  },
+  {
+    "name": "Cà Phê Hòa Tan G7 Trung Nguyên 3in1",
+    "brand": "Trung Nguyên",
+    "price": 65000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Hộp 20 gói cà phê hòa tan thơm ngon đặc trưng, vị đắng dịu xen lẫn vị ngọt béo của sữa, tiện lợi nạp năng lượng."
+  },
+  {
+    "name": "Sữa Tươi Tiệt Trùng TH True Milk Ít Đường",
+    "brand": "TH True Milk",
+    "price": 32000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Lốc 4 hộp sữa tươi sạch nguyên chất 180ml lấy từ trang trại TH, bổ sung vi chất tự nhiên tốt cho sức khỏe."
+  },
+  {
+    "name": "Nước Mắm Nam Ngư Đậm Đặc 750ml",
+    "brand": "Nam Ngư",
+    "price": 45000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Dòng nước mắm chấm và nấu nướng quen thuộc trong mâm cơm người Việt, hương vị thơm dịu hài hòa."
+  },
+  {
+    "name": "Mì Ăn Liền Hảo Hảo Hương Vị Tôm Chua Cay",
+    "brand": "Acecook Việt Nam",
+    "price": 4500,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Vua mì gói tại Việt Nam với sợi mì vàng dai, súp chua cay đặc trưng thơm ngon khó cưỡng."
+  },
+  {
+    "name": "Cà Phê Hạt Rang Xay Trung Nguyên Sáng Tạo 1",
+    "brand": "Trung Nguyên",
+    "price": 95000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Bột cà phê hạt Culi Robusta nguyên chất phin giấy đậm đà, hương thơm nồng ấm cuốn hút người sành cà phê."
+  },
+  {
+    "name": "Tương Ớt Cholimex Chai 270g",
+    "brand": "Cholimex",
+    "price": 15000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Tương ớt vị cay nồng cay ngọt hòa quyện từ ớt tươi và tỏi, kích thích vị giác cực đỉnh cho các món chiên nướng."
+  },
+  {
+    "name": "Nước Tương Chinsu Tỏi Ớt",
+    "brand": "Chinsu",
+    "price": 18000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Nước tương thơm ngọt đậm đà hòa quyện tỏi ớt tươi xay nhuyễn làm nước chấm xuất sắc cho các món luộc, cuốn."
+  },
+  {
+    "name": "Trà Xanh Thái Nguyên Thượng Hạng",
+    "brand": "Tân Cương",
+    "price": 150000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Gói 200g chè búp khô Thái Nguyên sao tay thủ công, cho nước trà xanh vàng, hậu vị ngọt sâu chát nhẹ tinh tế."
+  },
+  {
+    "name": "Hạt Điều Rang Muối Bình Phước Vỏ Lụa",
+    "brand": "Nông sản Việt",
+    "price": 180000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Hộp 500g hạt điều giòn rụm béo bùi, giữ nguyên lớp vỏ lụa giữ hương vị tự nhiên và sạch sẽ."
+  },
+  {
+    "name": "Bánh Pía Sóc Trăng Nhân Sầu Riêng Trứng Muối",
+    "brand": "Tân Huê Viên",
+    "price": 85000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Bánh pía vỏ nhiều lớp mềm tan, nhân sầu riêng tươi đậm đà kết hợp lòng đỏ trứng muối bùi béo."
+  },
+  {
+    "name": "Sữa Đặc Có Đường Ông Thọ Vỉ Nhôm",
+    "brand": "Vinamilk",
+    "price": 24000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Lon sữa đặc quen thuộc không thể thiếu cho món cà phê sữa đá Việt Nam truyền thống hay chấm bánh mì."
+  },
+  {
+    "name": "Nước Khoáng Thiên Nhiên La Vie 500ml",
+    "brand": "La Vie",
+    "price": 6000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Chai nước lọc bổ sung vi chất và khoáng chất tự nhiên nhẹ dịu, đảm bảo độ tinh khiết tối đa."
+  },
+  {
+    "name": "Bia Sài Gòn Lager Lon 330ml",
+    "brand": "Bia Sài Gòn",
+    "price": 14000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Bia lager truyền thống sảng khoái mát lạnh, thích hợp cho các buổi liên hoan gia đình bạn bè."
+  },
+  {
+    "name": "Xúc Xích Tiệt Trùng Heo Vissan",
+    "brand": "Vissan",
+    "price": 30000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Lốc 5 cây xúc xích thịt heo tiệt trùng tiện lợi ăn liền hoặc chế biến mì tôm, thức ăn nhẹ."
+  },
+  {
+    "name": "Kẹo Dừa Bến Tre Truyền Thống",
+    "brand": "Thanh Long",
+    "price": 45000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Kẹo dừa dẻo thơm ngậy vị cốt dừa nguyên chất kết hợp cùng lớp bánh tráng mỏng ăn kèm lạ miệng."
+  },
+  {
+    "name": "Bút Bi Thiên Long TL-027",
+    "brand": "Thiên Long",
+    "price": 70000,
+    "discount": 0,
+    "categoryName": "Nhà Sách Online",
+    "image": [],
+    "stock": 100,
+    "description": "Hộp 20 chiếc bút bi quốc dân viết trơn mượt, mực xanh đều màu, nét chữ thanh mảnh học sinh đi học ai cũng dùng."
+  },
+  {
+    "name": "Phích Nước Nóng Rạng Đông 2 Lít",
+    "brand": "Rạng Đông",
+    "price": 150000,
+    "discount": 0,
+    "categoryName": "Nhà Cửa & Đời Sống",
+    "image": [],
+    "stock": 100,
+    "description": "Phích nước ruột thủy tinh giữ nhiệt lâu dài lên đến 24 giờ, lớp vỏ nhựa bền màu an toàn chống bỏng."
+  },
+  {
+    "name": "Nồi Cơm Điện Sunhouse 1.8 Lít",
+    "brand": "Sunhouse",
+    "price": 450000,
+    "discount": 0,
+    "categoryName": "Thiết Bị Điện Gia Dụng",
+    "image": [],
+    "stock": 100,
+    "description": "Nồi cơm điện nắp gài lòng nồi chống dính dày dặn, tỏa nhiệt đa chiều giúp cơm chín đều dẻo thơm."
+  },
+  {
+    "name": "Bóng Đèn LED Tròn Điện Quang 9W",
+    "brand": "Điện Quang",
+    "price": 45000,
+    "discount": 0,
+    "categoryName": "Nhà Cửa & Đời Sống",
+    "image": [],
+    "stock": 100,
+    "description": "Bóng led siêu sáng tiết kiệm điện năng tới 80%, tuổi thọ chiếu sáng cao lên đến 15.000 giờ sử dụng."
+  },
+  {
+    "name": "Chảo Chống Dính Sunhouse phi 26cm",
+    "brand": "Sunhouse",
+    "price": 120000,
+    "discount": 0,
+    "categoryName": "Nhà Cửa & Đời Sống",
+    "image": [],
+    "stock": 100,
+    "description": "Chất liệu hợp kim nhôm truyền nhiệt tốt, tráng lớp chống dính Whitford cao cấp của Mỹ cực bền bỉ."
+  },
+  {
+    "name": "Tập Vở Học Sinh Thuận Tiến 96 Trang",
+    "brand": "Thuận Tiến",
+    "price": 8000,
+    "discount": 0,
+    "categoryName": "Nhà Sách Online",
+    "image": [],
+    "stock": 100,
+    "description": "Cuốn vở viết học sinh giấy trắng sáng tự nhiên chống lóa, dòng kẻ ô ly rõ nét, mặt giấy viết êm tay không lem mực."
+  },
+  {
+    "name": "Vợt Muỗi Điện Sunhouse Thông Minh",
+    "brand": "Sunhouse",
+    "price": 140000,
+    "discount": 0,
+    "categoryName": "Thiết Bị Điện Gia Dụng",
+    "image": [],
+    "stock": 100,
+    "description": "Vợt bắt muỗi đa năng 3 lớp lưới an toàn, tích hợp đèn LED ban đêm và chấu cắm sạc gập tiện dụng."
+  },
+  {
+    "name": "Băng Keo Trong Văn Phòng Hồng Hà",
+    "brand": "Hồng Hà",
+    "price": 25000,
+    "discount": 0,
+    "categoryName": "Nhà Sách Online",
+    "image": [],
+    "stock": 100,
+    "description": "Cuộn băng keo độ bám dính cao dai chắc, dùng trong đóng gói bưu phẩm văn phòng tiện dụng."
+  },
+  {
+    "name": "Nước Rửa Chén Mỹ Hảo Hương Chanh",
+    "brand": "Mỹ Hảo",
+    "price": 35000,
+    "discount": 0,
+    "categoryName": "Giặt Giũ & Chăm Sóc Nhà Cửa",
+    "image": [],
+    "stock": 100,
+    "description": "Chai 800ml tẩy sạch dầu mỡ hiệu quả siêu nhanh với mùi chanh dịu nhẹ tự nhiên, không làm hại da tay."
+  },
+  {
+    "name": "Khăn Giấy Rút Pulppy 2 Lớp",
+    "brand": "Pulppy",
+    "price": 22000,
+    "discount": 0,
+    "categoryName": "Giặt Giũ & Chăm Sóc Nhà Cửa",
+    "image": [],
+    "stock": 100,
+    "description": "Khăn giấy rút làm bằng bột giấy nguyên sinh 100% cực kỳ mềm mại dai và thấm hút nước tốt cho mọi sinh hoạt."
+  },
+  {
+    "name": "Gạo ST25 Ông Cua Túi 5kg",
+    "brand": "Sóc Trăng",
+    "price": 190000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Gạo đạt danh hiệu \"Gạo ngon nhất thế giới\" hạt dài thon trắng trong, cơm chín dẻo mềm thơm mùi lá dứa đặc trưng."
+  },
+  {
+    "name": "Mật Ong Rừng U Minh Nguyên Chất",
+    "brand": "Cà Mau",
+    "price": 350000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Chai thủy tinh mật ong thu hoạch tự nhiên từ rừng tràm U Minh, vị ngọt thanh mát đậm mùi mật hoa rừng."
+  },
+  {
+    "name": "Tiêu Đen Chư Sê Hạt Khô",
+    "brand": "Gia Lai",
+    "price": 120000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Túi 500g tiêu đen thơm nồng cay đậm từ vùng đất đỏ bazan Tây Nguyên màu mỡ được phơi sấy sạch sẽ."
+  },
+  {
+    "name": "Nấm Linh Chi Đỏ Đà Lạt Nguyên Tai",
+    "brand": "Lâm Đồng",
+    "price": 600000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Hộp 250g nấm linh chi hữu cơ sấy khô hỗ trợ giải độc gan, tăng đề kháng và thanh lọc cơ thể rất tốt."
+  },
+  {
+    "name": "Trà Atiso Túi Lọc L'angfarm Đà Lạt",
+    "brand": "Lâm Đồng",
+    "price": 55000,
+    "discount": 0,
+    "categoryName": "Bách Hóa Online",
+    "image": [],
+    "stock": 100,
+    "description": "Hộp 40 túi lọc atiso thơm dịu mát gan lợi mật, nguyên liệu thanh mát tốt cho sức khỏe người sử dụng."
+  }
+]

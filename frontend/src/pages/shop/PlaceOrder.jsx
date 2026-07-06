@@ -72,9 +72,15 @@ const VoucherInputGroup = ({
               key={voucher.code}
               type="button"
               onClick={() => onChooseSuggestion(voucher.code)}
-              className="rounded border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs text-orange-700 hover:bg-orange-100"
+              className="rounded border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs text-orange-700 hover:bg-orange-100 flex items-center gap-1"
             >
-              {voucher.code} (-{formatPrice(voucher.estimatedDiscount || 0)})
+              <span>{voucher.code} (-{formatPrice(voucher.estimatedDiscount || 0)})</span>
+              <span className="text-[10px] text-orange-600/80 font-normal">
+                {voucher.usageLimit > 0 
+                  ? `(Còn ${Math.max(0, voucher.usageLimit - (voucher.usedCount || 0))})` 
+                  : '(Vô hạn)'
+                }
+              </span>
             </button>
           ))}
         </div>

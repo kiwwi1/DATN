@@ -98,6 +98,8 @@ const buildVoucherSuggestionDto = (voucher, estimatedDiscount) => ({
     endAt: Number(voucher.endAt || 0),
     description: String(voucher.description || ""),
     estimatedDiscount: Math.max(0, Math.round(Number(estimatedDiscount || 0))),
+    usageLimit: Number(voucher.usageLimit || 0),
+    usedCount: Number(voucher.usedCount || 0),
 });
 
 const buildVendorSuggestionMap = (items = []) => {

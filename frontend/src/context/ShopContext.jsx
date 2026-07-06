@@ -55,6 +55,8 @@ const ShopContextProvider = (props) => {
     const nextCartData = addItemToCartLocal(cartItems, itemId, optionKey);
     setCartItems(nextCartData);
 
+    toast.success("Đã thêm vào giỏ hàng!");
+
     try {
       await axios.post(
         `${backendUrl}/api/cart/add`,

@@ -24,7 +24,7 @@ const seed = async () => {
       discountType: "FIXED",
       discountValue: 20000,
       minOrderValue: 300000,
-      usageLimit: 0,
+      usageLimit: 100,
       startAt,
       endAt,
       isActive: true,
@@ -41,6 +41,19 @@ const seed = async () => {
       endAt,
       isActive: true,
       description: "Giam phi ship toi da 25.000",
+    },
+    {
+      code: "DEMO50",
+      type: "PLATFORM",
+      discountType: "PERCENT",
+      discountValue: 50,
+      maxDiscount: 100000,
+      minOrderValue: 50000,
+      usageLimit: 100,
+      startAt,
+      endAt,
+      isActive: true,
+      description: "Giam gia 50% cho buoi demo DATN",
     },
   ];
 

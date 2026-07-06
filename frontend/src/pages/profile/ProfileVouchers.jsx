@@ -57,11 +57,11 @@ const VoucherCard = ({ voucher }) => {
 
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs text-gray-400">HSD: {fmtDate(voucher.endAt)}</span>
-          {voucher.usageLimit > 0 && (
-            <span className="text-xs text-gray-400">
-              Còn {Math.max(0, voucher.usageLimit - voucher.usedCount)} lượt
-            </span>
-          )}
+          <span className="text-xs text-gray-500 font-medium">
+            {voucher.usageLimit > 0
+              ? `Còn ${Math.max(0, voucher.usageLimit - voucher.usedCount)} lượt`
+              : 'Không giới hạn lượt dùng'}
+          </span>
         </div>
       </div>
     </div>

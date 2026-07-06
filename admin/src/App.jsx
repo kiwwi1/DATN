@@ -11,6 +11,7 @@ import Vouchers from "./pages/Vouchers";
 import Simulator from "./pages/Simulator";
 import Login from "./components/Login";
 import VendorValidator from "./components/VendorValidator";
+import LoadingScreen from "./components/LoadingScreen";
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import 'react-toastify/dist/ReactToastify.css';
@@ -132,7 +133,7 @@ const App = () => {
     <div className="admin-shell">
       <ToastContainer position="top-right" />
       {checkingSession ? (
-        <Login isCheckingSession />
+        <LoadingScreen message="Đang kết nối hệ thống..." />
       ) : token === "" ? (
         <Login />
       ) : (

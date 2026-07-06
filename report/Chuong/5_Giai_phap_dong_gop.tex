@@ -1,11 +1,12 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Chương này tập trung trình bày các giải pháp thiết kế hệ thống và đóng góp kỹ thuật nổi bật của đồ án nhằm giải quyết các thách thức đặc trưng trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace). Nội dung chương được chia thành ba mục chính, mỗi mục phân tích sâu một bài toán cụ thể từ giai đoạn đặt vấn đề, thiết kế giải pháp kỹ thuật chi tiết, cho đến kết quả thực nghiệm đạt được:
+Chương này tập trung trình bày các giải pháp thiết kế hệ thống và đóng góp kỹ thuật nổi bật của đồ án nhằm giải quyết các thách thức đặc trưng trong mô hình sàn thương mại điện tử đa nhà bán hàng (Multi-vendor Marketplace). Nội dung chương được chia thành bốn mục chính, mỗi mục phân tích sâu một bài toán cụ thể từ giai đoạn đặt vấn đề, thiết kế giải pháp kỹ thuật chi tiết, cho đến kết quả thực nghiệm đạt được:
 \begin{itemize}
     \item \textbf{Phần \ref{section:5.1}}: Cơ chế giữ kho nguyên tử (Atomic Stock Reservation) kết hợp khóa chống trùng lặp giao dịch (Idempotency Key) để giải quyết tranh chấp tồn kho dưới tải cao và triệt tiêu lỗi tạo đơn hàng trùng.
     \item \textbf{Phần \ref{section:5.2}}: Hệ thống khuyến nghị sản phẩm lai (Hybrid Recommendation Engine) tích hợp điểm tương tác hành vi và hệ số suy hao thời gian (Time Decay) để tối ưu hóa trải nghiệm cá nhân hóa.
     \item \textbf{Phần \ref{section:5.3}}: Kiến trúc điều phối giao dịch đa nhà bán hàng (Multi-vendor Order Routing) và bộ tính toán mã giảm giá phân tầng nhiều lớp (Hierarchical Voucher Engine) xử lý an toàn tại backend.
+    \item \textbf{Phần \ref{section:5.4}}: Cơ chế tìm kiếm sản phẩm lai và xếp hạng cá nhân hóa (Personalized Relevance Scoring) kết hợp theo dõi xu hướng tìm kiếm thời gian thực.
 \end{itemize}
 
 \section{Cơ chế giữ kho nguyên tử và chống trùng lặp giao dịch}
@@ -159,7 +160,7 @@ Quy trình tính toán danh sách gợi ý cho một người dùng $u$ cụ th�
     \item \textbf{Trộn và xếp hạng (Merge \& Rank)}:
         \begin{itemize}
             \item Kết hợp hai danh sách ứng viên theo chiến lược ưu tiên: nhánh Lọc cộng tác cung cấp tối đa $\lceil N/2 \rceil$ sản phẩm (với $N$ là tổng số gợi ý cần trả về) và được xếp vào trước; nhánh Lọc theo nội dung bổ sung tối đa $N$ sản phẩm vào sau. Toàn bộ danh sách được loại trùng (deduplication), đảm bảo mỗi sản phẩm chỉ xuất hiện một lần. Chiến lược này ưu tiên kết quả Lọc cộng tác ở nửa đầu danh sách và dùng Lọc theo nội dung lấp đầy phần còn lại.
-            \item Loại bỏ các sản phẩm đã được người dùng tương tác hoặc đang ẩn (\texttt{isActive:\allowbreak false}).
+            \item Loại bỏ các sản phẩm đã được người dùng tương tác hoặc có trạng thái \texttt{isActive} là \texttt{false}.
         \end{itemize}
     \item \textbf{Xử lý Khởi động lạnh và Fallback}:
         \begin{itemize}
@@ -289,6 +290,55 @@ Kiến trúc điều phối đơn hàng và bộ voucher phân tầng đã mang 
     \item \textbf{Trải nghiệm đặt hàng đồng bộ}: Người mua chỉ cần thực hiện thao tác nhấn nút và thanh toán một lần duy nhất cho toàn bộ giỏ hàng đa dạng sản phẩm, trong khi hệ thống tự động xử lý tách đơn, gửi thông báo đơn hàng mới tức thời đến từng nhà bán hàng liên quan.
 \end{itemize}
 
-Chương 5 đã trình bày các giải pháp kỹ thuật và đóng góp nổi bật của đồ án đối với bài toán xây dựng sàn thương mại điện tử đa nhà bán hàng. Ba nhóm giải pháp chính gồm cơ chế giữ kho nguyên tử kết hợp khóa chống trùng lặp giao dịch, hệ thống khuyến nghị sản phẩm lai có suy hao thời gian và kiến trúc điều phối thanh toán kèm bộ tính toán voucher phân tầng đều hướng đến mục tiêu nâng cao tính nhất quán dữ liệu, mức độ cá nhân hóa và độ an toàn của luồng giao dịch. Các kết quả đạt được trong chương này cho thấy hệ thống không chỉ đáp ứng yêu cầu chức năng cơ bản mà còn xử lý được nhiều tình huống đặc thù của mô hình marketplace, tạo cơ sở để tổng kết mức độ hoàn thành, các hạn chế còn tồn tại và định hướng phát triển ở Chương 6.
+\section{Cơ chế tìm kiếm sản phẩm lai và xếp hạng cá nhân hóa tích hợp phân tích xu hướng}
+\label{section:5.4}
+
+\subsection{Đặt vấn đề}
+Thanh tìm kiếm (Search Bar) là cổng vào quan trọng nhất để người dùng tiếp cận sản phẩm trên các sàn thương mại điện tử. Tuy nhiên, việc xây dựng một bộ máy tìm kiếm hiệu quả trên cơ sở dữ liệu phi quan hệ (như MongoDB) đối với ngôn ngữ tiếng Việt gặp phải những thách thức lớn sau:
+\begin{itemize}
+    \item \textbf{Đặc trưng tiếng Việt có dấu và không dấu}: Người dùng Việt Nam có thói quen gõ tìm kiếm không dấu hoặc viết tắt. Các câu truy vấn thông thường sẽ bỏ sót sản phẩm nếu không có cơ chế chuẩn hóa từ khóa và đối sánh linh hoạt.
+    \item \textbf{Độ liên quan của kết quả (Search Relevance)}: Kết quả tìm kiếm nếu chỉ dựa trên tần suất xuất hiện của từ khóa sẽ kém chính xác. Một hệ thống tốt cần kết hợp mức độ khớp văn bản với độ phổ biến của sản phẩm (số lượng đã bán), chất lượng đánh giá (rating), và sở thích cá nhân của người dùng để đưa sản phẩm phù hợp nhất lên đầu.
+    \item \textbf{Hiệu năng truy vấn tải cao}: Việc sử dụng các câu lệnh đối sánh chuỗi phức tạp (như Regex) trên toàn bộ danh mục sản phẩm lớn sẽ làm giảm hiệu năng hệ thống. Hệ thống cần một chiến lược tìm kiếm kép kết hợp chỉ mục văn bản (Text Index) tốc độ cao và cơ chế dự phòng (Fallback).
+\end{itemize}
+
+\subsection{Giải pháp kỹ thuật đề xuất}
+Đồ án đề xuất giải pháp xây dựng hệ thống tìm kiếm sản phẩm lai (Hybrid Search Engine) kết hợp tìm kiếm văn bản toàn văn (Full-text Search), đối sánh Regex không dấu tự động, chấm điểm độ liên quan tổng hợp (Relevance Scoring) tích hợp cá nhân hóa, và ghi nhận xu hướng tìm kiếm thời gian thực.
+
+\subsubsection{Chiến lược tìm kiếm kép (Dual Search Strategy) và chuẩn hóa ngôn ngữ}
+Để tối ưu hóa tốc độ và độ bao phủ (Recall), hệ thống thực hiện tìm kiếm qua hai giai đoạn kế tiếp:
+\begin{itemize}
+    \item \textbf{Giai đoạn 1 -- Tìm kiếm chỉ mục văn bản (Full-text Search)}: Cơ sở dữ liệu MongoDB thiết lập một chỉ mục văn bản (\texttt{Text Index}) trên các trường dữ liệu quan trọng với trọng số (Weight) được phân bổ tối ưu: tên sản phẩm (\texttt{name} -- trọng số 10), thương hiệu (\texttt{brand} -- trọng số 5), và thẻ từ khóa (\texttt{tags} -- trọng số 3). Khi có từ khóa tìm kiếm, hệ thống sẽ thực hiện truy vấn bằng toán tử \texttt{\$text} kết hợp \texttt{\$search} để lấy ra các bản ghi khớp nhanh nhất cùng điểm số khớp văn bản (\texttt{textScore}).
+    \item \textbf{Giai đoạn 2 -- Đối sánh dự phòng không dấu (Regex Fallback)}: Đối với các truy vấn viết tắt hoặc tiếng Việt không dấu, hệ thống áp dụng hàm chuẩn hóa \texttt{normalizeText} để chuyển đổi từ khóa tìm kiếm và các trường dữ liệu so sánh về dạng chữ thường, loại bỏ toàn bộ dấu tiếng Việt (ví dụ: chuyển từ "Áo khoác" thành "ao khoac"). Sau đó, một truy vấn \texttt{\$regex} dự phòng sẽ quét qua các sản phẩm chưa được tìm thấy ở Giai đoạn 1 để bắt các trường hợp khớp một phần (Partial Match) trên tên sản phẩm, thương hiệu hoặc tên cửa hàng.
+\end{itemize}
+
+\subsubsection{Cơ chế xếp hạng độ liên quan tổng hợp và cá nhân hóa (Personalized Relevance Scoring)}
+Đối với chế độ sắp xếp theo độ liên quan (\texttt{relevant}), thay vị chỉ hiển thị kết quả theo thứ tự khớp văn bản thuần túy, hệ thống áp dụng công thức chấm điểm đa tiêu chí để tính toán điểm số cuối cùng (\texttt{finalScore}) cho mỗi sản phẩm $p$:
+\begin{equation}
+    \text{finalScore}(p) = w_{t} \cdot \bar{S}_{t}(p) + w_{s} \cdot \bar{S}_{s}(p) + w_{r} \cdot \bar{S}_{r}(p) + w_{p} \cdot \bar{S}_{p}(p)
+\end{equation}
+
+Trong đó, các điểm thành phần được chuẩn hóa về đoạn $[0, 1]$ trước khi nhân với trọng số tương ứng:
+\begin{itemize}
+    \item $\bar{S}_{t}(p) = \frac{S_{t}(p)}{\max_{i} S_{t}(i)}$: Điểm khớp văn bản (\texttt{textScore}) chuẩn hóa theo giá trị lớn nhất trong danh sách kết quả.
+    \item $\bar{S}_{s}(p) = \frac{S_{s}(p)}{\max_{i} S_{s}(i)}$: Điểm số lượng đã bán (\texttt{sold}) chuẩn hóa.
+    \item $\bar{S}_{r}(p) = \frac{S_{r}(p)}{5}$: Điểm đánh giá (\texttt{rating}) trung bình (chia cho thang điểm 5).
+    \item $\bar{S}_{p}(p) = \frac{S_{p}(p)}{\max_{i} S_{p}(i)}$: Điểm tương tác cá nhân hóa (\texttt{interactionScore}) của người dùng hiện tại đối với sản phẩm từ lịch sử tương tác (nhấp chuột, xem trang, thêm giỏ hàng,...).
+\end{itemize}
+
+Các hệ số trọng số được cấu hình tối ưu dựa trên thực nghiệm kinh doanh: $w_{t} = 0.4$, $w_{s} = 0.3$, $w_{r} = 0.2$, và $w_{p} = 0.1$.
+
+\subsubsection{Tìm kiếm gợi ý (Autocomplete) và phân tích xu hướng (Trending Search)}
+Để tăng tương tác, hệ thống cung cấp API gợi ý từ khóa thông minh (Autocomplete) kết hợp nhanh giữa chỉ mục văn bản và Regex tiền tố (Prefix Match), tự động trả về tối đa 6 sản phẩm liên quan nhất ngay khi người dùng gõ từng ký tự.
+Đồng thời, mỗi truy vấn tìm kiếm hợp lệ sẽ được ghi nhận một cách bất đồng bộ (Fire-and-Forget) vào collection \texttt{searchanalytics}. Hệ thống liên tục tích lũy tần suất tìm kiếm (\texttt{count}) và mốc thời gian cuối cùng để phục vụ tính năng "Tìm kiếm thịnh hành" (Trending Searches), giúp giới thiệu các xu hướng mua sắm mới nhất cho khách hàng ngay khi họ nhấp vào thanh tìm kiếm.
+
+\subsection{Kết quả đạt được}
+Cơ chế tìm kiếm lai đã cải thiện rõ rệt hiệu năng và trải nghiệm người dùng:
+\begin{itemize}
+    \item \textbf{Độ bao phủ cao}: Hạn chế tối đa tình trạng không tìm thấy sản phẩm do lỗi gõ tiếng Việt có dấu/không dấu nhờ chiến lược tìm kiếm kép kết hợp \texttt{normalizeText}.
+    \item \textbf{Xếp hạng thông minh}: Sản phẩm có doanh số tốt, đánh giá cao và thuộc nhóm sản phẩm người dùng từng quan tâm được ưu tiên hiển thị ở các vị trí đầu, giúp rút ngắn thời gian chuyển đổi đơn hàng.
+    \item \textbf{Không ảnh hưởng đến hiệu năng}: Quy trình cập nhật thống kê xu hướng tìm kiếm hoạt động bất đồng bộ nên không gây trễ (latency) cho luồng phản hồi kết quả tìm kiếm của khách hàng.
+\end{itemize}
+
+Chương 5 đã trình bày các giải pháp kỹ thuật và đóng góp nổi bật của đồ án đối với bài toán xây dựng sàn thương mại điện tử đa nhà bán hàng. Bốn nhóm giải pháp chính gồm cơ chế giữ kho nguyên tử kết hợp khóa chống trùng lặp giao dịch, hệ thống khuyến nghị sản phẩm lai có suy hao thời gian, kiến trúc điều phối thanh toán kèm bộ tính toán voucher phân tầng, và cơ chế tìm kiếm lai xếp hạng cá nhân hóa đều hướng đến mục tiêu nâng cao tính nhất quán dữ liệu, mức độ cá nhân hóa và độ an toàn của luồng giao dịch. Các kết quả đạt được trong chương này cho thấy hệ thống không chỉ đáp ứng yêu cầu chức năng cơ bản mà còn xử lý được nhiều tình huống đặc thù của mô hình marketplace, tạo cơ sở để tổng kết mức độ hoàn thành, các hạn chế còn tồn tại và định hướng phát triển ở Chương 6.
 
 \end{document}

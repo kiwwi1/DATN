@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const API_BASE = "https://provinces.open-api.vn/api";
+const API_BASE = "https://provinces.open-api.vn/api/v2";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const OUTPUT_PATH = path.resolve(__dirname, "../data/vn-locations.json");
@@ -30,44 +30,41 @@ const normalizeProvinces = (raw) => {
 };
 
 const extractWards = (provinceDetail) => {
-    const districts = Array.isArray(provinceDetail?.districts) ? provinceDetail.districts : [];
+    const wardsRaw = Array.isArray(provinceDetail?.wards) ? provinceDetail.wards : [];
     const wards = [];
-    for (const district of districts) {
-        const districtName = String(district?.name || "").trim();
-        const districtWards = Array.isArray(district?.wards) ? district.wards : [];
-        for (const ward of districtWards) {
-            const wardName = String(ward?.name || "").trim();
-            if (!wardName) continue;
-            const wardCode = Number(ward.code);
-            wards.push({
-                code: Number.isFinite(wardCode) ? wardCode : null,
-                name: wardName,
-                districtName,
-                displayName: districtName ? `${wardName}, ${districtName}` : wardName,
-            });
-        }
+
+    for (const ward of wardsRaw) {
+        const wardName = String(ward?.name || "").trim();
+        if (!wardName) continue;
+        const wardCode = Number(ward.code);
+        wards.push({
+            code: Number.isFinite(wardCode) ? wardCode : null,
+            name: wardName,
+            districtName: "",
+            displayName: wardName,
+        });
     }
 
     return wards.sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
 };
 
 const run = async () => {
-    console.log("[locations] Fetching provinces list...");
-    const provinceRaw = await fetchJson(`${API_BASE}/p/`);
-    const provinces = normalizeProvinces(provinceRaw);
+    console.log("[locations] Fetching provinces and wards list from V2 API...");
+    const rawData = await fetchJson(`${API_BASE}/?depth=2`);
+    const provinces = normalizeProvinces(rawData);
     console.log(`[locations] Found ${provinces.length} provinces/cities.`);
 
     const wardsByProvince = {};
-    for (let i = 0; i < provinces.length; i += 1) {
-        const province = provinces[i];
-        const index = i + 1;
-        console.log(`[locations] (${index}/${provinces.length}) ${province.name}`);
-        const detail = await fetchJson(`${API_BASE}/p/${province.code}?depth=3`);
-        wardsByProvince[String(province.code)] = extractWards(detail);
+    for (const item of rawData) {
+        const provinceCode = Number(item.code);
+        if (Number.isFinite(provinceCode)) {
+            console.log(`[locations] Processing wards for: ${item.name}`);
+            wardsByProvince[String(provinceCode)] = extractWards(item);
+        }
     }
 
     const payload = {
-        source: "https://provinces.open-api.vn/api",
+        source: "https://provinces.open-api.vn/api/v2",
         syncedAt: new Date().toISOString(),
         totalProvinces: provinces.length,
         provinces,
@@ -83,4 +80,3 @@ run().catch((error) => {
     console.error("[locations] Sync failed:", error.message);
     process.exit(1);
 });
-

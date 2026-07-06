@@ -107,16 +107,15 @@ Hệ thống thiết kế quy trình nghiệp vụ đặt hàng và thanh toán 
     \end{itemize}
 \end{enumerate}
 
-
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{images/generated/checkout_process_activity.png}
+    \vspace{-8pt}
+    \includegraphics[width=0.92\textwidth]{images/generated/checkout_process_activity.png}
+    \vspace{-8pt}
     \caption{Biểu đồ hoạt động quy trình nghiệp vụ Đặt hàng - Giữ kho - Thanh toán đồng thời}
     \label{fig:checkout_process}
+    \vspace{-10pt}
 \end{figure}
-
-
-
 
 Để làm rõ thứ tự tương tác, lời gọi API và luồng dữ liệu giữa Khách hàng, Client, Backend Server, cơ sở dữ liệu và cổng thanh toán ngoại vi, đồ án tách phần tuần tự của nghiệp vụ này thành bốn biểu đồ. Hình \ref{fig:order_preview_sequence} mô tả giai đoạn xem trước đơn hàng. Hình \ref{fig:order_creation_sequence} mô tả giai đoạn tạo đơn và giữ kho nguyên tử. Hình \ref{fig:online_payment_sequence} mô tả giai đoạn thanh toán trực tuyến và xác nhận kết quả. Hình \ref{fig:payment_sweeper_sequence} mô tả luồng tác vụ nền xử lý hủy đơn hàng quá hạn thanh toán.
 

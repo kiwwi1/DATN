@@ -262,3 +262,152 @@ Mỗi phân đoạn gồm: **[Thao tác]** trên màn hình — **[Script]** l�
 - Số liệu nói ra phải **khớp tuyệt đối với quyển**: 22/22 test, 11/11 VoucherService, 0,00% oversell, 19,93 reqs/s, τ=30 ngày, trọng số 0.4/0.3/0.2/0.1, commission 10%, TTL 15 phút, sweep 60 giây, 28.796 dòng mã. Sai một số là mất niềm tin cả buổi.
 - Khi có lỗi xảy ra: **không xin lỗi rối rít, không bấm loạn** — mỗi lỗi trong bảng Phần 4 đều có một câu chữa biến nó thành minh chứng cho thiết kế chịu lỗi.
 - Không nói "tuyệt đối/không bao giờ lỗi" trừ đúng một chỗ được phép mạnh miệng: oversell = 0 **trong phạm vi đã kiểm chứng** — luôn kèm cụm "trong các kịch bản kiểm thử của em".
+
+---
+
+## PHẦN 7 — TRỌNG TÂM DATABASE ĐỂ PHẢN BIỆN CHẮC TAY
+
+Phần này dành riêng cho trường hợp thầy hỏi sâu theo hướng cơ sở dữ liệu. Mục tiêu không phải là học thuộc tên field, mà là **hiểu vì sao em mô hình hóa như vậy, query nào đang được tối ưu, và giới hạn hiện tại nằm ở đâu**.
+
+### 7.1. Câu chốt 20 giây về database của đề tài
+
+> "CSDL của em dùng MongoDB theo hướng **ưu tiên tính nguyên tử của nghiệp vụ đặt hàng và tính đơn giản của dữ liệu tài liệu**. Những phần cần đọc/ghi cùng nhau trong một luồng nghiệp vụ như `order + vendors + pricing + items` hoặc `product + variants` được em đặt chung trong một document để tận dụng **single-document atomicity**. Những phần có vòng đời độc lập như `address`, `voucher`, `interaction`, `notification` thì tách collection riêng để dễ truy vấn và mở rộng."
+
+Nếu thầy hỏi ngắn "vì sao chọn MongoDB", câu trả lời an toàn nhất là:
+
+> "MongoDB không phải lựa chọn duy nhất, nhưng phù hợp với bài toán này vì sản phẩm có biến thể linh hoạt, đơn hàng đa vendor có cấu trúc lồng nhau, và quan trọng nhất là em cần **cập nhật nguyên tử trên một document** để chống oversell mà không phải quản lý transaction nhiều bảng."
+
+### 7.2. 5 quyết định mô hình dữ liệu phải hiểu thật rõ
+
+| Quyết định | Em đang làm gì | Vì sao hợp lý | Đánh đổi / giới hạn |
+|---|---|---|---|
+| `product` nhúng `variants[]` | Mỗi sản phẩm chứa luôn mảng biến thể với `variantKey`, `price`, `stock` | Một lệnh cập nhật có thể trừ đồng thời `stock` tổng và `variants.$[v].stock` khi đặt hàng | Nếu số biến thể tăng rất lớn, document phình to và thao tác cập nhật mảng phức tạp hơn |
+| `order` nhúng `items[]`, `pricing`, `appliedVouchers[]`, `vendors[]` | Toàn bộ "ảnh chụp" của đơn được lưu trong một document | Khi xem đơn hay xử lý thanh toán không cần JOIN nhiều bảng; dữ liệu đơn giữ nguyên ngay cả khi sản phẩm gốc đổi giá/tên | Dữ liệu lặp lại nhiều hơn; một đơn rất lớn có thể làm document to |
+| `vendors[]` nhúng trong `order` | Một đơn tổng vẫn chứa phần tách riêng cho từng shop: `vendorId`, `items`, `subtotal`, `vendorStatus`, `commission` | Phù hợp multi-vendor checkout: buyer thấy 1 đơn, nhưng backend vẫn điều phối doanh thu/trạng thái theo shop | Truy vấn/phân tích theo vendor cần index tốt và logic map status rõ ràng |
+| `userInteraction` tách collection riêng | Mỗi cặp `userId-productId` là 1 document tích lũy hành vi | Dễ cập nhật điểm tương tác và chạy recommendation mà không làm phình `user` hoặc `product` | Khi dữ liệu lớn, tính similarity online sẽ chậm dần |
+| `address` tách riêng khỏi `user` | Mỗi địa chỉ là 1 document, có `userId`, `isDefault`, `lastUsedAt` | Người dùng có nhiều địa chỉ, dễ CRUD và lọc địa chỉ mặc định | Hiện chưa có ràng buộc DB-level để đảm bảo mỗi user chỉ có đúng 1 địa chỉ mặc định |
+
+**Câu trả lời mẫu nếu bị hỏi "vì sao nhúng mà không tách bảng riêng?"**
+
+> "Em chọn nhúng khi dữ liệu đó được đọc/ghi cùng nhau trong cùng nghiệp vụ và cần nhất quán trong một lần cập nhật. Ví dụ `order.items` hay `product.variants` gần như luôn đi cùng document cha. Em chỉ tách collection khi dữ liệu có vòng đời riêng hoặc tăng trưởng độc lập, ví dụ `address`, `voucher`, `userInteraction`."
+
+### 7.3. Các index phải thuộc và phải nói được "index này cứu query nào"
+
+| Collection | Index | Mục đích thực tế |
+|---|---|---|
+| `orders` | `{ userId: 1, idempotencyKey: 1 }` unique + partial | Chặn tạo đơn trùng khi client double-click hoặc retry request |
+| `orders` | `{ "items.vendorId": 1, date: -1 }` | Hỗ trợ các truy vấn đơn hàng theo vendor kiểu cũ |
+| `orders` | `{ "vendors.vendorId": 1, date: -1 }` | Hỗ trợ vendor dashboard đọc các đơn có shop của mình |
+| `products` | `{ category: 1, subCategory: 1 }` | Lọc danh mục 2 tầng nhanh hơn |
+| `products` | `{ vendorId: 1 }` | Liệt kê sản phẩm theo shop |
+| `products` | `{ price: 1 }`, `{ sold: -1 }` | Sắp xếp theo giá / bán chạy |
+| `products` | text index `name, brand, tags` với weight `10/5/3` | Tìm kiếm theo mức độ liên quan |
+| `users` | partial unique `{ shopNameNormalized: 1 }` khi `role='vendor'` | Không cho 2 vendor trùng tên shop sau khi chuẩn hóa |
+| `userInteraction` | unique `{ userId: 1, productId: 1 }` | Mỗi cặp user-sản phẩm chỉ có 1 bản ghi tích lũy |
+| `address` | `{ userId: 1, isDefault: 1 }` | Tìm địa chỉ mặc định hoặc danh sách địa chỉ của user |
+| `voucher` | `{ type: 1, isActive: 1 }`, `{ vendorId: 1 }` | Tìm voucher theo loại và theo shop |
+| `searchAnalytics` | `{ count: -1 }` | Lấy từ khóa trending |
+
+**Nếu thầy hỏi "index nào là quan trọng nhất?"**
+
+1. `orders(userId, idempotencyKey)` vì đây là chốt chặn cuối chống đơn trùng ở mức DB.
+2. `orders(vendors.vendorId, date)` vì vendor dashboard truy vấn liên tục theo shop.
+3. `products` text index vì search là tính năng người dùng chạm rất thường xuyên.
+
+**Nếu thầy hỏi "còn query nào chưa được đỡ đủ tốt?"** em có thể tự nhận trước:
+
+- Hiện `products` có sort theo `date` ở nhiều màn hình nhưng **chưa có index riêng cho `date`**.
+- Query sweeper quét đơn quá hạn thanh toán nên có thể cần thêm index theo `payment`, `paymentMethod`, `reservationExpiresAt`, `status` nếu dữ liệu orders lớn.
+- `address` mới có index hỗ trợ lọc, nhưng **chưa có unique partial index** cho `userId + isDefault=true`.
+
+### 7.4. Tính nhất quán dữ liệu: nói ngắn nhưng phải trúng bản chất
+
+#### A. Chống oversell
+
+> "Em không đọc kho rồi trừ ở hai bước tách rời. Em đặt điều kiện `stock >= quantity` ngay trong filter của lệnh `updateOne`, rồi dùng `$inc` để trừ kho trong cùng lệnh ghi. Vì đây là **một document**, MongoDB đảm bảo atomicity ở mức document. Request nào đến sau khi kho đã cạn thì filter không match, `modifiedCount = 0`, và backend trả `OUT_OF_STOCK`."
+
+#### B. Chống đơn trùng
+
+> "Idempotency key do client gửi để chống double-click và retry do mạng. Nhưng chốt chặn thật sự nằm ở DB: partial unique index trên `(userId, idempotencyKey)`. Nếu request thứ hai đâm vào lỗi duplicate key `11000`, backend không tạo đơn mới mà trả lại đơn cũ."
+
+#### C. Nếu trừ kho rồi mà thanh toán fail thì sao?
+
+> "Đơn online chỉ giữ kho tạm thời với `stockReservedAt` và `reservationExpiresAt`. Tác vụ nền quét mỗi 60 giây sẽ hủy đơn quá hạn, hoàn kho, và hoàn lượt voucher. Tức là em không chỉ xử lý trạng thái thành công, mà còn xử lý cả đường phục hồi dữ liệu khi luồng bị gãy."
+
+#### D. Vì sao không cần transaction đa tài liệu ở bài toán lõi?
+
+> "Phần chống oversell bản thân nó chỉ cần thao tác nguyên tử trên một document sản phẩm. Transaction đa tài liệu chỉ cần khi nhiều document phải commit/rollback cùng nhau. Ở đây em ưu tiên tối giản đường nóng nhất của hệ thống là giữ kho."
+
+**Chú ý:** nếu thầy nói "nhưng order và voucher là nhiều document mà", câu trả lời tốt là:
+
+> "Đúng, toàn bộ luồng checkout không hoàn toàn nằm trong một transaction lớn. Em không phủ nhận điều đó. Em chọn thiết kế theo hướng **eventual repair** cho các trạng thái dở dang: có idempotency để tránh nhân đôi đơn và có sweeper để hoàn kho/hoàn voucher khi thanh toán không hoàn tất."
+
+### 7.5. 6 điểm yếu của mô hình DB hiện tại nên tự nhận trước nếu bị hỏi
+
+1. **`cartData` nhúng trong `user`** thuận tiện cho đồ án, nhưng nếu nhiều thiết bị cùng sửa giỏ hàng có thể phát sinh lost update vì đang cập nhật một object khá tự do.
+2. **`address.isDefault` chưa được ràng buộc duy nhất ở mức DB**, nên về mặt lý thuyết một user có thể có 2 địa chỉ cùng là mặc định nếu logic service thiếu chặt.
+3. **`variants.variantKey` chưa có unique guarantee trong nội bộ từng product**, nên cần cẩn thận ở tầng service khi tạo/cập nhật biến thể.
+4. **Search fallback không hoàn toàn được index hỗ trợ**, nên khi khối lượng sản phẩm lớn, phần regex/no-diacritic sẽ là nút thắt trước.
+5. **Recommendation đang tính similarity khá online**, phù hợp đồ án nhưng sẽ chậm dần khi interaction tăng lên hàng triệu bản ghi.
+6. **SSE và một số cache trạng thái còn thiên về một tiến trình**, nên khi scale ngang cần Redis Pub/Sub hoặc message broker để đồng bộ hơn.
+
+Điểm quan trọng là: **nói ra các điểm yếu này không làm mất điểm**, ngược lại thường tăng điểm vì thể hiện em hiểu hệ thống của mình ở mức thiết kế, không chỉ demo chạy được.
+
+### 7.6. 12 câu hỏi database thầy rất dễ hỏi và câu trả lời mẫu
+
+1. **"Tại sao chọn MongoDB mà không chọn PostgreSQL/MySQL?"**  
+   Vì dữ liệu của em có cấu trúc lồng như `product.variants`, `order.vendors`, `order.items`, nên document model giúp biểu diễn tự nhiên hơn và hỗ trợ cập nhật nguyên tử ngay trên một document. Em không khẳng định RDBMS làm không được, chỉ là MongoDB hợp hơn với ưu tiên nghiệp vụ em chọn.
+
+2. **"RDBMS cũng viết `UPDATE ... WHERE stock >= qty` được, vậy MongoDB hơn ở đâu?"**  
+   Em đồng ý là RDBMS cũng làm được atomic check-and-update. Điểm MongoDB tiện hơn trong đề tài này là biến thể nằm ngay trong document sản phẩm nên có thể trừ cả kho tổng lẫn kho biến thể bằng một lệnh cập nhật mảng, không cần tổ chức nhiều bảng hoặc JOIN.
+
+3. **"Tại sao order phải nhúng item, sao không chỉ lưu productId?"**  
+   Vì đơn hàng là dữ liệu lịch sử. Nếu chỉ lưu `productId`, sau này tên hàng, giá, ảnh, biến thể thay đổi thì hóa đơn cũ không còn phản ánh đúng thời điểm mua. Nhúng item là giữ snapshot nghiệp vụ.
+
+4. **"Nhúng nhiều vậy có sợ document quá to không?"**  
+   Có, đó là đánh đổi em chấp nhận. Nhưng trong phạm vi đồ án, một đơn hàng hay một sản phẩm vẫn nhỏ hơn rất nhiều so với giới hạn document của MongoDB. Nếu quy mô lớn hơn, em sẽ cân nhắc tách bớt phần ít truy cập hoặc sinh rất nhanh.
+
+5. **"Index nào giúp chống đơn trùng?"**  
+   Partial unique index trên `(userId, idempotencyKey)`. Đây là chốt chặn ở tầng DB, độc lập với logic frontend.
+
+6. **"Index nào giúp vendor dashboard chạy nhanh?"**  
+   Index `{ "vendors.vendorId": 1, date: -1 }` vì vendor thường xem danh sách đơn theo shop của mình và theo thời gian gần nhất.
+
+7. **"Text index của MongoDB có hạn chế gì?"**  
+   Có. Nó tốt cho full-text mức cơ bản, nhưng không mạnh bằng các máy tìm kiếm chuyên dụng như Elasticsearch/Atlas Search về typo tolerance, ranking phức tạp, tiếng Việt nâng cao. Vì vậy em mới bổ sung thêm fallback ở tầng service.
+
+8. **"Per-user voucher limit đang enforce ở đâu?"**  
+   Schema có field `perUserLimit`, nhưng nếu hỏi rất chặt ở mức dữ liệu thì đây là chỗ em còn có thể làm chặt hơn bằng một mô hình usage riêng hoặc index/ràng buộc bổ sung theo người dùng-voucher.
+
+9. **"Địa chỉ mặc định có đảm bảo mỗi user chỉ có 1 cái không?"**  
+   Hiện tại chủ yếu do logic service đảm bảo; ở mức DB thì em mới có index hỗ trợ truy vấn, chưa có unique partial index tuyệt đối cho `isDefault=true`.
+
+10. **"Nếu query orders quá lớn thì chỗ nào nghẽn trước?"**  
+   Sweeper đơn quá hạn và dashboard vendor là hai chỗ em sẽ tối ưu index trước, vì chúng phụ thuộc vào lọc trạng thái/thời gian khá thường xuyên.
+
+11. **"Tính recommendation trên MongoDB như vậy có scale không?"**  
+   Ở quy mô đồ án thì được. Nhưng khi interaction rất lớn, em đã ghi nhận cần chuyển sang tiền tính offline, cache vector tương đồng, hoặc đẩy sang pipeline phân tích riêng.
+
+12. **"Nếu được làm lại riêng phần DB, em sẽ cải thiện gì trước?"**  
+   Em sẽ thêm index cho các query nóng còn thiếu, ràng buộc chặt hơn cho default address và voucher usage, và tách một số luồng phân tích như recommendation/search analytics ra khỏi request path đồng bộ.
+
+### 7.7. Công thức trả lời 30 giây khi bị hỏi bất kỳ câu DB nào
+
+Khi bị hỏi bất ngờ, trả lời theo đúng 4 bước này:
+
+1. **Nêu quyết định hiện tại**: "Hiện tại em đang mô hình hóa theo hướng..."
+2. **Nêu lý do kỹ thuật**: "Lý do là query/luồng nghiệp vụ chính của em là..."
+3. **Nêu đánh đổi**: "Đánh đổi là..."
+4. **Nêu hướng cải thiện**: "Nếu scale lớn hơn, em sẽ..."
+
+Ví dụ:
+
+> "Hiện tại em nhúng `variants` trong `product`. Lý do là luồng nóng nhất của em là kiểm tra và trừ kho biến thể ngay khi đặt hàng, nên em muốn cập nhật nguyên tử trong một document. Đánh đổi là document có thể lớn hơn và xử lý mảng phức tạp hơn. Nếu số biến thể tăng mạnh ở môi trường thực, em sẽ cân nhắc tách SKU thành collection riêng."
+
+### 7.8. Kết luận phần database: học thuộc 5 câu này là đủ để không bị ngợp
+
+1. Em dùng MongoDB không phải vì "dễ", mà vì **phù hợp với dữ liệu lồng và cập nhật nguyên tử theo document**.
+2. `order` và `product` được thiết kế để phục vụ **nghiệp vụ nóng nhất** chứ không phải để "đẹp mô hình".
+3. **Index phải gắn với query thật**; nói được "index này cứu query nào" quan trọng hơn đọc thuộc tên index.
+4. Hệ thống của em ưu tiên **đúng dữ liệu khi tranh chấp** hơn là làm transaction lớn cho mọi thứ.
+5. Em biết rõ các điểm chưa hoàn hảo của mô hình hiện tại và đã có hướng cải tiến cụ thể nếu triển khai lớn hơn.

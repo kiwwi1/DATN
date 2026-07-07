@@ -5,7 +5,9 @@ import { useSearchParams } from 'react-router-dom'
 import { backendUrl } from '../App.jsx'
 import { formatPrice } from '../utils/priceFormat'
 
-const SHIPPING_STATUSES = new Set(['Shipped', 'Out for delivery', 'Delivered'])
+const VENDOR_SHIPPING_STATUSES = new Set(['shipped', 'delivered'])
+const LOCKED_ORDER_STATUSES = new Set(['Cancelled', 'Refunded'])
+const LOCKED_VENDOR_STATUSES = new Set(['delivered', 'cancelled'])
 
 const getOrderAddressMeta = (address = {}) => {
   const receiverName = address.receiverName || `${address.firstName || ''} ${address.lastName || ''}`.trim()
@@ -25,6 +27,15 @@ const STATUS_LABELS = {
   Delivered: 'Đã giao',
   Cancelled: 'Đã hủy',
   Refunded: 'Đã hoàn tiền',
+}
+
+const VENDOR_STATUS_LABELS = {
+  pending: 'Chờ xác nhận',
+  confirmed: 'Đã xác nhận',
+  preparing: 'Đang đóng gói',
+  shipped: 'Đã bàn giao vận chuyển',
+  delivered: 'Đã giao',
+  cancelled: 'Đã hủy',
 }
 
 const RETURN_STATUS_LABELS = {
@@ -111,7 +122,7 @@ const Orders = ({ token }) => {
     try {
       const response = await axios.post(
         `${backendUrl}/api/order/vendor-status`,
-        { orderId, status, trackingNumber, autoGenerateTracking: SHIPPING_STATUSES.has(status) && !trackingNumber },
+        { orderId, status, trackingNumber, autoGenerateTracking: VENDOR_SHIPPING_STATUSES.has(status) && !trackingNumber },
         { headers: { token } }
       )
       if (response.data.success) {
@@ -290,6 +301,8 @@ const Orders = ({ token }) => {
           {orders.map((order, index) => {
             const addressMeta = getOrderAddressMeta(order.address)
             const isFocused = String(order._id) === String(focusOrderId)
+            const vendorStatus = String(order.vendorStatus || 'pending').trim().toLowerCase()
+            const isLockedStatus = LOCKED_ORDER_STATUSES.has(order.status) || LOCKED_VENDOR_STATUSES.has(vendorStatus)
             
             return (
               <article
@@ -399,7 +412,7 @@ const Orders = ({ token }) => {
                           />
                           <button
                             type="button"
-                            onClick={() => saveTrackingNumber(order._id, order.status)}
+                            onClick={() => saveTrackingNumber(order._id, vendorStatus)}
                             className="admin-btn-secondary px-3 py-1.5 text-xs rounded-xl font-bold shrink-0"
                           >
                             {(trackingInputs[order._id] || '').trim() ? 'Lưu' : 'Tự tạo'}
@@ -409,27 +422,29 @@ const Orders = ({ token }) => {
 
                       {/* Status select or Badge */}
                       <div>
-                        {['Delivered', 'Cancelled', 'Refunded'].includes(order.status) ? (
+                        {isLockedStatus ? (
                           <span
                             className={`inline-flex rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider ${
-                              order.status === 'Delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                               order.status === 'Refunded' ? 'bg-sky-50 text-sky-700 border border-sky-100' :
+                              vendorStatus === 'delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                               'bg-rose-50 text-rose-700 border border-rose-105'
                             }`}
                           >
-                            {STATUS_LABELS[order.status]}
+                            {order.status === 'Refunded'
+                              ? STATUS_LABELS[order.status]
+                              : (VENDOR_STATUS_LABELS[vendorStatus] || STATUS_LABELS[order.status] || vendorStatus)}
                           </span>
                         ) : (
                           <select
                             onChange={(event) => updateOrderStatus(order._id, event.target.value)}
-                            value={order.status}
+                            value={vendorStatus}
                             className="admin-select py-1.5 text-xs rounded-xl focus:border-pink-500"
                           >
-                            <option value="Order Placed">Đã đặt hàng</option>
-                            <option value="Packing">Đang đóng gói</option>
-                            <option value="Shipped">Đã bàn giao vận chuyển</option>
-                            <option value="Out for delivery">Đang giao</option>
-                            <option value="Delivered">Đã giao</option>
+                            <option value="pending">Chờ xác nhận</option>
+                            <option value="confirmed">Đã xác nhận</option>
+                            <option value="preparing">Đang đóng gói</option>
+                            <option value="shipped">Đã bàn giao vận chuyển</option>
+                            <option value="delivered">Đã giao</option>
                           </select>
                         )}
                       </div>

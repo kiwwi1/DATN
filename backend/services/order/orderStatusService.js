@@ -32,6 +32,13 @@ const ORDER_STATUS_TO_VENDOR_STATUS = {
   Cancelled: "cancelled",
 };
 
+const deriveVendorStatus = (orderStatus, vendorEntry) =>
+  String(
+    vendorEntry?.vendorStatus ||
+    ORDER_STATUS_TO_VENDOR_STATUS[String(orderStatus || "").trim()] ||
+    "pending"
+  );
+
 const deriveOrderStatusFromVendors = (vendors = [], fallbackStatus = "Order Placed") => {
   const statuses = vendors.map((vendor) => String(vendor.vendorStatus || "pending"));
   if (statuses.length === 0) return fallbackStatus;
@@ -120,6 +127,7 @@ export const vendorOrdersService = async (vendorId, query = {}) => {
       ...order.toObject(),
       items: vendorItems,
       vendorAmount,
+      vendorStatus: deriveVendorStatus(order.status, vendorEntry),
       trackingNumber: vendorEntry?.trackingNumber || order.trackingNumber || "",
     };
   });

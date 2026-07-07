@@ -62,6 +62,12 @@ const buildTrackingNumber = ({ orderId, vendorId }) => {
   return `DATN-${orderPart}-${vendorPart}-${timestamp}-${randomPart}`;
 };
 
+const syncCashOnDeliveryPayment = (order) => {
+  if (order.paymentMethod === "COD" && order.status === "Delivered" && !order.payment) {
+    order.payment = true;
+  }
+};
+
 export const deleteOrderService = async (orderId) => {
   const order = await orderModel.findById(orderId);
   await ensureOrderDeletable(order);
@@ -82,6 +88,7 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
   }
 
   order.status = status;
+  syncCashOnDeliveryPayment(order);
   await order.save();
 
   const label = STATUS_LABEL[status] || status;
@@ -186,6 +193,7 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
   vendorEntry.vendorStatus = nextVendorStatus;
   order.markModified("vendors");
   order.status = deriveOrderStatusFromVendors(order.vendors, order.status);
+  syncCashOnDeliveryPayment(order);
   await order.save();
 
   const label = STATUS_LABEL[order.status] || order.status;
@@ -204,3 +212,4 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
 
   return order;
 };
+

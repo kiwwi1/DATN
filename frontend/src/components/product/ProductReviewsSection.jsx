@@ -1,4 +1,5 @@
-import React from "react";
+import React from 'react'
+import { getProductSocialProof } from '../../utils/productSocialProof'
 
 const ProductReviewsSection = ({
   productData,
@@ -34,69 +35,89 @@ const ProductReviewsSection = ({
   reviewPage,
   setReviewPage,
 }) => {
+  const socialProof = getProductSocialProof(productData)
+  const totalRatings = Object.values(starCounts).reduce((sum, count) => sum + count, 0)
+
   return (
     <div className="space-y-6">
       <div className="pb-4 border-b">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="text-center">
-            <span className="text-4xl font-bold text-orange-600">
-              {productData.rating?.toFixed(1) || "0"}
-            </span>
-            <div className="flex justify-center text-xl mt-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span key={star} className={star <= Math.round(productData.rating || 0) ? "text-yellow-400" : "text-gray-300"}>★</span>
-              ))}
+        {socialProof.hasReviews ? (
+          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center">
+            <div className="min-w-[140px] text-center rounded-2xl bg-orange-50 px-5 py-4">
+              <span className="text-4xl font-bold text-orange-600">
+                {socialProof.ratingText}
+              </span>
+              <div className="flex justify-center text-xl mt-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span key={star} className={star <= Math.round(socialProof.ratingNumber) ? 'text-yellow-400' : 'text-orange-200'}>★</span>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{socialProof.reviewCountText}</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">{productData.reviewCount ?? 0} đánh giá</p>
-          </div>
-          <div className="flex-1 space-y-1">
-            {[5, 4, 3, 2, 1].map((s) => {
-              const count = starCounts[s] || 0;
-              const total = Object.values(starCounts).reduce((a, b) => a + b, 0);
-              const pct = total > 0 ? (count / total) * 100 : 0;
-              return (
-                <div key={s} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 text-right text-gray-600">{s}</span>
-                  <span className="text-yellow-400">★</span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-yellow-400 h-2 rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+            <div className="flex-1 space-y-1">
+              {[5, 4, 3, 2, 1].map((s) => {
+                const count = starCounts[s] || 0
+                const pct = totalRatings > 0 ? (count / totalRatings) * 100 : 0
+                return (
+                  <div key={s} className="flex items-center gap-2 text-xs">
+                    <span className="w-4 text-right text-gray-600">{s}</span>
+                    <span className="text-yellow-400">★</span>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-yellow-400 h-2 rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="w-6 text-gray-500">{count}</span>
                   </div>
-                  <span className="w-6 text-gray-500">{count}</span>
-                </div>
-              );
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mb-4 rounded-2xl border border-dashed border-orange-200 bg-gradient-to-r from-orange-50 to-white px-5 py-5">
+            <p className="text-sm font-semibold text-orange-700">Chưa có đánh giá nào</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Sản phẩm này còn mới. Khi có đánh giá đầu tiên, điểm trung bình và biểu đồ sao sẽ hiển thị tại đây.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                {socialProof.soldText}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-orange-700">
+                {socialProof.summaryText}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => { setFilterStar(0); fetchReviews(1, 0); }}
+            onClick={() => { setFilterStar(0); fetchReviews(1, 0) }}
             className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
               filterStar === 0
-                ? "bg-orange-500 text-white border-orange-500"
-                : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
+                ? 'bg-orange-500 text-white border-orange-500'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'
             }`}
           >
             Tất cả ({productData.reviewCount ?? 0})
           </button>
           {[5, 4, 3, 2, 1].map((s) => {
-            const count = starCounts[s] || 0;
-            if (count === 0) return null;
+            const count = starCounts[s] || 0
+            if (count === 0) return null
             return (
               <button
                 key={s}
-                onClick={() => { setFilterStar(s); fetchReviews(1, s); }}
+                onClick={() => { setFilterStar(s); fetchReviews(1, s) }}
                 className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                   filterStar === s
-                    ? "bg-orange-500 text-white border-orange-500"
-                    : "bg-white text-gray-600 border-gray-300 hover:border-orange-400"
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'
                 }`}
               >
                 {s} ★ ({count})
               </button>
-            );
+            )
           })}
         </div>
       </div>
@@ -111,8 +132,8 @@ const ProductReviewsSection = ({
             <p className="text-sm font-medium text-yellow-800">Chỉ có thể đánh giá sau khi nhận hàng</p>
             <p className="text-xs text-yellow-700 mt-1">
               {orderIdFromUrl
-                ? "Đơn hàng này chưa được giao hoặc bạn đã đánh giá sản phẩm này cho đơn hàng đó rồi."
-                : "Vào trang Đơn mua và bấm \"Đánh Giá\" sau khi đơn hàng được giao thành công."}
+                ? 'Đơn hàng này chưa được giao hoặc bạn đã đánh giá sản phẩm này cho đơn hàng đó rồi.'
+                : 'Vào trang Đơn mua và bấm "Đánh Giá" sau khi đơn hàng được giao thành công.'}
             </p>
           </div>
         </div>
@@ -134,7 +155,7 @@ const ProductReviewsSection = ({
       {token && (hasPurchased || myReview) && (!myReview || editingReviewId) && (
         <div className="bg-white p-4 rounded-lg border">
           <p className="font-medium text-gray-800 mb-3">
-            {editingReviewId ? "Chỉnh sửa đánh giá" : "Viết đánh giá"}
+            {editingReviewId ? 'Chỉnh sửa đánh giá' : 'Viết đánh giá'}
           </p>
           <form onSubmit={handleSubmitReview} className="space-y-3">
             <div>
@@ -146,7 +167,7 @@ const ProductReviewsSection = ({
                   onClick={() => setFormRating(star)}
                   className="text-2xl focus:outline-none"
                 >
-                  <span className={formRating >= star ? "text-yellow-400" : "text-gray-300"}>★</span>
+                  <span className={formRating >= star ? 'text-yellow-400' : 'text-gray-300'}>★</span>
                 </button>
               ))}
               <span className="ml-2 text-sm font-medium">{formRating}/5</span>
@@ -205,7 +226,7 @@ const ProductReviewsSection = ({
                 disabled={submittingReview}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                {submittingReview ? "Đang gửi..." : editingReviewId ? "Cập nhật" : "Gửi đánh giá"}
+                {submittingReview ? 'Đang gửi...' : editingReviewId ? 'Cập nhật' : 'Gửi đánh giá'}
               </button>
               {editingReviewId && (
                 <button
@@ -237,7 +258,7 @@ const ProductReviewsSection = ({
           </div>
         ) : reviews.length === 0 ? (
           <p className="text-gray-500 py-4">
-            {filterStar === 0 ? "Chưa có đánh giá nào." : `Không có đánh giá ${filterStar} sao nào.`}
+            {filterStar === 0 ? 'Chưa có đánh giá nào.' : `Không có đánh giá ${filterStar} sao nào.`}
           </p>
         ) : (
           <>
@@ -247,15 +268,15 @@ const ProductReviewsSection = ({
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-gray-800">
-                        {review.user?.name ?? "Ẩn danh"}
+                        {review.user?.name ?? 'Ẩn danh'}
                       </span>
                       <span className="flex text-yellow-400 text-sm">
-                        {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
+                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                       </span>
                       <span className="text-gray-400 text-xs">
                         {review.createdAt
-                          ? new Date(review.createdAt).toLocaleDateString("vi-VN")
-                          : ""}
+                          ? new Date(review.createdAt).toLocaleDateString('vi-VN')
+                          : ''}
                       </span>
                     </div>
                     {review.user && (review.user._id === userId || review.user === userId) && (
@@ -300,7 +321,7 @@ const ProductReviewsSection = ({
             {reviewTotalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-6">
                 <button
-                  onClick={() => { const p = reviewPage - 1; setReviewPage(p); fetchReviews(p, filterStar); }}
+                  onClick={() => { const p = reviewPage - 1; setReviewPage(p); fetchReviews(p, filterStar) }}
                   disabled={reviewPage <= 1}
                   className="px-3 py-1.5 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
@@ -310,9 +331,9 @@ const ProductReviewsSection = ({
                 {Array.from({ length: reviewTotalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === reviewTotalPages || Math.abs(p - reviewPage) <= 2)
                   .reduce((acc, p, idx, arr) => {
-                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
-                    acc.push(p);
-                    return acc;
+                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
+                    acc.push(p)
+                    return acc
                   }, [])
                   .map((item, idx) =>
                     item === '...' ? (
@@ -320,7 +341,7 @@ const ProductReviewsSection = ({
                     ) : (
                       <button
                         key={item}
-                        onClick={() => { setReviewPage(item); fetchReviews(item, filterStar); }}
+                        onClick={() => { setReviewPage(item); fetchReviews(item, filterStar) }}
                         className={`w-8 h-8 rounded text-sm transition-colors ${
                           reviewPage === item
                             ? 'bg-orange-500 text-white font-medium'
@@ -329,11 +350,11 @@ const ProductReviewsSection = ({
                       >
                         {item}
                       </button>
-                    )
+                    ),
                   )}
 
                 <button
-                  onClick={() => { const p = reviewPage + 1; setReviewPage(p); fetchReviews(p, filterStar); }}
+                  onClick={() => { const p = reviewPage + 1; setReviewPage(p); fetchReviews(p, filterStar) }}
                   disabled={reviewPage >= reviewTotalPages}
                   className="px-3 py-1.5 rounded border text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
@@ -348,7 +369,7 @@ const ProductReviewsSection = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ProductReviewsSection;
+export default ProductReviewsSection

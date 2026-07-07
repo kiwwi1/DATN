@@ -24,6 +24,7 @@ const Add = ({ token }) => {
   const [category, setCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
   const [price, setPrice] = useState('')
+  const [stock, setStock] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [bestseller, setBestseller] = useState(false)
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
@@ -38,6 +39,7 @@ const Add = ({ token }) => {
     if (variants.length > 0) {
       const prices = variants.map((variant) => Number(variant.price)).filter((value) => !Number.isNaN(value) && value > 0)
       if (prices.length > 0) setPrice(formatPriceInput(String(Math.min(...prices))))
+      setStock(String(variants.reduce((sum, variant) => sum + (Number(variant.stock) || 0), 0)))
     }
   }, [variants])
 
@@ -113,6 +115,9 @@ const Add = ({ token }) => {
           toast.error('Vui lòng nhập giá cho tất cả biến thể')
           return
         }
+      } else if (stock === '') {
+        toast.error('Vui lòng nhập tồn kho cho sản phẩm không có biến thể')
+        return
       }
 
       if (!image1 && !image2 && !image3 && !image4) {
@@ -124,6 +129,7 @@ const Add = ({ token }) => {
       formData.append('name', name)
       formData.append('description', description)
       formData.append('price', rawPrice)
+      formData.append('stock', String(Number(stock) || 0))
       formData.append('category', category)
       formData.append('subCategory', subCategory)
       formData.append('attributes', JSON.stringify(attributes))
@@ -160,6 +166,7 @@ const Add = ({ token }) => {
         }
         setSubCategory('')
         setPrice('')
+        setStock('')
         setTagsInput('')
         setAttributes([])
         setVariants([])
@@ -237,6 +244,8 @@ const Add = ({ token }) => {
     }
   }
 
+  const hasVariants = variants.length > 0
+
   return (
     <section className="space-y-5">
       <div>
@@ -245,9 +254,7 @@ const Add = ({ token }) => {
       </div>
 
       <form onSubmit={onSubmitHandler} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left column: Images & Pricing */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Images Section */}
           <div className="admin-card p-5 space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-800 tracking-tight">Hình ảnh sản phẩm</h3>
@@ -302,7 +309,6 @@ const Add = ({ token }) => {
             </div>
           </div>
 
-          {/* Pricing & Bestseller Section */}
           <div className="admin-card p-5 space-y-5">
             <h3 className="text-sm font-bold text-slate-800 tracking-tight">Giá & Trưng bày</h3>
             
@@ -323,7 +329,7 @@ const Add = ({ token }) => {
                     required
                   />
                 </div>
-                {variants.length > 0 && (
+                {hasVariants && (
                   <p className="text-[10px] text-slate-400 mt-1.5 font-medium flex items-center gap-1">
                     <svg className="w-3.5 h-3.5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -331,6 +337,27 @@ const Add = ({ token }) => {
                     Tự động lấy giá thấp nhất từ các biến thể.
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  Tồn kho
+                </label>
+                <input
+                  onChange={(event) => setStock(event.target.value)}
+                  value={stock}
+                  type="number"
+                  min="0"
+                  className="admin-input py-2.5 font-semibold text-slate-700 focus:border-pink-500"
+                  placeholder="0"
+                  required={!hasVariants}
+                  disabled={hasVariants}
+                />
+                <p className="text-[10px] text-slate-400 mt-1.5 font-medium">
+                  {hasVariants
+                    ? 'Tự động cộng tổng tồn kho từ các biến thể.'
+                    : 'Dùng cho sản phẩm không có biến thể / thuộc tính.'}
+                </p>
               </div>
 
               <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
@@ -350,9 +377,7 @@ const Add = ({ token }) => {
           </div>
         </div>
 
-        {/* Right column: General Info & Variants */}
         <div className="lg:col-span-2 space-y-6">
-          {/* General Information */}
           <div className="admin-card p-5 space-y-5">
             <h3 className="text-sm font-bold text-slate-800 tracking-tight">Thông tin chung</h3>
 
@@ -467,19 +492,16 @@ const Add = ({ token }) => {
             </div>
           </div>
 
-          {/* Attributes Manager */}
           <div className="admin-card p-5 space-y-4">
             <h3 className="text-sm font-bold text-slate-800 tracking-tight">Thuộc tính sản phẩm</h3>
             <AttributesManager attributes={attributes} setAttributes={setAttributes} />
           </div>
 
-          {/* Variants Manager */}
           <div className="admin-card p-5 space-y-4">
             <h3 className="text-sm font-bold text-slate-800 tracking-tight">Biến thể & Tồn kho</h3>
             <VariantsManager attributes={attributes} variants={variants} onChange={setVariants} />
           </div>
 
-          {/* Form Actions */}
           <div className="flex justify-end gap-3">
             <button
               type="submit"

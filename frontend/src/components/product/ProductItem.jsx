@@ -4,6 +4,7 @@ import { formatPrice } from '../../utils/priceFormat'
 import { formatImageUrl } from '../../utils/imageUtils'
 import { ShopContext } from '../../context/ShopContext'
 import { localizeProductName } from '../../utils/productNameUtils'
+import { getProductSocialProof } from '../../utils/productSocialProof'
 
 const ProductItem = ({
   id,
@@ -21,6 +22,7 @@ const ProductItem = ({
   const hasDiscount = discount > 0 && originalPrice && originalPrice > price
   const displayName = localizeProductName(name)
   const isBestSellerCard = highlight === 'bestseller'
+  const socialProof = getProductSocialProof({ rating, sold })
 
   const handleClick = () => {
     if (token) trackInteraction(id, 'clicked')
@@ -35,7 +37,7 @@ const ProductItem = ({
       <div className='relative overflow-hidden aspect-square'>
         <img
           className='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
-          src={formatImageUrl(image, { variant: "thumb", width: 420, height: 420, fit: "cover", quality: 80, format: "webp" })}
+          src={formatImageUrl(image, { variant: 'thumb', width: 420, height: 420, fit: 'cover', quality: 80, format: 'webp' })}
           alt={displayName}
           referrerPolicy='no-referrer'
         />
@@ -62,19 +64,29 @@ const ProductItem = ({
           {displayName}
         </p>
 
-        {(rating || sold) && (
-          <div className='flex items-center gap-3 text-xs text-gray-500 mb-2'>
-            {rating && (
-              <div className='flex items-center gap-1'>
-                <span className='text-yellow-500'>★</span>
-                <span>{Number(rating).toFixed(1)}</span>
-              </div>
-            )}
-            {sold > 0 && (
-              <span>Đã bán {sold >= 1000 ? `${(sold / 1000).toFixed(1)}k` : sold}</span>
-            )}
-          </div>
-        )}
+        <div className='flex flex-wrap items-center gap-2 mb-3 min-h-[24px] text-xs'>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${
+              socialProof.hasReviews
+                ? isBestSellerCard
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-amber-50 text-amber-700'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            <span className={socialProof.hasReviews ? 'text-yellow-500' : 'text-slate-400'}>★</span>
+            <span>{socialProof.hasReviews ? socialProof.ratingText : socialProof.reviewCountText}</span>
+          </span>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 ${
+              socialProof.hasSales
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {socialProof.hasSales ? socialProof.soldText : socialProof.summaryText}
+          </span>
+        </div>
 
         <div className='flex items-baseline gap-2'>
           <p className={`text-lg font-semibold ${isBestSellerCard ? 'text-amber-700' : 'text-orange-600'}`}>

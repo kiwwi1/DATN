@@ -35,8 +35,14 @@ export const normalizeVariantsWithKeys = (variants = []) => {
     });
 };
 
+const toNonNegativeNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+    return parsed;
+};
+
 export const addProductService = async ({ body, files, vendorId, vendorShopName }) => {
-    const { name, description, price, category, subCategory, attributes, sizes, variants, bestseller, tags } = body;
+    const { name, description, price, stock, category, subCategory, attributes, sizes, variants, bestseller, tags } = body;
 
     if (!name || !description || !category) {
         throw Object.assign(new Error("Missing required fields: name, description, category"), { status: 400 });
@@ -60,8 +66,8 @@ export const addProductService = async ({ body, files, vendorId, vendorShopName 
     const product = await productModel.create({
         name,
         description,
-        price: variantSync ? variantSync.price : Number(price),
-        stock: variantSync ? variantSync.stock : 0,
+        price: variantSync ? variantSync.price : toNonNegativeNumber(price),
+        stock: variantSync ? variantSync.stock : toNonNegativeNumber(stock),
         category,
         subCategory: subCategory || null,
         attributes: parsedAttributes,
@@ -126,7 +132,7 @@ export const toggleProductActiveService = async (productId, vendorId, isActive) 
 };
 
 export const updateProductService = async (productId, vendorId, body, files) => {
-    const { name, description, price, category, subCategory, bestseller, attributes, variants, imageSlots, tags } = body;
+    const { name, description, price, stock, category, subCategory, bestseller, attributes, variants, imageSlots, tags } = body;
 
     const product = await productModel.findById(productId);
     if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
@@ -165,8 +171,8 @@ export const updateProductService = async (productId, vendorId, body, files) => 
 
     product.name = name;
     product.description = description;
-    product.price = variantSync ? variantSync.price : Number(price);
-    product.stock = variantSync ? variantSync.stock : product.stock;
+    product.price = variantSync ? variantSync.price : toNonNegativeNumber(price, product.price);
+    product.stock = variantSync ? variantSync.stock : toNonNegativeNumber(stock, product.stock);
     product.category = category;
     product.subCategory = subCategory || null;
     product.attributes = parsedAttributes;
@@ -678,3 +684,5 @@ export const generateProductDescriptionService = async ({
         clearTimeout(timeout);
     }
 };
+
+

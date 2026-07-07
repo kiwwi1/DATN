@@ -1,0 +1,17 @@
+{
+  "name": "datn-workspace",
+  "private": true,
+  "scripts": {
+    "docker:prod": "docker compose up --build",
+    "docker:prod:up": "docker compose up -d --build",
+    "docker:prod:down": "docker compose down",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
+    "docker:dev:up": "docker compose -f docker-compose.dev.yml up -d --build",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
+    "docker:dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "docker:backend:test": "docker compose -f docker-compose.dev.yml run --rm backend npm test",
+    "docker:backend:seed-categories": "docker compose -f docker-compose.dev.yml run --rm backend npm run seed-categories",
+    "docker:backend:seed-products": "docker compose -f docker-compose.dev.yml run --rm backend npm run seed-products",
+    "docker:backend:seed-reviews": "docker compose -f docker-compose.dev.yml run --rm backend npm run seed-reviews"
+  }
+}

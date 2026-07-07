@@ -10,6 +10,7 @@ import { formatPrice } from "../../utils/priceFormat";
 import { toast } from "react-toastify";
 import { formatImageUrl, asImageArray } from "../../utils/imageUtils";
 import { localizeProductName } from "../../utils/productNameUtils";
+import { getProductSocialProof } from "../../utils/productSocialProof";
 import { normalizeCartOptionKey } from "../../constants/cartOption";
 import { useProductReviews } from "../../hooks/product/useProductReviews";
 import { useProductEngagement } from "../../hooks/product/useProductEngagement";
@@ -150,6 +151,7 @@ const Product = () => {
     [productData?.image]
   );
   const displayName = productData ? localizeProductName(productData.name) : "";
+  const socialProof = useMemo(() => getProductSocialProof(productData || {}), [productData]);
   const breadcrumbSegments = useMemo(() => {
     if (!productData) return [];
 
@@ -443,39 +445,43 @@ const Product = () => {
           </div>
 
           {/* Rating and Sold */}
-          <div className="flex items-center gap-4 mt-3 pb-3 border-b">
-            {productData.rating && (
-              <div className="flex items-center gap-1">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, index) => (
-                    <svg
-                      key={index}
-                      className={`w-4 h-4 ${
-                        index < Math.floor(productData.rating)
-                          ? 'text-yellow-400 fill-current'
-                          : 'text-gray-300 fill-current'
-                      }`}
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-sm font-medium text-gray-700">
-                  {Number(productData.rating).toFixed(1)}
-                </span>
-                {productData.reviewCount > 0 && (
-                  <span className="text-sm text-gray-500">
-                    ({productData.reviewCount} đánh giá)
-                  </span>
-                )}
+          <div className="flex flex-wrap items-center gap-3 mt-3 pb-4 border-b">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 ${
+                socialProof.hasReviews ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              <div className="flex items-center">
+                {[...Array(5)].map((_, index) => (
+                  <svg
+                    key={index}
+                    className={`w-4 h-4 ${
+                      index < Math.round(socialProof.ratingNumber)
+                        ? 'text-yellow-400 fill-current'
+                        : socialProof.hasReviews
+                          ? 'text-amber-200 fill-current'
+                          : 'text-slate-300 fill-current'
+                    }`}
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                  </svg>
+                ))}
               </div>
-            )}
-            {productData.sold > 0 && (
-              <span className="text-sm text-gray-600">
-                Đã bán: <span className="font-medium">{productData.sold >= 1000 ? `${(productData.sold/1000).toFixed(1)}k` : productData.sold}</span>
+              <span className="text-sm font-medium">
+                {socialProof.hasReviews ? socialProof.ratingText : socialProof.reviewCountText}
               </span>
-            )}
+            </div>
+            <span className="text-sm text-gray-500">
+              {socialProof.hasReviews ? socialProof.reviewCountText : socialProof.summaryText}
+            </span>
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium ${
+                socialProof.hasSales ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {socialProof.soldText}
+            </span>
           </div>
 
           {/* Price Section */}

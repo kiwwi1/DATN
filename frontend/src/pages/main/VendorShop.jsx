@@ -5,6 +5,8 @@ import { toast } from 'react-toastify'
 import { ShopContext } from '../../context/ShopContext'
 import ProductItem from '../../components/product/ProductItem'
 
+const PRODUCTS_PER_PAGE = 15
+
 const TAB_ITEMS = [
   { id: 'all', label: 'TẤT CẢ SẢN PHẨM' },
   { id: 'sale', label: 'Giảm giá' },
@@ -18,6 +20,7 @@ const VendorShop = () => {
   const { backendUrl, token } = useContext(ShopContext)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [vendor, setVendor] = useState(null)
   const [stats, setStats] = useState(null)
   const [products, setProducts] = useState([])
@@ -152,6 +155,28 @@ const VendorShop = () => {
         return products
     }
   }, [products, activeTab])
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE))
+
+  const paginatedProducts = useMemo(() => (
+    filteredProducts.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE)
+  ), [filteredProducts, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, vendorId])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages || page === currentPage) return
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   if (loading) {
     return (
@@ -396,7 +421,7 @@ const VendorShop = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-            {filteredProducts.map((item) => (
+            {paginatedProducts.map((item) => (
               <ProductItem
                 key={item._id}
                 id={item._id}
@@ -409,6 +434,57 @@ const VendorShop = () => {
                 sold={item.sold}
               />
             ))}
+          </div>
+        )}
+
+        {filteredProducts.length > 0 && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-1.5 mt-10">
+            <button
+              type="button"
+              onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+              disabled={currentPage === 1}
+              aria-label="Trang truoc"
+              className="w-9 h-9 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:border-pink-500 hover:text-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 font-bold shadow-2xs"
+            >
+              &lsaquo;
+            </button>
+
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => {
+              const show = page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
+              const ellipsisBefore = page === currentPage - 2 && currentPage > 3
+              const ellipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2
+
+              if (ellipsisBefore || ellipsisAfter) {
+                return <span key={page} className="text-slate-300 font-bold px-1.5">&hellip;</span>
+              }
+              if (!show) return null
+
+              const isActive = currentPage === page
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => handlePageChange(page)}
+                  className={`w-9 h-9 rounded-xl text-xs font-extrabold transition-all duration-200 border ${
+                    isActive
+                      ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white border-transparent shadow-sm shadow-orange-500/10'
+                      : 'bg-white border-slate-200 text-slate-650 hover:border-pink-500 hover:text-pink-600'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            })}
+
+            <button
+              type="button"
+              onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              aria-label="Trang sau"
+              className="w-9 h-9 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:border-pink-500 hover:text-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 font-bold shadow-2xs"
+            >
+              &rsaquo;
+            </button>
           </div>
         )}
       </div>

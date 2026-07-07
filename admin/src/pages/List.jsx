@@ -157,6 +157,7 @@ const List = ({ token }) => {
     name: '',
     description: '',
     price: '',
+    stock: '',
     category: '',
     subCategory: '',
     attributes: [],
@@ -297,6 +298,7 @@ const List = ({ token }) => {
       name: product.name || '',
       description: product.description || '',
       price: product.price || '',
+      stock: String(getProductStock(product)),
       category: product.category || '',
       subCategory: product.subCategory || '',
       attributes: product.attributes || [],
@@ -340,6 +342,9 @@ const List = ({ token }) => {
           toast.error('Vui lòng nhập giá cho tất cả biến thể')
           return
         }
+      } else if (formData.stock === '') {
+        toast.error('Vui lòng nhập tồn kho cho sản phẩm không có biến thể')
+        return
       }
 
       const data = new FormData()
@@ -347,6 +352,7 @@ const List = ({ token }) => {
       data.append('name', formData.name)
       data.append('description', formData.description)
       data.append('price', formData.price)
+      data.append('stock', String(Number(formData.stock) || 0))
       data.append('category', formData.category)
       data.append('subCategory', formData.subCategory)
       data.append('attributes', JSON.stringify(formData.attributes))
@@ -447,9 +453,12 @@ const List = ({ token }) => {
       const prices = formData.variants
         .map((variant) => Number(variant.price))
         .filter((price) => !Number.isNaN(price) && price > 0)
-      if (prices.length > 0) {
-        setFormData((prev) => ({ ...prev, price: String(Math.min(...prices)) }))
-      }
+      const totalStock = formData.variants.reduce((sum, variant) => sum + (Number(variant.stock) || 0), 0)
+      setFormData((prev) => ({
+        ...prev,
+        price: prices.length > 0 ? String(Math.min(...prices)) : prev.price,
+        stock: String(totalStock),
+      }))
     }
   }, [formData.variants])
 
@@ -665,6 +674,25 @@ const List = ({ token }) => {
                       {formData.variants.length > 0 && (
                         <p className="text-[10px] text-slate-450 mt-1 font-medium">Tự động chọn theo biến thể.</p>
                       )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Tồn kho</label>
+                      <input
+                        type="number"
+                        name="stock"
+                        value={formData.stock}
+                        onChange={handleInputChange}
+                        className="admin-input py-2 font-semibold text-slate-700 focus:border-pink-500"
+                        min="0"
+                        required={formData.variants.length === 0}
+                        disabled={formData.variants.length > 0}
+                      />
+                      <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                        {formData.variants.length > 0
+                          ? 'Tự động cộng tổng tồn kho từ các biến thể.'
+                          : 'Dùng cho sản phẩm không có biến thể.'}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2.5 p-2.5 bg-white border border-slate-150 rounded-lg">
@@ -1139,3 +1167,4 @@ const List = ({ token }) => {
 }
 
 export default List
+

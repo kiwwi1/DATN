@@ -27,6 +27,7 @@ const buildOrderItemBase = (productData, quantity) => ({
 const applyOptionToOrderItem = (orderItem, optionKey) => {
   const safeOptionKey = String(optionKey || "");
   if (isDefaultCartOptionKey(safeOptionKey)) {
+    orderItem.size = safeOptionKey;
     orderItem.selectedAttributes = [];
     return;
   }
@@ -108,3 +109,4 @@ export const buildAddressPayload = ({ selectedAddress, formData }) => {
     fullAddress: `${formData.street}, ${formData.state}, ${formData.city}`,
   };
 };
+

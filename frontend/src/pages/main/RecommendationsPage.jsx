@@ -80,7 +80,9 @@ const RecommendationsPage = () => {
                                 originalPrice={item.originalPrice}
                                 discount={item.discount}
                                 rating={item.rating}
+                                reviewCount={item.reviewCount}
                                 sold={item.sold}
+                                vendorShopName={item.vendorShopName}
                             />
                         ))}
                     </div>
@@ -154,3 +156,6 @@ const RecommendationsPage = () => {
 }
 
 export default RecommendationsPage
+
+
+

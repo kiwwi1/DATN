@@ -34,7 +34,9 @@ const RelatedProducts = ({category,subCategory}) => {
                     originalPrice={item.originalPrice}
                     discount={item.discount}
                     rating={item.rating}
+                    reviewCount={item.reviewCount}
                     sold={item.sold}
+                    vendorShopName={item.vendorShopName}
                 />
             ))}
 
@@ -45,3 +47,6 @@ const RelatedProducts = ({category,subCategory}) => {
 }
 
 export default RelatedProducts
+
+
+

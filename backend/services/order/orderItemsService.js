@@ -5,6 +5,8 @@ import {
     reserveStockByUnits,
 } from "./stockReservationService.js";
 
+const DEFAULT_CART_OPTION_KEY = "__default__";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export const toSafePrice = (value) => {
@@ -223,7 +225,7 @@ export const clearOrderedItemsFromCart = async (userId, items) => {
     const updatedCart = { ...user.cartData };
     items.forEach((item) => {
         const pid = item._id;
-        const sizeKey = item.size || item.variantKey;
+        const sizeKey = item.size || item.variantKey || DEFAULT_CART_OPTION_KEY;
         if (!sizeKey) return;
         if (updatedCart[pid]?.[sizeKey]) {
             delete updatedCart[pid][sizeKey];
@@ -232,3 +234,4 @@ export const clearOrderedItemsFromCart = async (userId, items) => {
     });
     await userModel.findByIdAndUpdate(userId, { cartData: updatedCart });
 };
+

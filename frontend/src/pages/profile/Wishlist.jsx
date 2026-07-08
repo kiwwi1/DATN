@@ -84,7 +84,9 @@ const Wishlist = () => {
                 originalPrice={item.originalPrice}
                 discount={item.discount}
                 rating={item.rating}
+                reviewCount={item.reviewCount}
                 sold={item.sold}
+                vendorShopName={item.vendorShopName}
               />
               <button
                 onClick={() => handleRemove(item._id)}
@@ -104,3 +106,6 @@ const Wishlist = () => {
 }
 
 export default Wishlist
+
+
+

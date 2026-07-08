@@ -83,7 +83,9 @@ const BestSeller = () => {
               originalPrice={item.originalPrice}
               discount={item.discount}
               rating={item.rating}
+              reviewCount={item.reviewCount}
               sold={item.sold}
+              vendorShopName={item.vendorShopName}
               highlight='bestseller'
               rank={index + 1}
             />
@@ -94,3 +96,6 @@ const BestSeller = () => {
 }
 
 export default BestSeller
+
+
+

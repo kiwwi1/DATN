@@ -28,6 +28,7 @@
                     "fix-primary-product-image":  "node scripts/fixPrimaryProductImage.js",
                     "generate-unique-products":  "node scripts/generateUniqueProducts.js",
                     "generate-marketplace-products":  "node scripts/generateMarketplaceProducts.js",
+                    "clone-products-to-vendors":  "node scripts/cloneProductsToVendors.js",
                     "seed-vouchers":  "node scripts/seedVouchers.js",
                     "seed-interactions":  "node scripts/seedInteractions.js",
                     "sync-locations":  "node scripts/syncVietnamLocations.js",
@@ -71,3 +72,4 @@
                             "mongodb-memory-server":  "^11.0.1"
                         }
 }
+

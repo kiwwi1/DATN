@@ -5,7 +5,9 @@ import {
   buildAddressPayload,
   buildOrderItemsFromCart,
   buildOrderItemsFromSelection,
+  buildOrderItemVariantKey,
 } from "../utils/checkoutOrderUtils";
+import { normalizeCartOptionKey } from "../constants/cartOption";
 
 const FREE_SHIPPING_THRESHOLD = 500000;
 const STRIPE_VND_LIMIT = 999000000;
@@ -125,10 +127,11 @@ export const usePlaceOrderCheckout = ({
   const [appliedVouchers, setAppliedVouchers] = useState([]);
   const [rejectedVouchers, setRejectedVouchers] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [outOfStockItems, setOutOfStockItems] = useState(null);
   const inFlightRef = useRef(false);
   const checkoutKeyRef = useRef("");
 
-  const selectedCartItems = useMemo(() => readSelectedCartItems(), []);
+  const [selectedCartItems, setSelectedCartItems] = useState(() => readSelectedCartItems());
 
   const currentOrderItems = useMemo(() => {
     if (selectedCartItems && selectedCartItems.length > 0) {
@@ -504,6 +507,131 @@ export const usePlaceOrderCheckout = ({
     setPlatformVoucherCodes((previous) => previous.filter((item) => item !== normalized));
   };
 
+  // ─── Out-of-stock handling ──────────────────────────────────────────────
+
+  const findOrderItemForShortage = useCallback(
+    (shortage) => {
+      const productId = String(shortage.productId || "");
+      const variantKey = String(shortage.variantKey || "");
+      return (
+        currentOrderItems.find(
+          (item) =>
+            String(item._id) === productId && buildOrderItemVariantKey(item) === variantKey
+        ) || currentOrderItems.find((item) => String(item._id) === productId) || null
+      );
+    },
+    [currentOrderItems]
+  );
+
+  const openOutOfStockModal = useCallback(
+    (shortages) => {
+      const enriched = (shortages || [])
+        .map((shortage) => {
+          const orderItem = findOrderItemForShortage(shortage);
+          if (!orderItem) return null;
+          return {
+            productId: String(orderItem._id),
+            optionKey: normalizeCartOptionKey(orderItem.size),
+            name: orderItem.name,
+            image: orderItem.image,
+            selectedAttributes: orderItem.selectedAttributes || [],
+            size: orderItem.size,
+            requested: Number(shortage.requested ?? orderItem.quantity),
+            available: Math.max(0, Number(shortage.available || 0)),
+          };
+        })
+        .filter(Boolean);
+
+      if (!enriched.length) {
+        toast.error("Một số sản phẩm trong đơn đã hết hàng. Vui lòng kiểm tra lại giỏ hàng.");
+        return;
+      }
+      setOutOfStockItems(enriched);
+    },
+    [findOrderItemForShortage]
+  );
+
+  const dismissOutOfStockModal = () => setOutOfStockItems(null);
+
+  const syncCartFromServer = async () => {
+    try {
+      const cartResponse = await axios.post(`${backendUrl}/api/cart/get`, {}, { headers: { token } });
+      if (cartResponse.data.success) {
+        setCartItems(cartResponse.data.cartData);
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+    }
+  };
+
+  // resolutions: [{ productId, optionKey, action: "adjust" | "remove", available }]
+  const resolveOutOfStock = async (resolutions) => {
+    setOutOfStockItems(null);
+
+    const changes = (resolutions || []).map((resolution) => ({
+      ...resolution,
+      nextQuantity: resolution.action === "adjust" ? Math.max(0, resolution.available) : 0,
+    }));
+
+    for (const change of changes) {
+      try {
+        await axios.post(
+          `${backendUrl}/api/cart/update`,
+          { itemId: change.productId, size: change.optionKey, quantity: change.nextQuantity },
+          { headers: { token } }
+        );
+      } catch (error) {
+        console.error("Error updating cart quantity:", error);
+      }
+    }
+
+    await syncCartFromServer();
+
+    if (selectedCartItems && selectedCartItems.length > 0) {
+      const nextSelection = selectedCartItems
+        .map((selected) => {
+          const change = changes.find(
+            (item) =>
+              item.productId === String(selected._id) &&
+              item.optionKey === normalizeCartOptionKey(selected.size)
+          );
+          if (!change) return selected;
+          if (change.nextQuantity <= 0) return null;
+          return { ...selected, quantity: change.nextQuantity };
+        })
+        .filter(Boolean);
+
+      if (nextSelection.length === 0) {
+        sessionStorage.removeItem("selectedCartItems");
+        setSelectedCartItems(null);
+        toast.info("Các sản phẩm đã hết hàng và được gỡ khỏi đơn.");
+        navigate("/cart");
+        return;
+      }
+
+      sessionStorage.setItem("selectedCartItems", JSON.stringify(nextSelection));
+      setSelectedCartItems(nextSelection);
+    } else {
+      const removedKeys = new Set(
+        changes
+          .filter((change) => change.nextQuantity <= 0)
+          .map((change) => `${change.productId}__${change.optionKey}`)
+      );
+      const remainingItems = currentOrderItems.filter(
+        (item) => !removedKeys.has(`${String(item._id)}__${normalizeCartOptionKey(item.size)}`)
+      );
+      if (remainingItems.length === 0) {
+        toast.info("Các sản phẩm đã hết hàng và được gỡ khỏi đơn.");
+        navigate("/cart");
+        return;
+      }
+    }
+
+    // Đơn đã đổi nội dung → giao dịch mới, cần khóa idempotency mới.
+    checkoutKeyRef.current = "";
+    toast.success("Đơn hàng đã được cập nhật theo tồn kho hiện tại. Vui lòng kiểm tra và đặt lại.");
+  };
+
   const submitOrderByMethod = async ({ orderData, requestConfig }) => {
     if (method === "cod") {
       const response = await axios.post(`${backendUrl}/api/order/place-order`, orderData, requestConfig);
@@ -615,7 +743,12 @@ export const usePlaceOrderCheckout = ({
       await submitOrderByMethod({ orderData, requestConfig });
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || error.message);
+      const errorData = error.response?.data;
+      if (errorData?.code === "OUT_OF_STOCK") {
+        openOutOfStockModal(errorData.items);
+        return;
+      }
+      toast.error(errorData?.message || error.message);
     } finally {
       inFlightRef.current = false;
       setIsSubmitting(false);
@@ -668,5 +801,8 @@ export const usePlaceOrderCheckout = ({
     shopVoucherSuggestionsByVendor,
     platformVoucherSuggestions,
     voucherSuggestionLoading,
+    outOfStockItems,
+    resolveOutOfStock,
+    dismissOutOfStockModal,
   };
 };

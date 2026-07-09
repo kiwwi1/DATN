@@ -153,6 +153,14 @@ Mỗi phân đoạn gồm: **[Thao tác]** trên màn hình — **[Script]** l�
 
 **Tình huống B (không demo được Stripe):** đặt COD, nói: *"COD đơn ghi nhận trạng thái Đã đặt hàng ngay; với Stripe/VNPay luồng như em vừa mô tả — em xin phép chiếu ảnh giao dịch Stripe em chạy sáng nay kèm log webhook"* → chiếu ảnh chuẩn bị sẵn. Không cố demo trực tiếp khi chưa test tunnel.
 
+**Ca bổ sung (30 giây, chủ động demo nếu còn thời gian) — Đặt quá tồn kho → modal điều chỉnh tại chỗ:**
+
+*[Thao tác]* Chuẩn bị sẵn 1 sản phẩm tồn kho = 2. Thêm vào giỏ số lượng 5 (giỏ hàng không chặn — chủ đích để checkout bắt) → bấm Đặt hàng → **modal "Sản phẩm không đủ hàng"** hiện lên: tên sản phẩm, "Bạn đặt: 5 — Chỉ còn 2", hai lựa chọn *Giảm về 2 sản phẩm* / *Xóa khỏi đơn* → chọn giảm → bảng giá tự tính lại → đặt lại thành công.
+
+*[Script]* > "Đây là luồng ngoại lệ của ca sử dụng Đặt hàng em đặc tả ở Chương 2: khi giữ kho nguyên tử thất bại, backend trả mã lỗi OUT_OF_STOCK **kèm số lượng khả dụng của từng sản phẩm** — đúng như em viết trong quyển: *'trả về thông báo hết hàng kèm số lượng khả dụng để giao diện thông báo cho người dùng'*. Giao diện dùng chính dữ liệu đó để người mua điều chỉnh ngay tại chỗ — giảm số lượng hoặc gỡ sản phẩm — bảng giá được backend tính lại, và vì nội dung đơn đã thay đổi, client sinh **idempotency key mới** cho lần đặt tiếp theo."
+
+*[Bám đồ án]* Luồng ngoại lệ Bước 3 của UC2 (Bảng 2.3) + Bước 4 quy trình nghiệp vụ Mục 2.2.6 ("kèm số lượng khả dụng"); cấu trúc lỗi `OUT_OF_STOCK` với `available` ở Mục 5.1.
+
 ---
 
 ### ĐOẠN 7 — Kiểm chứng chống oversell bằng k6 (2,5 phút) ⭐ trọng tâm 3, điểm nhấn mạnh nhất

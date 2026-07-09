@@ -7,6 +7,7 @@ import { usePlaceOrderCheckout } from "../../hooks/usePlaceOrderCheckout";
 import AddressBookSection from "../../components/checkout/AddressBookSection";
 import ManualAddressForm from "../../components/checkout/ManualAddressForm";
 import PaymentMethodSelector from "../../components/checkout/PaymentMethodSelector";
+import OutOfStockModal from "../../components/checkout/OutOfStockModal";
 import { formatPrice } from "../../utils/priceFormat";
 import { formatImageUrl } from "../../utils/imageUtils";
 
@@ -137,6 +138,9 @@ const PlaceOrder = () => {
     shopVoucherSuggestionsByVendor,
     platformVoucherSuggestions,
     voucherSuggestionLoading,
+    outOfStockItems,
+    resolveOutOfStock,
+    dismissOutOfStockModal,
   } = usePlaceOrderCheckout({
     navigate,
     cartItems,
@@ -309,6 +313,14 @@ const PlaceOrder = () => {
             </div>
           </div>
         </aside>
+
+      {outOfStockItems && (
+        <OutOfStockModal
+          items={outOfStockItems}
+          onConfirm={resolveOutOfStock}
+          onClose={dismissOutOfStockModal}
+        />
+      )}
     </form>
   );
 };

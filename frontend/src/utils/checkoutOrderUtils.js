@@ -1,5 +1,43 @@
 import { isDefaultCartOptionKey } from "../constants/cartOption";
 
+const parseAttributeString = (attrStr) => {
+  if (!attrStr || isDefaultCartOptionKey(attrStr)) return {};
+  const result = {};
+  String(attrStr)
+    .split(", ")
+    .forEach((part) => {
+      const colonIdx = part.indexOf(": ");
+      if (colonIdx !== -1) {
+        result[part.substring(0, colonIdx).trim()] = part.substring(colonIdx + 2).trim();
+      }
+    });
+  return result;
+};
+
+const getItemCombination = (item) => {
+  if (Array.isArray(item?.selectedAttributes) && item.selectedAttributes.length > 0) {
+    const combination = {};
+    for (const attr of item.selectedAttributes) {
+      if (!attr?.name || attr?.value === undefined || attr?.value === null) continue;
+      combination[String(attr.name).trim()] = String(attr.value).trim();
+    }
+    return combination;
+  }
+  if (item?.size) return parseAttributeString(item.size);
+  return {};
+};
+
+// Mirror của buildVariantKey phía backend (orderItemsService) — dùng để map lỗi
+// OUT_OF_STOCK (trả theo cặp productId + variantKey) ngược về dòng hàng trên UI.
+export const buildOrderItemVariantKey = (item) => {
+  const entries = Object.entries(getItemCombination(item))
+    .map(([name, value]) => [String(name || "").trim(), String(value || "").trim()])
+    .filter(([name, value]) => name && value)
+    .sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return "";
+  return entries.map(([name, value]) => `${name}:${value}`).join("|");
+};
+
 export const splitName = (fullName) => {
   const normalized = String(fullName || "").trim();
   if (!normalized) return { firstName: "", lastName: "" };

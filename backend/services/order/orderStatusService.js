@@ -1,4 +1,4 @@
-import orderModel from "../../models/orderModel.js";
+﻿import orderModel from "../../models/orderModel.js";
 import { createNotification } from "../notificationService.js";
 import { ensureOrderDeletable } from "../deletionGuardService.js";
 
@@ -13,7 +13,7 @@ const STATUS_LABEL = {
 };
 
 const TRACKING_REQUIRED_STATUSES = new Set(["Shipped", "Out for delivery", "Delivered"]);
-const TRACKING_REQUIRED_VENDOR_STATUSES = new Set(["shipped", "delivered"]);
+const TRACKING_REQUIRED_VENDOR_STATUSES = new Set(["shipped"]);
 const ALLOWED_VENDOR_STATUSES = new Set([
   "pending",
   "confirmed",
@@ -68,6 +68,22 @@ const syncCashOnDeliveryPayment = (order) => {
   }
 };
 
+const notifyUserOrderStatus = async (order) => {
+  const label = STATUS_LABEL[order.status] || order.status;
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  const itemNames = (order.items || []).map((i) => i.name).join(", ");
+  const itemStr = itemNames ? ` [${itemNames}]` : "";
+  await createNotification(
+    order.userId,
+    "order_status",
+    `Cập nhật đơn hàng #${orderCode}`,
+    `Đơn hàng #${orderCode}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
+    order._id,
+    null,
+    { audience: "user" }
+  );
+};
+
 export const deleteOrderService = async (orderId) => {
   const order = await orderModel.findById(orderId);
   await ensureOrderDeletable(order);
@@ -90,20 +106,7 @@ export const updateOrderStatusService = async (orderId, status, trackingNumber) 
   order.status = status;
   syncCashOnDeliveryPayment(order);
   await order.save();
-
-  const label = STATUS_LABEL[status] || status;
-  const orderCode = String(order._id).slice(-6).toUpperCase();
-  const itemNames = (order.items || []).map((i) => i.name).join(", ");
-  const itemStr = itemNames ? ` [${itemNames}]` : "";
-  await createNotification(
-    order.userId,
-    "order_status",
-    `Cập nhật đơn hàng #${orderCode}`,
-    `Đơn hàng #${orderCode}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
-    order._id,
-    null,
-    { audience: "user" }
-  );
+  await notifyUserOrderStatus(order);
 
   return order;
 };
@@ -155,7 +158,7 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     ? order.vendors.find((vendor) => vendor.vendorId?.toString() === vendorId.toString())
     : null;
   if (!vendorEntry) {
-    throw Object.assign(new Error("Unauthorized - This order does not contain your products"), { status: 403 });
+    throw Object.assign(new Error("Unauthorized - this order does not contain your products"), { status: 403 });
   }
 
   const nextVendorStatus =
@@ -163,6 +166,12 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     String(status || "").trim().toLowerCase();
   if (!ALLOWED_VENDOR_STATUSES.has(nextVendorStatus)) {
     throw Object.assign(new Error("Invalid vendor status"), { status: 400 });
+  }
+  if (nextVendorStatus === "delivered") {
+    throw Object.assign(
+      new Error("Khách hàng phải tự xác nhận đã nhận hàng trước khi đơn chuyển sang hoàn thành"),
+      { status: 400 }
+    );
   }
 
   let normalizedTracking = normalizeTrackingNumber(trackingNumber);
@@ -195,21 +204,57 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
   order.status = deriveOrderStatusFromVendors(order.vendors, order.status);
   syncCashOnDeliveryPayment(order);
   await order.save();
-
-  const label = STATUS_LABEL[order.status] || order.status;
-  const orderCode = String(order._id).slice(-6).toUpperCase();
-  const itemNames = (order.items || []).map((i) => i.name).join(", ");
-  const itemStr = itemNames ? ` [${itemNames}]` : "";
-  await createNotification(
-    order.userId,
-    "order_status",
-    `Cập nhật đơn hàng #${orderCode}`,
-    `Đơn hàng #${orderCode}${itemStr} của bạn đã chuyển sang trạng thái: ${label}`,
-    order._id,
-    null,
-    { audience: "user" }
-  );
+  await notifyUserOrderStatus(order);
 
   return order;
 };
 
+export const confirmOrderReceivedService = async ({ orderId, userId, vendorId }) => {
+  const order = await orderModel.findById(orderId);
+  if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
+  if (String(order.userId) !== String(userId)) {
+    throw Object.assign(new Error("Unauthorized to confirm this order"), { status: 403 });
+  }
+
+  const vendors = Array.isArray(order.vendors) ? order.vendors : [];
+  if (vendors.length === 0) {
+    throw Object.assign(new Error("Order has no vendor shipment information"), { status: 400 });
+  }
+
+  let vendorEntry = null;
+  if (vendorId) {
+    vendorEntry = vendors.find((vendor) => vendor.vendorId?.toString() === String(vendorId)) || null;
+  } else if (vendors.length === 1) {
+    vendorEntry = vendors[0];
+  }
+
+  if (!vendorEntry) {
+    throw Object.assign(new Error("Vendor shipment not found for this order"), { status: 404 });
+  }
+  if (String(vendorEntry.vendorStatus || "") !== "shipped") {
+    throw Object.assign(
+      new Error("Chỉ có thể xác nhận khi shop đang ở trạng thái vận chuyển"),
+      { status: 400 }
+    );
+  }
+
+  vendorEntry.vendorStatus = "delivered";
+  order.markModified("vendors");
+  order.status = deriveOrderStatusFromVendors(order.vendors, order.status);
+  syncCashOnDeliveryPayment(order);
+  await order.save();
+  await notifyUserOrderStatus(order);
+
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  await createNotification(
+    vendorEntry.vendorId,
+    "order_status",
+    `Khách đã xác nhận nhận hàng #${orderCode}`,
+    `Khách hàng đã xác nhận nhận hàng cho đơn #${orderCode}.`,
+    order._id,
+    null,
+    { audience: "vendor" }
+  );
+
+  return order;
+};

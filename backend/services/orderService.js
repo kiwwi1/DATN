@@ -27,6 +27,7 @@ import {
     updateOrderStatusService,
     vendorOrdersService,
     updateVendorOrderStatusService,
+    confirmOrderReceivedService,
 } from "./order/orderStatusService.js";
 import { vendorStatsService } from "./order/orderAnalyticsService.js";
 
@@ -39,6 +40,7 @@ export {
     updateOrderStatusService,
     vendorOrdersService,
     updateVendorOrderStatusService,
+    confirmOrderReceivedService,
     vendorStatsService,
 };
 
@@ -548,4 +550,5 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
 export const allOrdersService = async () => orderModel.find({}).sort({ date: -1 });
 
 export const userOrdersService = async (userId) => orderModel.find({ userId }).sort({ date: -1 });
+
 

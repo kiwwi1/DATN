@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from "react";
+﻿import React, { useEffect, useCallback, useMemo } from "react";
 import { useParams, useLocation, Link, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { ShopContext } from "../../context/ShopContext";
@@ -137,11 +137,11 @@ const Product = () => {
   const [size, setSize] = useState(""); // Deprecated: for backward compatibility with old products
   const [selectedAttributes, setSelectedAttributes] = useState({}); // New: {Size: "M", Color: "Red"}
 
-  // orderId từ URL (khi điều hướng từ trang đơn hàng)
+  // orderId tá»« URL (khi Ä‘iá»u hÆ°á»›ng tá»« trang Ä‘Æ¡n hÃ ng)
   const urlParams = new URLSearchParams(location.search);
   const orderIdFromUrl = urlParams.get("orderId") || null;
 
-  // Review state — mở tab reviews nếu URL có ?tab=reviews
+  // Review state â€” má»Ÿ tab reviews náº¿u URL cÃ³ ?tab=reviews
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(location.search);
     return params.get("tab") === "reviews" ? "reviews" : "description";
@@ -207,8 +207,8 @@ const Product = () => {
     return Object.values(row).some((qty) => Number(qty) > 0);
   }, [cartItems, productId]);
 
-  // Tính sẵn map: { [attrName]: { [value]: boolean } }
-  // true = có ít nhất 1 variant còn hàng khi chọn value đó cùng với các attr đã chọn.
+  // TÃ­nh sáºµn map: { [attrName]: { [value]: boolean } }
+  // true = cÃ³ Ã­t nháº¥t 1 variant cÃ²n hÃ ng khi chá»n value Ä‘Ã³ cÃ¹ng vá»›i cÃ¡c attr Ä‘Ã£ chá»n.
   const optionAvailabilityMap = useMemo(() => {
     if (
       !productData ||
@@ -276,9 +276,9 @@ const Product = () => {
 
   useEffect(() => {
     if (productData?.name) {
-      document.title = `${localizeProductName(productData.name)} — Lumière`;
+      document.title = `${localizeProductName(productData.name)} - Lumiere`;
     }
-    return () => { document.title = "Lumière"; };
+    return () => { document.title = "Lumiere"; };
   }, [productData?.name]);
 
   const {
@@ -657,8 +657,8 @@ const Product = () => {
               ? selectedVariant.stock === 0
               : !hasSkuVariants && productData.stock === 0;
 
-            // Logic chọn sản phẩm dùng chung cho cả "Thêm vào giỏ" và "Mua ngay".
-            // Trả về { ok, optionKey, message }; optionKey chính là "size" lưu trong giỏ/đơn.
+            // Logic chá»n sáº£n pháº©m dÃ¹ng chung cho cáº£ "ThÃªm vÃ o giá»" vÃ  "Mua ngay".
+            // Tráº£ vá» { ok, optionKey, message }; optionKey chÃ­nh lÃ  "size" lÆ°u trong giá»/Ä‘Æ¡n.
             const resolveSelection = () => {
               if (hasSkuVariants && hasAttributes) {
                 if (!allAttrsSelected) {
@@ -706,7 +706,7 @@ const Product = () => {
                 toast.error(sel.message);
                 return;
               }
-              // Mua ngay: bỏ qua giỏ hàng, ghi đè selectedCartItems rồi sang trang thanh toán.
+              // Mua ngay: bá» qua giá» hÃ ng, ghi Ä‘Ã¨ selectedCartItems rá»“i sang trang thanh toÃ¡n.
               const buyNowItem = [{ _id: productData._id, size: sel.optionKey, quantity: 1 }];
               sessionStorage.setItem("selectedCartItems", JSON.stringify(buyNowItem));
               navigate("/place-order");
@@ -969,10 +969,7 @@ const Product = () => {
         </div>
       </div>
       {/* Display related products */}
-      <RelatedProducts
-        category={productData.category}
-        subCategory={productData.subCategory}
-      />
+      <RelatedProducts currentProduct={productData} />
     </div>
   ) : (
     <div className="opacity-0"></div>
@@ -980,3 +977,8 @@ const Product = () => {
 };
 
 export default Product;
+
+
+
+
+

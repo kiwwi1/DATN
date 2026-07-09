@@ -15,42 +15,52 @@ const updateProductRating = async (productId) => {
     await productModel.findByIdAndUpdate(productId, { rating, reviewCount });
 };
 
+const canReviewProductInOrder = async (order, productId) => {
+    if (!order || !Array.isArray(order.items)) return false;
+    const matchedItem = order.items.find((item) => item._id?.toString() === productId?.toString());
+    if (!matchedItem) return false;
+    if (order.status === "Delivered") return true;
+
+    const vendorId = matchedItem.vendorId?.toString();
+    if (!vendorId || !Array.isArray(order.vendors)) return false;
+    const vendorEntry = order.vendors.find((vendor) => vendor.vendorId?.toString() === vendorId);
+    return String(vendorEntry?.vendorStatus || "") === "delivered";
+};
+
 export const canReviewService = async (userId, productId, orderId) => {
-    if (!orderId) throw new Error("orderId là bắt buộc");
+    if (!orderId) throw new Error("orderId is required");
     const order = await orderModel.findById(orderId);
     if (!order) return false;
     if (order.userId?.toString() !== userId?.toString()) return false;
-    if (order.status !== "Delivered") return false;
-    const hasProduct = order.items.some((item) => item._id?.toString() === productId?.toString());
-    if (!hasProduct) return false;
+    const canReview = await canReviewProductInOrder(order, productId);
+    if (!canReview) return false;
     const existing = await reviewModel.findOne({ product: productId, user: userId, orderId });
     return !existing;
 };
 
 export const createReviewService = async (userId, { productId, orderId, rating, comment }, imageFiles = []) => {
-    if (!productId || !orderId || !rating) throw new Error("productId, orderId và rating là bắt buộc");
+    if (!productId || !orderId || !rating) throw new Error("productId, orderId and rating are required");
 
     const numRating = Number(rating);
-    if (numRating < 1 || numRating > 5) throw new Error("rating phải từ 1 đến 5");
+    if (numRating < 1 || numRating > 5) throw new Error("rating must be between 1 and 5");
 
     const product = await productModel.findById(productId);
-    if (!product) throw Object.assign(new Error("Sản phẩm không tồn tại"), { status: 404 });
+    if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
 
     const order = await orderModel.findById(orderId);
     const orderValid =
         order &&
         order.userId?.toString() === userId?.toString() &&
-        order.status === "Delivered" &&
-        order.items.some((item) => item._id?.toString() === productId?.toString());
+        await canReviewProductInOrder(order, productId);
 
     if (!orderValid) {
-        throw Object.assign(new Error("Bạn chỉ có thể đánh giá sản phẩm sau khi đã nhận hàng."), { status: 403 });
+        throw Object.assign(new Error("You can only review this product after receiving it."), { status: 403 });
     }
 
     const existing = await reviewModel.findOne({ product: productId, user: userId, orderId });
-    if (existing) throw Object.assign(new Error("Bạn đã đánh giá sản phẩm này cho đơn hàng đó rồi."), { status: 400 });
+    if (existing) throw Object.assign(new Error("You already reviewed this product for that order."), { status: 400 });
 
-    if (imageFiles.length > 5) throw Object.assign(new Error("Tối đa 5 ảnh mỗi đánh giá"), { status: 400 });
+    if (imageFiles.length > 5) throw Object.assign(new Error("A review can contain up to 5 images"), { status: 400 });
     const imageUrls = await Promise.all(imageFiles.map((file) => uploadToR2(file, "reviews")));
 
     const review = await reviewModel.create({
@@ -90,12 +100,12 @@ export const getReviewsByProductService = async (productId, page = 1, limit = 5,
 
 export const updateReviewService = async (reviewId, userId, { rating, comment, keepImages }, imageFiles = []) => {
     const review = await reviewModel.findById(reviewId);
-    if (!review) throw Object.assign(new Error("Đánh giá không tồn tại"), { status: 404 });
-    if (review.user.toString() !== userId) throw Object.assign(new Error("Chỉ có thể sửa đánh giá của bạn"), { status: 403 });
+    if (!review) throw Object.assign(new Error("Review not found"), { status: 404 });
+    if (review.user.toString() !== userId) throw Object.assign(new Error("You can only edit your own review"), { status: 403 });
 
     if (rating !== undefined) {
         const numRating = Number(rating);
-        if (numRating < 1 || numRating > 5) throw new Error("rating phải từ 1 đến 5");
+        if (numRating < 1 || numRating > 5) throw new Error("rating must be between 1 and 5");
         review.rating = numRating;
     }
     if (comment !== undefined) review.comment = comment;
@@ -114,8 +124,8 @@ export const updateReviewService = async (reviewId, userId, { rating, comment, k
 
 export const deleteReviewService = async (reviewId, userId) => {
     const review = await reviewModel.findById(reviewId);
-    if (!review) throw Object.assign(new Error("Đánh giá không tồn tại"), { status: 404 });
-    if (review.user.toString() !== userId) throw Object.assign(new Error("Chỉ có thể xóa đánh giá của bạn"), { status: 403 });
+    if (!review) throw Object.assign(new Error("Review not found"), { status: 404 });
+    if (review.user.toString() !== userId) throw Object.assign(new Error("You can only delete your own review"), { status: 403 });
     const productId = review.product;
     await reviewModel.findByIdAndDelete(reviewId);
     await updateProductRating(productId);

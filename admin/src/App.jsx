@@ -1,4 +1,4 @@
-import { ToastContainer, toast } from "react-toastify";
+﻿import { ToastContainer, toast } from "react-toastify";
 import Navbar from "./components/Navbar";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
@@ -169,3 +169,4 @@ const App = () => {
 };
 
 export default App;
+

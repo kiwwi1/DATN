@@ -12,6 +12,7 @@ import {
     updateOrderStatusService,
     vendorOrdersService,
     updateVendorOrderStatusService,
+    confirmOrderReceivedService,
     cancelOrderService,
     vendorStatsService,
     deleteOrderService,
@@ -187,7 +188,18 @@ const updateVendorOrderStatus = async (req, res) => {
             trackingNumber,
             autoGenerateTracking
         );
-        res.json({ success: true, message: "Order status updated successfully", order });
+        res.json({ success: true, message: "Cập nhật trạng thái đơn hàng thành công", order });
+    } catch (error) {
+        res.status(error.status || 500).json({ success: false, message: error.message });
+    }
+};
+
+const confirmOrderReceived = async (req, res) => {
+    try {
+        const { orderId, vendorId } = req.body;
+        if (!orderId) return res.status(400).json({ success: false, message: "Order ID is required" });
+        const order = await confirmOrderReceivedService({ orderId, vendorId, userId: req.userId });
+        res.json({ success: true, message: "Đã xác nhận nhận hàng thành công", order });
     } catch (error) {
         res.status(error.status || 500).json({ success: false, message: error.message });
     }
@@ -236,6 +248,7 @@ export {
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,
+    confirmOrderReceived,
     cancelOrder,
     vendorStats,
     deleteOrder,

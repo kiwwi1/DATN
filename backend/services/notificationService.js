@@ -1,12 +1,15 @@
-import notificationModel from "../models/notificationModel.js";
+﻿import notificationModel from "../models/notificationModel.js";
 import orderModel from "../models/orderModel.js";
 
 /** userId (string) -> Map<clientId, { res, audience }> */
 const sseClients = new Map();
 let sseClientSeq = 0;
 
-const MOJIBAKE_PATTERN = /[ÃÄÂ]|Ã¯Â¿Â½/;
-const CORRUPTED_TEXT_PATTERN = /[\u0000-\u001F\u007FÃ¯Â¿Â½]/;
+const MOJIBAKE_PATTERN = /[ÃƒÃ„Ã‚]|ÃƒÂ¯Ã‚Â¿Ã‚Â½/;
+const CORRUPTED_TEXT_PATTERN = /[\u0000-\u001F\u007F\uFFFDÃƒÂ¯Ã‚Â¿Ã‚Â½]/;
+const QUESTION_MARK_IN_WORD_PATTERN = /\p{L}\?\p{L}|\?\p{L}|\p{L}\?/u;
+const ENGLISH_TEMPLATE_PATTERN = /\b(order update|your order|is now|new order|price drop|return request|refunded|in transit|out for delivery|buyer confirmed receipt|the buyer confirmed receipt|confirmed receipt)\b/i;
+const BUYER_CONFIRMED_PATTERN = /\bbuyer confirmed receipt\b|\bthe buyer confirmed receipt\b|\bconfirmed receipt\b/i;
 
 const ORDER_STATUS_LABEL = {
   Packing: "Đang đóng gói",
@@ -38,15 +41,33 @@ const isCorruptedText = (value) => {
   return CORRUPTED_TEXT_PATTERN.test(value);
 };
 
-const buildFallbackByType = ({ type, order }) => {
+const hasQuestionMarkReplacement = (value) => {
+  if (typeof value !== "string" || value.length === 0) return false;
+  return QUESTION_MARK_IN_WORD_PATTERN.test(value);
+};
+
+const hasEnglishTemplate = (value) => {
+  if (typeof value !== "string" || value.length === 0) return false;
+  return ENGLISH_TEMPLATE_PATTERN.test(value);
+};
+
+const buildFallbackByType = ({ type, order, audience = "user", sourceTitle = "", sourceMessage = "" }) => {
   const orderCode = order?._id ? String(order._id).slice(-6).toUpperCase() : "";
   const codeStr = orderCode ? ` #${orderCode}` : "";
   const itemNames = Array.isArray(order?.items) && order.items.length > 0
     ? order.items.map((i) => i.name).join(", ")
     : "";
   const itemStr = itemNames ? ` [${itemNames}]` : "";
+  const buyerConfirmed = BUYER_CONFIRMED_PATTERN.test(`${sourceTitle} ${sourceMessage}`);
 
   if (type === "order_status") {
+    if (audience === "vendor" && buyerConfirmed) {
+      return {
+        title: `Khách đã xác nhận nhận hàng${codeStr}`,
+        message: `Khách hàng đã xác nhận nhận hàng cho đơn${codeStr}.`,
+      };
+    }
+
     const status = order?.status;
     const label = ORDER_STATUS_LABEL[status] || status || "Đang xử lý";
     return {
@@ -107,7 +128,13 @@ const buildFallbackByType = ({ type, order }) => {
 const normalizeNotificationText = ({ item, orderMap }) => {
   const normalizedTitle = repairMojibake(item.title);
   const normalizedMessage = repairMojibake(item.message);
-  const needFallback = isCorruptedText(normalizedTitle) || isCorruptedText(normalizedMessage);
+  const needFallback =
+    isCorruptedText(normalizedTitle) ||
+    isCorruptedText(normalizedMessage) ||
+    hasQuestionMarkReplacement(normalizedTitle) ||
+    hasQuestionMarkReplacement(normalizedMessage) ||
+    hasEnglishTemplate(normalizedTitle) ||
+    hasEnglishTemplate(normalizedMessage);
 
   if (!needFallback) {
     return {
@@ -119,7 +146,13 @@ const normalizeNotificationText = ({ item, orderMap }) => {
   }
 
   const order = item.orderId ? orderMap.get(String(item.orderId)) : null;
-  const fallback = buildFallbackByType({ type: item.type, order });
+  const fallback = buildFallbackByType({
+    type: item.type,
+    order,
+    audience: item.audience,
+    sourceTitle: normalizedTitle,
+    sourceMessage: normalizedMessage,
+  });
 
   return {
     ...item,

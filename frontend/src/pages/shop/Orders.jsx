@@ -108,6 +108,7 @@ const Orders = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [confirmingReceipt, setConfirmingReceipt] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [returnModal, setReturnModal] = useState(null);
   const [returnReason, setReturnReason] = useState('damaged');
@@ -209,6 +210,28 @@ const Orders = () => {
 
   const handleReview = (productId, orderId) => {
     navigate(`/product/${productId}?tab=reviews&orderId=${orderId}`);
+  };
+
+  const handleConfirmReceived = async (orderId, vendorId) => {
+    const key = `${orderId}_${vendorId}`;
+    setConfirmingReceipt(key);
+    try {
+      const res = await axios.post(
+        backendUrl + '/api/order/confirm-received',
+        { orderId, vendorId },
+        { headers: { token } }
+      );
+      if (res.data.success) {
+        toast.success('Đã xác nhận nhận hàng thành công.');
+        loadOrders();
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
+    } finally {
+      setConfirmingReceipt('');
+    }
   };
 
   const handlePageChange = (nextPage) => {
@@ -353,6 +376,7 @@ const Orders = () => {
                       const vendorStatusInfo =
                         VENDOR_STATUS_MAP[vendor.vendorStatus] || { label: vendor.vendorStatus, color: 'text-gray-500' };
                       const canReviewVendor = vendor.vendorStatus === 'delivered' || order.status === 'Delivered';
+                      const isConfirmingVendor = confirmingReceipt === `${order._id}_${vendor.key}`;
 
                       return (
                         <div key={`${order._id}-${vendor.key}`} className="border-b last:border-b-0">
@@ -360,6 +384,15 @@ const Orders = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-gray-800">{vendor.vendorShopName || 'Shop'}</span>
                               <span className={`text-xs ${vendorStatusInfo.color}`}>{vendorStatusInfo.label}</span>
+                              {vendor.vendorStatus === 'shipped' && (
+                                <button
+                                  onClick={() => handleConfirmReceived(order._id, vendor.key)}
+                                  disabled={isConfirmingVendor}
+                                  className="rounded border border-emerald-500 px-3 py-1 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isConfirmingVendor ? 'Đang xác nhận...' : 'Đã nhận hàng'}
+                                </button>
+                              )}
                             </div>
                             <div className="text-right">
                               <p className="text-xs text-gray-500">Tạm tính shop</p>
@@ -660,3 +693,7 @@ const Orders = () => {
 };
 
 export default Orders;
+
+
+
+

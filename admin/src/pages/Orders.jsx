@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom'
 import { backendUrl } from '../App.jsx'
 import { formatPrice } from '../utils/priceFormat'
 
-const VENDOR_SHIPPING_STATUSES = new Set(['shipped', 'delivered'])
+const VENDOR_SHIPPING_STATUSES = new Set(['shipped'])
 const LOCKED_ORDER_STATUSES = new Set(['Cancelled', 'Refunded'])
 const LOCKED_VENDOR_STATUSES = new Set(['delivered', 'cancelled'])
 
@@ -444,7 +444,6 @@ const Orders = ({ token }) => {
                             <option value="confirmed">Đã xác nhận</option>
                             <option value="preparing">Đang đóng gói</option>
                             <option value="shipped">Đã bàn giao vận chuyển</option>
-                            <option value="delivered">Đã giao</option>
                           </select>
                         )}
                       </div>
@@ -629,3 +628,4 @@ const Orders = ({ token }) => {
 }
 
 export default Orders
+

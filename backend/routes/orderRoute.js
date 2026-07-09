@@ -10,6 +10,7 @@ import {
     verifyVNPayReturn,
     vendorOrders,
     updateVendorOrderStatus,
+    confirmOrderReceived,
     cancelOrder,
     vendorStats,
 } from '../controllers/orderController.js';
@@ -33,6 +34,7 @@ orderRouter.post('/voucher-suggestions', authUser, listCheckoutVoucherSuggestion
 // User Features
 orderRouter.post('/user-orders',authUser, userOrders);
 orderRouter.post('/cancel',authUser, cancelOrder);
+orderRouter.post('/confirm-received', authUser, confirmOrderReceived);
 //Verify Payment
 orderRouter.post('/verify-stripe',authUser, verifyStripePayment);
 
@@ -40,6 +42,4 @@ orderRouter.post('/verify-stripe',authUser, verifyStripePayment);
 orderRouter.post('/place-order-vnpay', authUser, placeOrderVNPay);
 orderRouter.get('/vnpay-return', verifyVNPayReturn);
 
-
-
-export default orderRouter; 
+export default orderRouter;

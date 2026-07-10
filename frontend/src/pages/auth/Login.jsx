@@ -61,7 +61,7 @@ const Login = () => {
       }
     } catch (error) {
       console.log(error)
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   };
 
@@ -78,7 +78,7 @@ const Login = () => {
       }
     } catch (error) {
       console.log(error)
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   };
 
@@ -94,7 +94,7 @@ const Login = () => {
         toast.error(res.data.message || 'Đăng nhập Google thất bại');
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 

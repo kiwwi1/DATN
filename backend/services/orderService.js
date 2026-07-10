@@ -68,8 +68,50 @@ const findOrderByIdempotency = async (userId, idempotencyKey) => {
 
 // ─── After-payment side-effects ───────────────────────────────────────────────
 
-const markStripeOrderPaid = async (order) => {
+// Hoàn tiền best-effort cho đơn Stripe qua payment_intent của checkout session.
+const refundStripePaymentBestEffort = async (order) => {
+    try {
+        const stripe = getStripe();
+        const session = order.stripeSessionId
+            ? await stripe.checkout.sessions.retrieve(order.stripeSessionId)
+            : null;
+        if (session?.payment_intent) {
+            await stripe.refunds.create({ payment_intent: session.payment_intent });
+            console.log(`Stripe refund created for order ${order._id}`);
+            return true;
+        }
+    } catch (err) {
+        console.warn("Stripe refund failed:", err.message);
+    }
+    return false;
+};
+
+const notifyUserLatePaymentRefund = async (order, refunded) => {
+    const orderCode = String(order._id).slice(-6).toUpperCase();
+    await createNotification(
+        order.userId,
+        "order_cancelled",
+        `Đơn hàng #${orderCode} đã bị hủy trước khi thanh toán hoàn tất`,
+        refunded
+            ? `Đơn hàng #${orderCode} đã bị hủy (quá hạn giữ kho) trước khi thanh toán được xác nhận. Số tiền của bạn sẽ được hoàn tự động qua Stripe.`
+            : `Đơn hàng #${orderCode} đã bị hủy trước khi thanh toán được xác nhận. Vui lòng liên hệ hỗ trợ để được hoàn tiền.`,
+        order._id,
+        null,
+        { audience: "user" }
+    ).catch(() => {});
+};
+
+export const markStripeOrderPaid = async (order) => {
     if (order.payment) return false;
+
+    // Đơn đã hủy (sweeper quá hạn giữ kho hoặc người dùng tự hủy) thì tồn kho
+    // đã được hoàn trả — không được đánh dấu thanh toán/trừ kho lần nữa.
+    // Tiền đã thu được hoàn lại cho khách thay vì ghi nhận đơn.
+    if (order.status === "Cancelled") {
+        const refunded = await refundStripePaymentBestEffort(order);
+        await notifyUserLatePaymentRefund(order, refunded);
+        return false;
+    }
 
     order.payment = true;
     await order.save();
@@ -202,7 +244,10 @@ export const placeOrderStripeService = async ({
     if (currency === "vnd" && finalTotal > STRIPE_VND_LIMIT) {
         await releaseStockByItems(normalizedItems).catch(() => {});
         await releaseVoucherUsage(pricingResult.appliedVouchers).catch(() => {});
-        throw new Error("Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫999,000,000). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng.");
+        throw Object.assign(
+            new Error("Tổng đơn hàng vượt quá giới hạn thanh toán Stripe (₫999,000,000). Vui lòng thanh toán bằng COD hoặc chia nhỏ đơn hàng."),
+            { status: 400, code: "STRIPE_AMOUNT_LIMIT" }
+        );
     }
 
     const now = Date.now();
@@ -359,8 +404,10 @@ export const getStripePaymentStatusService = async (orderId, userId) => {
                 if (metadataOrderId && metadataOrderId !== String(order._id)) {
                     throw Object.assign(new Error("Stripe session metadata mismatch"), { status: 409 });
                 }
-                await markStripeOrderPaid(order);
-                verifiedVia = "stripe_api_paid";
+                const changed = await markStripeOrderPaid(order);
+                verifiedVia = !changed && order.status === "Cancelled"
+                    ? "stripe_paid_order_cancelled_refunded"
+                    : "stripe_api_paid";
             } else {
                 verifiedVia = `stripe_api_${session?.payment_status || "unpaid"}`;
             }
@@ -412,6 +459,9 @@ export const processStripeWebhookService = async ({ rawBody, signature }) => {
     if (!order.stripeSessionId) order.stripeSessionId = session.id;
 
     const changed = await markStripeOrderPaid(order);
+    if (!changed && order.status === "Cancelled") {
+        return { processed: true, changed: false, reason: "order_cancelled_payment_refunded" };
+    }
     return { processed: true, paid: true, changed };
 };
 
@@ -419,17 +469,17 @@ export const processStripeWebhookService = async ({ rawBody, signature }) => {
 
 export const verifyVNPayReturnService = async (query) => {
     const isValid = verifyVNPaySignature(query);
-    if (!isValid) throw new Error("Chữ ký không hợp lệ");
+    if (!isValid) throw Object.assign(new Error("Chữ ký không hợp lệ"), { status: 400, code: "INVALID_SIGNATURE" });
 
     const txnRef = query.vnp_TxnRef;
     const responseCode = query.vnp_ResponseCode;
     const transactionNo = query.vnp_TransactionNo;
 
     const orderId = txnRef?.split("_")[0];
-    if (!orderId) throw new Error("Không tìm thấy mã đơn hàng trong TxnRef");
+    if (!orderId) throw Object.assign(new Error("Không tìm thấy mã đơn hàng trong TxnRef"), { status: 400 });
 
     const order = await orderModel.findById(orderId);
-    if (!order) throw new Error("Đơn hàng không tồn tại");
+    if (!order) throw Object.assign(new Error("Đơn hàng không tồn tại"), { status: 404 });
 
     if (responseCode !== "00") return { success: false, orderId };
 
@@ -473,7 +523,7 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
     if (!CANCELLABLE_STATUSES.includes(order.status)) {
         throw Object.assign(
             new Error(`Không thể hủy đơn ở trạng thái "${order.status}". Chỉ hủy được khi đơn đang "Chờ xác nhận" hoặc "Đang đóng gói".`),
-            { status: 400 }
+            { status: 400, code: "ORDER_NOT_CANCELLABLE" }
         );
     }
 
@@ -528,18 +578,7 @@ export const cancelOrderService = async ({ orderId, userId, cancelReason, cancel
     }
 
     if (order.paymentMethod === "Stripe" && order.payment === true) {
-        try {
-            const stripe = getStripe();
-            const session = order.stripeSessionId
-                ? await stripe.checkout.sessions.retrieve(order.stripeSessionId)
-                : null;
-            if (session?.payment_intent) {
-                await stripe.refunds.create({ payment_intent: session.payment_intent });
-                console.log(`Stripe refund created for order ${orderId}`);
-            }
-        } catch (err) {
-            console.warn("Stripe refund failed:", err.message);
-        }
+        await refundStripePaymentBestEffort(order);
     }
 
     return order;

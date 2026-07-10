@@ -20,12 +20,22 @@ const normalizeShopName = (shopName) =>
         .replace(/\s+/g, " ")
         .toLowerCase();
 
+// Lỗi chung cho cả email không tồn tại lẫn sai mật khẩu — không tiết lộ
+// trường nào sai để chống dò tìm tài khoản (đặc tả UC1, luồng ngoại lệ).
+const buildInvalidCredentialsError = () =>
+    Object.assign(new Error("Invalid credentials"), { status: 401, code: "INVALID_CREDENTIALS" });
+
 export const loginUserService = async (email, password) => {
     const user = await userModel.findOne({ email }).select("+emailVerified");
-    if (!user) throw new Error("User does not exist");
+    if (!user) throw buildInvalidCredentialsError();
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new Error("Invalid credentials");
-    if (!user.emailVerified) throw new Error("Email chưa được xác minh. Vui lòng kiểm tra hộp thư và nhập mã OTP.");
+    if (!isMatch) throw buildInvalidCredentialsError();
+    if (!user.emailVerified) {
+        throw Object.assign(
+            new Error("Email chưa được xác minh. Vui lòng kiểm tra hộp thư và nhập mã OTP."),
+            { status: 403, code: "EMAIL_NOT_VERIFIED" }
+        );
+    }
     return issueAuthSessionTokens(user._id);
 };
 
@@ -57,17 +67,17 @@ const generateOtp = () =>
 
 const validatePasswordOrThrow = (password) => {
     if (!password || password.length < 8) {
-        throw new Error("Mật khẩu phải có ít nhất 8 ký tự");
+        throw Object.assign(new Error("Mật khẩu phải có ít nhất 8 ký tự"), { status: 400 });
     }
     const hasLetter = /[A-Za-z]/.test(password);
     const hasNumber = /\d/.test(password);
     if (!hasLetter || !hasNumber) {
-        throw new Error("Mật khẩu cần gồm cả chữ và số");
+        throw Object.assign(new Error("Mật khẩu cần gồm cả chữ và số"), { status: 400 });
     }
 };
 
 export const registerUserService = async (name, email, password) => {
-    if (!validator.isEmail(email)) throw new Error("Địa chỉ email không hợp lệ");
+    if (!validator.isEmail(email)) throw Object.assign(new Error("Địa chỉ email không hợp lệ"), { status: 400 });
     validatePasswordOrThrow(password);
 
     const exists = await userModel
@@ -75,7 +85,7 @@ export const registerUserService = async (name, email, password) => {
         .select("+emailVerified +emailVerificationToken +emailVerificationExpires");
 
     if (exists) {
-        if (exists.emailVerified) throw new Error("Email này đã được đăng ký");
+        if (exists.emailVerified) throw Object.assign(new Error("Email này đã được đăng ký"), { status: 409, code: "EMAIL_TAKEN" });
         // Tài khoản tồn tại nhưng chưa xác minh → gửi lại OTP
         const otp = generateOtp();
         exists.emailVerificationToken = otp;
@@ -107,13 +117,13 @@ export const verifyEmailService = async (email, otp) => {
         .findOne({ email })
         .select("+emailVerified +emailVerificationToken +emailVerificationExpires");
 
-    if (!user) throw new Error("Email không tồn tại");
-    if (user.emailVerified) throw new Error("Email đã được xác minh trước đó");
+    if (!user) throw Object.assign(new Error("Email không tồn tại"), { status: 404 });
+    if (user.emailVerified) throw Object.assign(new Error("Email đã được xác minh trước đó"), { status: 400 });
     if (!user.emailVerificationToken || user.emailVerificationToken !== otp) {
-        throw new Error("Mã OTP không đúng");
+        throw Object.assign(new Error("Mã OTP không đúng"), { status: 400, code: "INVALID_OTP" });
     }
     if (!user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
-        throw new Error("Mã OTP đã hết hạn. Vui lòng đăng ký lại để nhận mã mới");
+        throw Object.assign(new Error("Mã OTP đã hết hạn. Vui lòng đăng ký lại để nhận mã mới"), { status: 400, code: "OTP_EXPIRED" });
     }
 
     await userModel.updateOne(
@@ -130,15 +140,26 @@ export const verifyEmailService = async (email, otp) => {
 export const registerVendorService = async (userId, shopName, shopAddress, phone) => {
     const trimmedShopName = String(shopName || "").trim().replace(/\s+/g, " ");
     const normalizedShopName = normalizeShopName(trimmedShopName);
-    if (!trimmedShopName) throw new Error("Shop name is required");
+    if (!trimmedShopName) throw Object.assign(new Error("Shop name is required"), { status: 400 });
 
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
+    if (user.role === "vendor") {
+        throw Object.assign(
+            new Error("Tài khoản đã là nhà bán hàng. Vui lòng truy cập Vendor Dashboard."),
+            { status: 400, code: "ALREADY_VENDOR" }
+        );
+    }
+    const buildShopNameTakenError = () =>
+        Object.assign(
+            new Error("Tên cửa hàng đã tồn tại, vui lòng chọn tên khác"),
+            { status: 409, code: "SHOP_NAME_TAKEN" }
+        );
     const existingShop = await userModel.findOne({
         shopNameNormalized: normalizedShopName,
         _id: { $ne: userId },
     });
-    if (existingShop) throw new Error("Tên cửa hàng đã tồn tại, vui lòng chọn tên khác");
+    if (existingShop) throw buildShopNameTakenError();
     user.shopName = trimmedShopName;
     user.shopNameNormalized = normalizedShopName;
     user.shopAddress = String(shopAddress || "").trim();
@@ -148,7 +169,7 @@ export const registerVendorService = async (userId, shopName, shopAddress, phone
         await user.save();
     } catch (error) {
         if (error?.code === 11000 && error?.keyPattern?.shopNameNormalized) {
-            throw new Error("TÃªn cá»­a hÃ ng Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng chá»n tÃªn khÃ¡c");
+            throw buildShopNameTakenError();
         }
         throw error;
     }
@@ -156,7 +177,7 @@ export const registerVendorService = async (userId, shopName, shopAddress, phone
 
 export const getUserProfileService = async (userId) => {
     const user = await userModel.findById(userId).select("-password").lean();
-    if (!user) throw new Error("User not found");
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
     const cleanCart = await sanitizeCartData(user.cartData || {});
     if (Object.keys(cleanCart).length !== Object.keys(user.cartData || {}).length) {
         await userModel.findByIdAndUpdate(userId, { $set: { cartData: cleanCart } });
@@ -166,7 +187,7 @@ export const getUserProfileService = async (userId) => {
 
 export const updateUserProfileService = async (userId, { name, email, phone }, avatarFile) => {
     const user = await userModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
@@ -179,10 +200,10 @@ export const updateUserProfileService = async (userId, { name, email, phone }, a
 };
 
 export const refreshAccessTokenService = async (refreshToken) => {
-    if (!refreshToken) throw new Error("Unauthorized");
+    if (!refreshToken) throw Object.assign(new Error("Unauthorized"), { status: 401, code: "UNAUTHORIZED" });
     const tokens = await refreshAuthSessionTokens(refreshToken);
     const user = await userModel.findById(tokens.userId).select("_id");
-    if (!user) throw new Error("User not found");
+    if (!user) throw Object.assign(new Error("Unauthorized"), { status: 401, code: "UNAUTHORIZED" });
     return tokens;
 };
 
@@ -210,7 +231,7 @@ export const requestPasswordResetService = async (email) => {
             throw new Error("invalid protocol");
         }
     } catch {
-        throw new Error("FRONTEND_URL không hợp lệ");
+        throw Object.assign(new Error("FRONTEND_URL không hợp lệ"), { status: 500 });
     }
     const base = rawBase;
     const resetUrl = `${base}/reset-password?token=${token}`;
@@ -227,7 +248,7 @@ export const requestPasswordResetService = async (email) => {
 };
 
 export const resetPasswordWithTokenService = async (token, newPassword) => {
-    if (!token || typeof token !== "string") throw new Error("Token không hợp lệ");
+    if (!token || typeof token !== "string") throw Object.assign(new Error("Token không hợp lệ"), { status: 400 });
     validatePasswordOrThrow(newPassword);
     const user = await userModel
         .findOne({
@@ -235,7 +256,7 @@ export const resetPasswordWithTokenService = async (token, newPassword) => {
             passwordResetExpires: { $gt: new Date() },
         })
         .select("+passwordResetToken +passwordResetExpires password");
-    if (!user) throw new Error("Liên kết không hợp lệ hoặc đã hết hạn");
+    if (!user) throw Object.assign(new Error("Liên kết không hợp lệ hoặc đã hết hạn"), { status: 400, code: "RESET_TOKEN_INVALID" });
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await userModel.updateOne(
@@ -280,7 +301,7 @@ export const updateNotificationPrefsService = async (userId, prefs) => {
             update[`notificationPrefs.${key}`] = prefs[key];
         }
     }
-    if (!Object.keys(update).length) throw new Error("Không có tuỳ chọn hợp lệ");
+    if (!Object.keys(update).length) throw Object.assign(new Error("Không có tuỳ chọn hợp lệ"), { status: 400 });
     const user = await userModel.findByIdAndUpdate(
         userId,
         { $set: update },

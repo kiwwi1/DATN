@@ -269,7 +269,7 @@ export const claimVoucherUsage = async (appliedVouchers = []) => {
         if (!exists) {
           throw Object.assign(new Error("Voucher không tồn tại"), { status: 400 });
         }
-        throw Object.assign(new Error(`Voucher "${voucherId}" đã hết lượt`), { status: 409 });
+        throw Object.assign(new Error(`Voucher "${voucherId}" đã hết lượt`), { status: 409, code: "VOUCHER_EXHAUSTED" });
       }
 
       rollbackQueue.push(voucherId);

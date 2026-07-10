@@ -28,7 +28,7 @@ const canReviewProductInOrder = async (order, productId) => {
 };
 
 export const canReviewService = async (userId, productId, orderId) => {
-    if (!orderId) throw new Error("orderId is required");
+    if (!orderId) throw Object.assign(new Error("orderId is required"), { status: 400 });
     const order = await orderModel.findById(orderId);
     if (!order) return false;
     if (order.userId?.toString() !== userId?.toString()) return false;
@@ -39,10 +39,10 @@ export const canReviewService = async (userId, productId, orderId) => {
 };
 
 export const createReviewService = async (userId, { productId, orderId, rating, comment }, imageFiles = []) => {
-    if (!productId || !orderId || !rating) throw new Error("productId, orderId and rating are required");
+    if (!productId || !orderId || !rating) throw Object.assign(new Error("productId, orderId and rating are required"), { status: 400 });
 
     const numRating = Number(rating);
-    if (numRating < 1 || numRating > 5) throw new Error("rating must be between 1 and 5");
+    if (numRating < 1 || numRating > 5) throw Object.assign(new Error("rating must be between 1 and 5"), { status: 400 });
 
     const product = await productModel.findById(productId);
     if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
@@ -105,7 +105,7 @@ export const updateReviewService = async (reviewId, userId, { rating, comment, k
 
     if (rating !== undefined) {
         const numRating = Number(rating);
-        if (numRating < 1 || numRating > 5) throw new Error("rating must be between 1 and 5");
+        if (numRating < 1 || numRating > 5) throw Object.assign(new Error("rating must be between 1 and 5"), { status: 400 });
         review.rating = numRating;
     }
     if (comment !== undefined) review.comment = comment;

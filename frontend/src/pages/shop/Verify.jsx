@@ -73,6 +73,14 @@ const Verify = () => {
                     return
                 }
 
+                if (response.data.status === 'Cancelled') {
+                    toast.error(
+                        'Đơn hàng đã bị hủy do quá thời hạn giữ kho. Nếu bạn đã bị trừ tiền, hệ thống sẽ tự động hoàn lại qua Stripe.'
+                    )
+                    navigate('/orders')
+                    return
+                }
+
                 if (attempt < maxAttempts) {
                     await wait(1500)
                 }

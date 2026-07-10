@@ -94,7 +94,7 @@ export const listProductsByCategoryService = async (category) =>
 
 export const removeProductService = async (productId, vendorId) => {
     const product = await productModel.findById(productId);
-    if (!product) throw new Error("Product not found");
+    if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
     if (product.vendorId.toString() !== vendorId.toString()) {
         throw Object.assign(new Error("Unauthorized - You can only delete your own products"), { status: 403 });
     }

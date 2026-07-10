@@ -32,7 +32,7 @@ const alreadyNotifiedRecently = async (userId, productId) => {
 
 export const getPriceAlertStatusService = async (userId, productId) => {
   if (!mongoose.Types.ObjectId.isValid(productId)) {
-    throw new Error("Invalid productId");
+    throw Object.assign(new Error("Invalid productId"), { status: 400 });
   }
   const item = await productPriceAlertModel.findOne({ userId, productId }).lean();
   return !!item?.enabled;
@@ -40,10 +40,10 @@ export const getPriceAlertStatusService = async (userId, productId) => {
 
 export const setPriceAlertSubscriptionService = async (userId, productId, enabled) => {
   if (!mongoose.Types.ObjectId.isValid(productId)) {
-    throw new Error("Invalid productId");
+    throw Object.assign(new Error("Invalid productId"), { status: 400 });
   }
   const user = await userModel.findById(userId).select("_id").lean();
-  if (!user) throw new Error("User not found");
+  if (!user) throw Object.assign(new Error("User not found"), { status: 404 });
   const nextEnabled = enabled !== false;
 
   const updated = await productPriceAlertModel.findOneAndUpdate(

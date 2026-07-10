@@ -60,7 +60,7 @@ const loginUser = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -71,7 +71,7 @@ const loginWithGoogle = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -81,7 +81,7 @@ const registerUser = async (req, res) => {
         const result = await registerUserService(name, email, password);
         res.json({ success: true, ...result });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -92,7 +92,7 @@ const verifyEmail = async (req, res) => {
         attachAuthCookies(res, tokens);
         res.json({ success: true, accessToken: tokens.accessToken });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -103,7 +103,7 @@ const registerVendor = async (req, res) => {
         await registerVendorService(userId, shopName, shopAddress, phone);
         res.json({ success: true, message: "Vendor registered successfully" });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -112,7 +112,7 @@ const getUserProfile = async (req, res) => {
         const user = await getUserProfileService(req.userId);
         res.json({ success: true, user });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -124,7 +124,7 @@ const updateUserProfile = async (req, res) => {
         const user = await getUserProfileService(userId);
         res.json({ success: true, message: "Profile updated successfully", user });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -138,7 +138,7 @@ const forgotPassword = async (req, res) => {
                 "Nếu email đã đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.",
         });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -148,7 +148,7 @@ const resetPassword = async (req, res) => {
         await resetPasswordWithTokenService(token, password);
         res.json({ success: true, message: "Đặt lại mật khẩu thành công." });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -157,7 +157,7 @@ const deleteUser = async (req, res) => {
         await deleteUserService(req.params.id);
         res.json({ success: true, message: "User deleted successfully" });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -189,7 +189,7 @@ const changePassword = async (req, res) => {
         await changePasswordService(userId, currentPassword, newPassword);
         res.json({ success: true, message: "Đổi mật khẩu thành công" });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -199,7 +199,7 @@ const getNotificationPrefs = async (req, res) => {
         const prefs = await getNotificationPrefsService(userId);
         res.json({ success: true, prefs });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -209,7 +209,7 @@ const updateNotificationPrefs = async (req, res) => {
         const prefs = await updateNotificationPrefsService(userId, req.body);
         res.json({ success: true, prefs });
     } catch (error) {
-        res.status(error.status || 500).json({ success: false, message: error.message });
+        res.status(error.status || 500).json({ success: false, message: error.message, code: error.code });
     }
 };
 

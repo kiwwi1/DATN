@@ -170,7 +170,7 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
   if (nextVendorStatus === "delivered") {
     throw Object.assign(
       new Error("Khách hàng phải tự xác nhận đã nhận hàng trước khi đơn chuyển sang hoàn thành"),
-      { status: 400 }
+      { status: 400, code: "CUSTOMER_CONFIRMATION_REQUIRED" }
     );
   }
 
@@ -187,7 +187,7 @@ export const updateVendorOrderStatusService = async (orderId, status, vendorId, 
     !normalizedTracking &&
     !(vendorEntry?.trackingNumber || order.trackingNumber)
   ) {
-    throw Object.assign(new Error("Please provide tracking number before marking order as shipped"), { status: 400 });
+    throw Object.assign(new Error("Please provide tracking number before marking order as shipped"), { status: 400, code: "TRACKING_REQUIRED" });
   }
   if (normalizedTracking !== undefined) {
     const now = Date.now();

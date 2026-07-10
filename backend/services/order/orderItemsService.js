@@ -125,7 +125,7 @@ const enrichItemsWithVariantKey = (items, productMap) =>
     items.map((item) => {
         const product = productMap.get(String(item._id));
         if (!product) throw Object.assign(new Error(`Product ${item._id} not found`), { status: 404 });
-        if (!product.isActive) throw Object.assign(new Error(`Product "${product.name}" is unavailable`), { status: 410 });
+        if (!product.isActive) throw Object.assign(new Error(`Product "${product.name}" is unavailable`), { status: 410, code: "PRODUCT_INACTIVE" });
 
         const combination = getItemCombination(item);
         const inferredVariantKey = buildVariantKey(combination);

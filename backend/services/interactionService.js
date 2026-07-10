@@ -19,6 +19,42 @@ const HIGH_SIGNAL_INTERACTIONS = new Set(["purchased", "addedToCart", "wishliste
 const REC_CACHE_TTL_SEC = 300;
 const REDIS_PREFIX = process.env.REDIS_PREFIX ?? "datn";
 
+const DECAY_TIME_CONSTANT_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+// Lấy rộng hơn số dùng thực để việc re-rank sau suy hao không bị bó theo
+// thứ tự index (index sort theo điểm đã lưu, chưa nhân suy hao).
+const TOP_INTERACTIONS_FETCH = 15;
+const TOP_INTERACTIONS_USE = 5;
+
+// Suy hao "lười" tại thời điểm đọc: điểm lưu trong DB là điểm chốt tại lần
+// tương tác cuối; nhân e^(-Δt/30) để quy mọi bản ghi về cùng mốc hiện tại
+// trước khi so sánh/xếp hạng (Δt tính đến "thời điểm tính toán").
+export const applyTimeDecay = (interactionScore, lastInteraction, now = Date.now()) => {
+    const lastMs = new Date(lastInteraction || 0).getTime();
+    if (!Number.isFinite(lastMs) || lastMs <= 0) return 0;
+    const days = Math.max(0, (now - lastMs) / MS_PER_DAY);
+    return (Number(interactionScore) || 0) * Math.exp(-days / DECAY_TIME_CONSTANT_DAYS);
+};
+
+// Top tương tác của một user sau khi đã áp suy hao thời gian.
+const getTopDecayedInteractions = async (userId) => {
+    const interactions = await userInteractionModel
+        .find({ userId })
+        .sort({ interactionScore: -1 })
+        .limit(TOP_INTERACTIONS_FETCH)
+        .lean();
+
+    const now = Date.now();
+    return interactions
+        .map((interaction) => ({
+            ...interaction,
+            decayedScore: applyTimeDecay(interaction.interactionScore, interaction.lastInteraction, now),
+        }))
+        .filter((interaction) => interaction.decayedScore > 0)
+        .sort((a, b) => b.decayedScore - a.decayedScore)
+        .slice(0, TOP_INTERACTIONS_USE);
+};
+
 const normalizeLimit = (limit) => {
     return Number.isFinite(limit) && limit > 0 ? limit : null;
 };
@@ -99,11 +135,7 @@ const incrementInteraction = async (userId, productId, interactionType, value, u
 const getContentBasedRecs = async (userId, limit) => {
     const normalizedLimit = normalizeLimit(limit);
 
-    const interactions = await userInteractionModel
-        .find({ userId })
-        .sort({ interactionScore: -1 })
-        .limit(5)
-        .lean();
+    const interactions = await getTopDecayedInteractions(userId);
 
     if (interactions.length === 0) return [];
 
@@ -143,11 +175,7 @@ const getContentBasedRecs = async (userId, limit) => {
 const getItemBasedRecs = async (userId, limit) => {
     const normalizedLimit = normalizeLimit(limit);
 
-    const userInteractions = await userInteractionModel
-        .find({ userId })
-        .sort({ interactionScore: -1 })
-        .limit(5)
-        .lean();
+    const userInteractions = await getTopDecayedInteractions(userId);
 
     if (userInteractions.length === 0) return [];
 
@@ -156,7 +184,7 @@ const getItemBasedRecs = async (userId, limit) => {
     // Build target user's sparse interaction vector
     const userVector = {};
     for (const interaction of userInteractions) {
-        userVector[interaction.productId.toString()] = interaction.interactionScore || 0;
+        userVector[interaction.productId.toString()] = interaction.decayedScore;
     }
 
     // Find candidate users who have interacted with the same products
@@ -173,7 +201,11 @@ const getItemBasedRecs = async (userId, limit) => {
             $group: {
                 _id: "$userId",
                 sharedScores: {
-                    $push: { productId: "$productId", score: "$interactionScore" }
+                    $push: {
+                        productId: "$productId",
+                        score: "$interactionScore",
+                        lastInteraction: "$lastInteraction",
+                    }
                 },
             }
         },
@@ -182,13 +214,15 @@ const getItemBasedRecs = async (userId, limit) => {
 
     if (candidateData.length === 0) return [];
 
+    const now = Date.now();
+
     // Compute cosine similarity between target user and each candidate
     // over their shared interaction space
     const similarities = candidateData
         .map((candidate) => {
             const candidateVector = {};
-            for (const { productId, score } of candidate.sharedScores) {
-                candidateVector[productId.toString()] = score;
+            for (const { productId, score, lastInteraction } of candidate.sharedScores) {
+                candidateVector[productId.toString()] = applyTimeDecay(score, lastInteraction, now);
             }
             return {
                 userId: candidate._id,
@@ -218,7 +252,8 @@ const getItemBasedRecs = async (userId, limit) => {
     for (const interaction of candidateInteractions) {
         const pid = interaction.productId.toString();
         const sim = similarityMap.get(interaction.userId.toString()) || 0;
-        productScores[pid] = (productScores[pid] || 0) + interaction.interactionScore * sim;
+        const decayedScore = applyTimeDecay(interaction.interactionScore, interaction.lastInteraction, now);
+        productScores[pid] = (productScores[pid] || 0) + decayedScore * sim;
     }
 
     const rankedProductIds = Object.entries(productScores)

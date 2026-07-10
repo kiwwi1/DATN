@@ -1,6 +1,6 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
-import { trackInteractionService, getRecommendationsService } from "../interactionService.js";
+import { trackInteractionService, getRecommendationsService, applyTimeDecay } from "../interactionService.js";
 import userInteractionModel from "../../models/userInteractionModel.js";
 import productModel from "../../models/productModel.js";
 
@@ -106,5 +106,71 @@ describe("getRecommendationsService", () => {
         const results = await getRecommendationsService(userId, 10);
         const ids = results.map((p) => p._id.toString());
         expect(ids).toContain(productId3.toString());
+    });
+});
+
+describe("applyTimeDecay (suy hao luoi tai thoi diem doc)", () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    it("tuong tac vua xay ra: diem gan nhu nguyen ven", () => {
+        const now = Date.now();
+        expect(applyTimeDecay(100, new Date(now), now)).toBeCloseTo(100, 5);
+    });
+
+    it("sau dung 30 ngay: diem con ~36.8% (e^-1)", () => {
+        const now = Date.now();
+        const thirtyDaysAgo = new Date(now - 30 * DAY_MS);
+        expect(applyTimeDecay(100, thirtyDaysAgo, now)).toBeCloseTo(100 * Math.exp(-1), 5);
+    });
+
+    it("sau 90 ngay: diem con ~5% (e^-3)", () => {
+        const now = Date.now();
+        const ninetyDaysAgo = new Date(now - 90 * DAY_MS);
+        expect(applyTimeDecay(100, ninetyDaysAgo, now)).toBeCloseTo(100 * Math.exp(-3), 5);
+    });
+
+    it("thieu lastInteraction: tra ve 0", () => {
+        expect(applyTimeDecay(100, null)).toBe(0);
+        expect(applyTimeDecay(100, undefined)).toBe(0);
+    });
+
+    it("lastInteraction o tuong lai (lech dong ho): khong khuech dai diem", () => {
+        const now = Date.now();
+        const future = new Date(now + 5 * DAY_MS);
+        expect(applyTimeDecay(100, future, now)).toBe(100);
+    });
+
+    it("CF khong hoi sinh tuong tac da nguoi: candidate cu khong duoc goi y truoc candidate moi", async () => {
+        // userB tuong tu userA qua productId; userB co 2 san pham khac:
+        // productOld tuong tac manh nhung 120 ngay truoc, productNew tuong tac nhe nhung moi.
+        const userB = new mongoose.Types.ObjectId();
+        const productOld = new mongoose.Types.ObjectId();
+        const productNew = new mongoose.Types.ObjectId();
+        await createProduct(productId);
+        await createProduct(productOld);
+        await createProduct(productNew);
+
+        await trackInteractionService(userId, productId, "purchased");
+        await trackInteractionService(userB, productId, "purchased");
+        await trackInteractionService(userB, productNew, "viewed"); // diem tho 1, moi
+
+        // Backdate: diem tho 10 (purchased) nhung nguoi 120 ngay -> decay ~ e^-4 ≈ 0.018 -> 10*0.018 < 1
+        await userInteractionModel.create({
+            userId: userB,
+            productId: productOld,
+            interactions: { purchased: 1 },
+            interactionScore: 10,
+            lastInteraction: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000),
+        });
+
+        const results = await getRecommendationsService(userId, 10);
+        const ids = results.map((p) => p._id.toString());
+        const oldIndex = ids.indexOf(productOld.toString());
+        const newIndex = ids.indexOf(productNew.toString());
+        expect(newIndex).toBeGreaterThanOrEqual(0);
+        // productNew (moi, diem decay ~1) phai xep truoc productOld (diem decay ~0.18)
+        if (oldIndex >= 0) {
+            expect(newIndex).toBeLessThan(oldIndex);
+        }
     });
 });

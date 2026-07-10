@@ -75,9 +75,11 @@ userInteractionSchema.methods.calculateScore = function() {
     score += (this.interactions.searched || 0) * weights.searched;
     score += (this.interactions.timeSpent || 0) * weights.timeSpent;
     
-    // Apply time decay (interactions older than 30 days get reduced weight)
+    // Điểm lưu ở đây được chốt tại thời điểm tương tác (lastInteraction vừa
+    // được cập nhật nên decayFactor ≈ 1). Suy hao theo Δt đến "thời điểm tính
+    // toán" được nhân bổ sung ở tầng đọc — xem applyTimeDecay (interactionService).
     const daysSinceLastInteraction = (Date.now() - this.lastInteraction) / (1000 * 60 * 60 * 24);
-    this.decayFactor = Math.exp(-daysSinceLastInteraction / 30); // 30 days half-life
+    this.decayFactor = Math.exp(-daysSinceLastInteraction / 30); // hằng số thời gian 30 ngày (~36.8% sau 30 ngày)
     
     this.interactionScore = score * this.decayFactor;
     return this.interactionScore;

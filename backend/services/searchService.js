@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import productModel from '../models/productModel.js';
 import userInteractionModel from '../models/userInteractionModel.js';
+import { applyTimeDecay } from './interactionService.js';
 import searchAnalyticsModel from '../models/searchAnalyticsModel.js';
 
 // Weights cho công thức tính điểm liên quan
@@ -135,12 +136,17 @@ export const searchProductsService = async ({
                 userId: new mongoose.Types.ObjectId(userId),
                 productId: { $in: allMatches.map((p) => p._id) },
             })
-            .select('productId interactionScore')
+            .select('productId interactionScore lastInteraction')
             .lean();
 
-        const maxInteraction = Math.max(...interactions.map((i) => i.interactionScore || 0), 1);
-        for (const i of interactions) {
-            personalScores[String(i.productId)] = (i.interactionScore || 0) / maxInteraction;
+        const now = Date.now();
+        const decayedScores = interactions.map((i) => ({
+            productId: i.productId,
+            score: applyTimeDecay(i.interactionScore, i.lastInteraction, now),
+        }));
+        const maxInteraction = Math.max(...decayedScores.map((i) => i.score), 1);
+        for (const i of decayedScores) {
+            personalScores[String(i.productId)] = i.score / maxInteraction;
         }
     }
 
